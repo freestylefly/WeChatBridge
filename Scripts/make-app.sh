@@ -166,31 +166,42 @@ for SLOT_ROW in "${SHARE_SLOTS[@]}"; do
 		LOGO="$ROOT/Resources/AppLogos/$LOGO_NAME"
 		ASSET_CATALOG="$BUILD_ROOT/icon-$SLOT.xcassets"
 		APP_ICONSET="$ASSET_CATALOG/AppIcon.appiconset"
+		LEGACY_ICONSET="$BUILD_ROOT/icon-$SLOT.iconset"
 		PARTIAL_INFO="$BUILD_ROOT/icon-$SLOT.plist"
 		if [ ! -s "$LOGO" ]; then
 			echo "missing Share-menu artwork for $SLOT: $LOGO" >&2
 			exit 1
 		fi
-		rm -rf "$ASSET_CATALOG"
-		mkdir -p "$APP_ICONSET"
+		rm -rf "$ASSET_CATALOG" "$LEGACY_ICONSET"
+		mkdir -p "$APP_ICONSET" "$LEGACY_ICONSET"
 		cp "$ROOT/Resources/ShareIconContents.json" "$APP_ICONSET/Contents.json"
 		for SPEC in "16 16" "32 16" "32 32" "64 32" "128 128" "256 128" "256 256" "512 256" "512 512" "1024 512"; do
 			read -r PIXELS LOGICAL <<< "$SPEC"
 			SUFFIX=""
 			if [ "$PIXELS" = "$((LOGICAL * 2))" ]; then SUFFIX="@2x"; fi
+			ICON_PNG="icon_${LOGICAL}x${LOGICAL}${SUFFIX}.png"
 			sips -z "$PIXELS" "$PIXELS" "$LOGO" \
-				--out "$APP_ICONSET/icon_${LOGICAL}x${LOGICAL}${SUFFIX}.png" >/dev/null
+				--out "$APP_ICONSET/$ICON_PNG" >/dev/null
+			cp "$APP_ICONSET/$ICON_PNG" "$LEGACY_ICONSET/$ICON_PNG"
 		done
-		xcrun actool \
-			--compile "$SLOT_APPEX/Contents/Resources" \
-			--platform macosx \
-			--minimum-deployment-target "$MINIMUM_OS" \
-			--app-icon AppIcon \
-			--output-partial-info-plist "$PARTIAL_INFO" \
-			--output-format human-readable-text \
-			"$ASSET_CATALOG"
-		/usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string AppIcon" "$PLIST"
-		/usr/libexec/PlistBuddy -c "Add :CFBundleIconName string AppIcon" "$PLIST"
+		# Full Xcode provides actool (Assets.car). Command Line Tools alone
+		# only have iconutil, which is enough for a local share-menu icon.
+		if xcrun --find actool >/dev/null 2>&1; then
+			xcrun actool \
+				--compile "$SLOT_APPEX/Contents/Resources" \
+				--platform macosx \
+				--minimum-deployment-target "$MINIMUM_OS" \
+				--app-icon AppIcon \
+				--output-partial-info-plist "$PARTIAL_INFO" \
+				--output-format human-readable-text \
+				"$ASSET_CATALOG"
+			/usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string AppIcon" "$PLIST"
+			/usr/libexec/PlistBuddy -c "Add :CFBundleIconName string AppIcon" "$PLIST"
+		else
+			echo "actool unavailable; compiling $SLOT share icon with iconutil" >&2
+			iconutil --convert icns --output "$SLOT_APPEX/Contents/Resources/AppIcon.icns" "$LEGACY_ICONSET"
+			/usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string AppIcon" "$PLIST"
+		fi
 	fi
 
 	SLOT_LOCALIZATIONS="$ROOT/Resources/ShareLocalizations/$SLOT"
