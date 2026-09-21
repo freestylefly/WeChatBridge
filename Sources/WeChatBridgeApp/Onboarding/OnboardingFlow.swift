@@ -75,7 +75,12 @@ struct OnboardingFlow: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
-        .frame(width: Metrics.onboardingWidth, height: Metrics.onboardingHeight)
+        // The design's width, and only its width: the height is whatever the
+        // step showing asks for. It has to be — the entry roster has grown past
+        // the height the design was drawn at, and a fixed one clipped the
+        // footer button off the bottom of step one. The window follows this
+        // view's own size.
+        .frame(width: Metrics.onboardingWidth)
         .background(Theme.raised)
         .onAppear {
             authorization.refresh()

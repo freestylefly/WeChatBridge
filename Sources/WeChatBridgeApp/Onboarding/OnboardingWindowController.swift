@@ -37,13 +37,14 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
         let controller = NSHostingController(rootView: content())
         // Left at its default the hosting controller pushes its preferred size
         // at the window and AppKit adds a title bar on top of it; the guide is
-        // designed at one size and does not get a vote.
+        // designed at one width and does not get a vote on it.
         controller.sizingOptions = []
         let window = NSWindow(contentViewController: controller)
         window.title = ""
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
-        // No `.resizable`: every step is laid out to fit 920 × 600 exactly.
+        // No `.resizable`: every step is laid out to fit the design width, and
+        // the height is settled below.
         window.styleMask = [.titled, .closable, .fullSizeContentView]
         window.isMovableByWindowBackground = true
         window.isReleasedWhenClosed = false
@@ -51,9 +52,14 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
         // open on another Space. The guide has to follow them there.
         window.collectionBehavior = [.canJoinAllSpaces]
         window.delegate = self
-        // `fullSizeContentView` puts the content view over the whole frame, so
-        // the frame is the design size — setting the *content* size would add a
-        // title bar's height back on.
+        // The design's size. `fullSizeContentView` puts the content view over
+        // the whole frame, so the frame is the design size — setting the
+        // *content* size would add a title bar's height back on.
+        //
+        // Where the guide's own layout asks for more — a step whose roster has
+        // outgrown the design, which is how the footer button came to sit under
+        // the bottom edge of step one — the hosting view's constraints take the
+        // window with them: the size below is where it starts, not a cage.
         window.setFrame(
             NSRect(
                 origin: .zero,

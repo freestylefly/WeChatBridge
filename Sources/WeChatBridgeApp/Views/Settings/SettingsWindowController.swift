@@ -59,6 +59,14 @@ final class SettingsWindowController {
         // 28 pt on top of it, so a 560 pt design came out 588 pt tall. The size
         // here is not negotiable, so the controller does not get a vote.
         controller.sizingOptions = []
+        // Nor does the pane: SwiftUI reports the pane's own layout minimum as
+        // constraints on the hosting view, and AppKit sizes the window to
+        // satisfy them — the 记录 pane asked for a 1521 pt window on its own,
+        // and the frame autosave then remembered that size for 通用. These
+        // panes are scroll views: they are written to take the window they are
+        // given. An autoresizing mask says so, and leaves the size to the user.
+        controller.view.translatesAutoresizingMaskIntoConstraints = true
+        controller.view.autoresizingMask = [.width, .height]
         let window = NSWindow(contentViewController: controller)
         window.title = ""
         window.titleVisibility = .hidden

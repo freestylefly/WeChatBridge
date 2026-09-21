@@ -194,20 +194,29 @@ enum Metrics {
     /// How far above its resting place a toast starts.
     static let toastDrop: CGFloat = 6
 
-    /// The settings window's design size, and now also its floor: every pane is
-    /// written to fit here, and the window may grow past it but not shrink
-    /// below it.
+    /// The settings window's design size, and now also its floor: the window may
+    /// grow past it, but not shrink below it.
+    ///
+    /// The height is what 通用 — the pane every launch lands on — actually
+    /// occupies at this width, measured rather than guessed: at 560 the last
+    /// card of that pane sat under the window's edge, and the row a user
+    /// reaches for when the guide needs re-running was the one below the fold.
+    /// The list panes scroll past this, which is what a list is for.
     static let settingsWidth: CGFloat = 780
-    static let settingsHeight: CGFloat = 560
+    static let settingsHeight: CGFloat = 640
     static let settingsNavWidth: CGFloat = 176
     /// The navigation column runs to the top of the window and the traffic
     /// lights are drawn over it, so the first item starts below them.
     static let settingsTrafficLightInset: CGFloat = 38
 
-    /// The first-run guide. Larger than the settings window because it is read
-    /// once, at full attention, and every step has to fit without scrolling —
-    /// a guide the user has to scroll is a guide whose next button they cannot
-    /// see.
+    /// The first-run guide. Wider than the settings window because it carries an
+    /// illustration beside each step, and read once, at full attention.
+    ///
+    /// The width is the guide's; the height is the size it was drawn at, and the
+    /// frame its window opens from. Every step has to fit without scrolling — a
+    /// guide the user has to scroll is a guide whose next button they cannot
+    /// see — so the window follows the step's own layout rather than holding it
+    /// to this number, which is not a thing a constant can keep up with.
     static let onboardingWidth: CGFloat = 920
     static let onboardingHeight: CGFloat = 600
     /// The art column on the left. The card inside it stops short of the edges
