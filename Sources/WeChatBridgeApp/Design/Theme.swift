@@ -204,16 +204,20 @@ enum Metrics {
     /// lights are drawn over it, so the first item starts below them.
     static let settingsTrafficLightInset: CGFloat = 38
 
-    /// The first-run guide. Larger than the settings window because it is read
-    /// once, at full attention, and every step has to fit without scrolling —
-    /// a guide the user has to scroll is a guide whose next button they cannot
-    /// see.
+    /// The first-run guide. Taller than the settings window because step 1 now
+    /// lists nine share entries; the step bar and the next button stay pinned,
+    /// and only the entry list scrolls when the pane runs out of room.
     static let onboardingWidth: CGFloat = 920
-    static let onboardingHeight: CGFloat = 600
+    static let onboardingHeight: CGFloat = 640
     /// The art column on the left. The card inside it stops short of the edges
     /// so the aurora reads as a ground rather than as a border.
     static let onboardingArtWidth: CGFloat = 300
     static let onboardingArtContentWidth: CGFloat = 252
+    /// Vertical inset so the step bar shares the title-bar band with the
+    /// traffic lights instead of sitting under a blank strip.
+    static let onboardingTrafficLightInset: CGFloat = 8
+    /// Leading inset that clears the traffic-light cluster on the same row.
+    static let onboardingTrafficLightLeading: CGFloat = 72
 }
 
 /// One curve for state, one set of durations for windows appearing.

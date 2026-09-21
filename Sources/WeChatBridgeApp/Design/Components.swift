@@ -523,7 +523,7 @@ struct StepBar: View {
     var body: some View {
         HStack(spacing: 0) {
             ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
-                VStack(spacing: 9) {
+                VStack(spacing: 6) {
                     Text(step)
                         .font(.system(size: 13, weight: index == current ? .semibold : .regular))
                         .foregroundStyle(index == current ? Theme.ink : Theme.inkTertiary)
@@ -531,15 +531,15 @@ struct StepBar: View {
                         .fill(index == current ? Theme.brandPrimary : Color.clear)
                         .frame(height: 2)
                 }
-                .frame(width: 96)
+                .frame(maxWidth: .infinity)
                 .contentShape(Rectangle())
 
                 if index < steps.count - 1 {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(Theme.inkTertiary)
-                        .padding(.bottom, 11)
-                        .padding(.horizontal, 4)
+                        .padding(.bottom, 8)
+                        .padding(.horizontal, 2)
                 }
             }
         }

@@ -43,7 +43,8 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
         window.title = ""
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
-        // No `.resizable`: every step is laid out to fit 920 × 600 exactly.
+        // No `.resizable`: the guide is authored at Metrics.onboardingWidth ×
+        // onboardingHeight, with the entry list scrolling inside that frame.
         window.styleMask = [.titled, .closable, .fullSizeContentView]
         window.isMovableByWindowBackground = true
         window.isReleasedWhenClosed = false

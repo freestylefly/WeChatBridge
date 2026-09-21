@@ -11,9 +11,9 @@ import UniformTypeIdentifiers
 /// a settings window cannot demonstrate, and a user who never finds the entries
 /// never sees the app work at all.
 ///
-/// Every step is laid out to fit without scrolling. A guide whose next button is
-/// below the fold is a guide people abandon, so anything that does not fit is a
-/// cue to cut the copy rather than to add a `ScrollView`.
+/// The step bar and the primary button stay pinned. Only the entry list may
+/// scroll — nine share rows no longer fit a fixed pane, and a next button below
+/// the fold is a guide people abandon.
 struct OnboardingFlow: View {
     @ObservedObject var preferences: Preferences
     @ObservedObject var authorization: AccessibilityAuthorization
@@ -51,16 +51,23 @@ struct OnboardingFlow: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // Same row as the traffic lights: clear them horizontally, keep a
+            // short vertical inset so the header is not a tall empty band.
             StepBar(steps: Step.allCases.map(\.title), current: step.rawValue)
-                .frame(height: 52)
-                .padding(.top, 6)
+                .frame(height: 40)
                 .frame(maxWidth: .infinity)
+                .padding(.top, Metrics.onboardingTrafficLightInset)
+                .padding(.leading, Metrics.onboardingTrafficLightLeading)
+                .padding(.trailing, Metrics.onboardingTrafficLightLeading)
 
             Rectangle()
                 .fill(Theme.stroke)
                 .frame(height: Stroke.hairline)
 
-            HStack(spacing: 0) {
+            // Top-aligned: a center-aligned HStack clips both columns when the
+            // entry list's ideal height exceeds the pane, which hid the art
+            // card and the pinned footer together.
+            HStack(alignment: .top, spacing: 0) {
                 art
                     .frame(width: Metrics.onboardingArtWidth)
                     .frame(maxHeight: .infinity)
@@ -71,9 +78,11 @@ struct OnboardingFlow: View {
                 Rectangle()
                     .fill(Theme.stroke)
                     .frame(width: Stroke.hairline)
+                    .frame(maxHeight: .infinity)
                 pane
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .frame(width: Metrics.onboardingWidth, height: Metrics.onboardingHeight)
         .background(Theme.raised)
@@ -96,7 +105,9 @@ struct OnboardingFlow: View {
     // MARK: - Art column
 
     private var art: some View {
-        ZStack {
+        // Top-aligned ZStack: a ScrollView here was vertically centering the
+        // menu card in the tall column and leaving a blank band under the step bar.
+        ZStack(alignment: .top) {
             AuroraBackdrop()
             Group {
                 switch step {
@@ -109,6 +120,8 @@ struct OnboardingFlow: View {
                 }
             }
             .frame(width: Metrics.onboardingArtContentWidth)
+            .padding(.top, 16)
+            .padding(.bottom, 16)
         }
     }
 
@@ -121,13 +134,11 @@ struct OnboardingFlow: View {
             case .permissions: permissionsStep
             case .done: doneStep
             }
-            // Every step but the last is read top-down. The last one is a full
-            // stop, and a full stop belongs in the middle of the pane rather
-            // than pinned under a step bar it no longer belongs to.
-            if step != .done { Spacer(minLength: 0) }
         }
         .padding(.horizontal, 40)
-        .padding(.vertical, 28)
+        .padding(.top, 16)
+        .padding(.bottom, 20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var entriesStep: some View {
@@ -137,17 +148,30 @@ struct OnboardingFlow: View {
                 subtitle: L10n.text("把微信里的聊天记录压缩包接住，再交给目标 App。")
             )
 
-            ShareEntryList(probe: probe, spacing: Space.m, carded: false)
-                .padding(.top, 20)
+            // `minHeight: 0` is load-bearing: without it ScrollView's minimum
+            // size is the full list, the VStack grows past the window, and both
+            // the art column and the footer are clipped.
+            ScrollView {
+                ShareEntryList(
+                    probe: probe,
+                    spacing: Space.s,
+                    carded: false,
+                    compactDetails: true
+                )
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .frame(minHeight: 0, maxHeight: .infinity)
+            .padding(.top, 12)
 
             Text(L10n.text("以后随时能在设置 → 入口 里改。"))
                 .font(Typo.paneCaption)
                 .foregroundStyle(Theme.inkTertiary)
-                .padding(.top, 14)
+                .padding(.top, 10)
 
             StepFooter(next: (L10n.text("继续"), { step = .permissions }))
-                .padding(.top, 20)
+                .padding(.top, 12)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var permissionsStep: some View {
@@ -171,6 +195,8 @@ struct OnboardingFlow: View {
                 .foregroundStyle(Theme.inkTertiary)
                 .padding(.top, 14)
 
+            Spacer(minLength: 0)
+
             StepFooter(
                 back: (L10n.text("上一步"), { step = .entries }),
                 // The button says what pressing it means. "继续" over an
@@ -180,7 +206,6 @@ struct OnboardingFlow: View {
                     { step = .done }
                 )
             )
-            .padding(.top, 30)
         }
     }
 
