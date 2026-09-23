@@ -210,10 +210,19 @@ private struct AddForwardTargetButton: View {
             }
             .frame(width: 320)
             .onDisappear {
-                if pendingFinder {
-                    pendingFinder = false
-                    chooseFromFinder()
-                }
+                // The popover is torn down inside a Core Animation transaction,
+                // and AppKit refuses a modal panel started from there:
+                //
+                //   Suppressing invocation of -[NSApplication runModalForWindow:].
+                //   ... cannot run inside a transaction begin/commit pair
+                //
+                // `runModal()` then returns `.abort`, which the guard in
+                // `chooseFromFinder()` reads as "the user cancelled" — no panel,
+                // no error, nothing. Opening the popover and dismissing it are
+                // one turn of the runloop, so hand the panel to the next one.
+                guard pendingFinder else { return }
+                pendingFinder = false
+                Task { @MainActor in chooseFromFinder() }
             }
         }
         .onChange(of: expanded) { _, value in if !value { focused = true } }
