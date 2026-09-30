@@ -38,6 +38,17 @@ public enum DisplayName {
         return truncate(name)
     }
 
+    /// A subfolder path, each component sanitized as a name and rejoined with
+    /// "/" so a multi-level value such as 「参考/微信流」 keeps its hierarchy.
+    /// Empty input or input with no usable components yields "".
+    public static func subfolderPath(_ raw: String?) -> String {
+        let components = (raw ?? "")
+            .split(separator: "/", omittingEmptySubsequences: true)
+            .map { sanitize(String($0)) }
+            .filter { !$0.isEmpty }
+        return components.joined(separator: "/")
+    }
+
     /// Keeps the extension attached: a 260-character Chinese name truncated
     /// naively becomes an extensionless file that no app knows how to open.
     static func truncate(_ name: String, limit: Int = 200) -> String {

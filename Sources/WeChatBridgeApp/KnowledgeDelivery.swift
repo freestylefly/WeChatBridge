@@ -29,7 +29,8 @@ enum KnowledgeDelivery {
         let vault = URL(fileURLWithPath: vaultPath, isDirectory: true)
         try FolderDelivery.validateFolder(vault)
 
-        let folderName = DisplayName.sanitize(subfolder.isEmpty ? "微信流" : subfolder)
+        let subfolderPath = DisplayName.subfolderPath(subfolder)
+        let folderName = subfolderPath.isEmpty ? "微信流" : subfolderPath
         let root = vault.appendingPathComponent(folderName, isDirectory: true)
         let attachments = root.appendingPathComponent("附件", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

@@ -45,4 +45,20 @@ final class DisplayNameTests: XCTestCase {
         // bytes, and the extension is what makes the file openable at all.
         XCTAssertTrue(sanitized.hasPrefix("记"))
     }
+
+    func testSubfolderPathKeepsEveryLevelOfTheHierarchy() {
+        // The reason this method exists: sanitize would collapse the value to
+        // its last component, silently dropping the leading levels.
+        XCTAssertEqual(DisplayName.subfolderPath("参考/微信流"), "参考/微信流")
+        // Empty components collapse away.
+        XCTAssertEqual(DisplayName.subfolderPath("a//b"), "a/b")
+        XCTAssertEqual(DisplayName.subfolderPath("/a/b/"), "a/b")
+        // Each level is sanitized on its own.
+        XCTAssertEqual(DisplayName.subfolderPath("a:b/c"), "a-b/c")
+        // No usable input, no folder.
+        XCTAssertEqual(DisplayName.subfolderPath(""), "")
+        XCTAssertEqual(DisplayName.subfolderPath(nil), "")
+        // A single level behaves exactly as before.
+        XCTAssertEqual(DisplayName.subfolderPath("微信流"), "微信流")
+    }
 }
