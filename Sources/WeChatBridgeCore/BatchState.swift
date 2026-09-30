@@ -134,7 +134,7 @@ public struct BatchState: Codable, Sendable, Hashable {
                 action: action,
                 targetName: targetName
             )
-        case .codex, .claude, .doubao, .qwen, .workBuddy, .weSight, .obsidian, .custom:
+        case .codex, .claude, .doubao, .qwen, .workBuddy, .weSight, .deepSeekHarness, .obsidian, .custom:
             return BatchState(outcome: nil, action: action, targetName: targetName)
         }
     }

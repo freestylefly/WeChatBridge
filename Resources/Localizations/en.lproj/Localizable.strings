@@ -15,6 +15,7 @@
 "发给 %@" = "Send to %@";
 "发给豆包" = "Send to Doubao";
 "发给 WeSight" = "Send to WeSight";
+"发给 DeepSeek Harness" = "Send to DeepSeek Harness";
 "沉淀到 Obsidian" = "Save to Obsidian";
 "添加应用…" = "Add an App…";
 
@@ -106,6 +107,7 @@
 "激活 Claude 并直接粘贴到输入框。" = "Brings Claude forward and pastes straight into its input.";
 "激活豆包并直接粘贴到输入框。" = "Brings Doubao forward and pastes straight into its input.";
 "激活 WeSight 并直接粘贴到输入框。" = "Brings WeSight forward and pastes straight into its input.";
+"激活 DeepSeek Harness 并直接粘贴到输入框。" = "Brings DeepSeek Harness forward and pastes straight into its input.";
 "把聊天记录转成 Markdown，写入选定的 Obsidian 知识库。" = "Turns the chat archive into Markdown and writes it into the selected Obsidian vault.";
 "只放进剪贴板，去哪儿按 ⌘V 由你决定。" = "Puts them on the clipboard and leaves the ⌘V to you.";
 "转发时从你自己的清单里挑一个 App，激活它并粘贴。" = "Pick an app from your own list when you forward; WeChatBridge brings it forward and pastes.";

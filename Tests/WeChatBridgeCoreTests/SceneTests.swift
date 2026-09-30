@@ -83,6 +83,7 @@ final class SceneTests: XCTestCase {
         XCTAssertEqual(decodedV2.compatibleAgents, [.chatGPTCodex])
         XCTAssertTrue(decodedV2.isOfficial)
         XCTAssertEqual(AgentID.matching(.weSight), .weSight)
+        XCTAssertNil(AgentID.matching(.deepSeekHarness))
     }
 
     func testOfficialTaskCopiesToAnEditableUserTask() {

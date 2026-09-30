@@ -24,6 +24,7 @@ SHARE_SLOTS=(
 	"QwenWork|WeChatBridgeShareQwenWork|ShareQwenWork|qwen|发给千问办公"
 	"WorkBuddy|WeChatBridgeShareWorkBuddy|ShareWorkBuddy|workBuddy|发给 WorkBuddy"
 	"WeSight|WeChatBridgeShareWeSight|ShareWeSight|weSight|发给 WeSight"
+	"DeepSeekHarness|WeChatBridgeShareDeepSeekHarness|ShareDeepSeekHarness|deepSeekHarness|发给 DeepSeek Harness"
 	"Obsidian|WeChatBridgeShareObsidian|ShareObsidian|obsidian|沉淀到 Obsidian"
 	"Clipboard|WeChatBridgeShareClipboard|ShareClipboard|clipboard|复制到剪贴板"
 	"Custom|WeChatBridgeShareCustom|ShareCustom|custom|发送到自定义"

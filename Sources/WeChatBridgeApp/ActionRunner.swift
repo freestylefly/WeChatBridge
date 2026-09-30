@@ -79,7 +79,7 @@ final class ActionRunner {
             // Nothing is shown: the share sheet said 「已复制到剪贴板」 a moment
             // ago and is still on screen. A second capsule saying it again is
             // WeChatBridge talking over the system.
-        case .codex, .claude, .doubao, .qwen, .workBuddy, .weSight, .obsidian, .custom:
+        case .codex, .claude, .doubao, .qwen, .workBuddy, .weSight, .deepSeekHarness, .obsidian, .custom:
             // Shares and WeChat captures share the same clipboard queue.
             //
             // Read here rather than where the panel opens. This forward may wait

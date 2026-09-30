@@ -16,13 +16,14 @@ final class ShareActionTests: XCTestCase {
     }
 
     func testOnlyForwardingActionsNameATargetApp() {
-        XCTAssertEqual(ShareAction.allCases.count, 9)
+        XCTAssertEqual(ShareAction.allCases.count, 10)
         XCTAssertEqual(ShareAction.codex.targetBundleIdentifier, "com.openai.codex")
         XCTAssertEqual(ShareAction.claude.targetBundleIdentifier, "com.anthropic.claudefordesktop")
         XCTAssertEqual(ShareAction.doubao.targetBundleIdentifier, "com.bot.pc.doubao")
         XCTAssertEqual(ShareAction.qwen.targetBundleIdentifier, "com.alibaba.qwenwork")
         XCTAssertEqual(ShareAction.workBuddy.targetBundleIdentifier, "com.tencent.workbuddy.mac")
         XCTAssertEqual(ShareAction.weSight.targetBundleIdentifier, "ai.wesight.app")
+        XCTAssertEqual(ShareAction.deepSeekHarness.targetBundleIdentifier, "com.deepseek.dsh")
         XCTAssertEqual(ShareAction.obsidian.targetBundleIdentifier, "md.obsidian")
         XCTAssertNil(ShareAction.clipboard.targetBundleIdentifier)
         // 「发送到自定义」 names no app of its own: the one it goes to is chosen
@@ -63,7 +64,7 @@ final class ShareActionTests: XCTestCase {
         XCTAssertFalse(ShareAction.clipboard.needsIntent)
         for action in [
             ShareAction.codex, .claude, .doubao, .qwen, .workBuddy,
-            .weSight, .obsidian, .custom,
+            .weSight, .deepSeekHarness, .obsidian, .custom,
         ] {
             XCTAssertTrue(action.needsIntent, "\(action)")
         }
