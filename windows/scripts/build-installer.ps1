@@ -23,24 +23,29 @@ $helperManifest.Save($helperManifestPath)
 if (-not $SkipPublish) {
     & dotnet publish (Join-Path $repositoryRoot 'windows\src\WeChatBridge.Windows\WeChatBridge.Windows.csproj') -c Release -r win-x64 --self-contained true "-p:Version=$Version" -o $payload --nologo
     if ($LASTEXITCODE -ne 0) { throw 'Main publish failed.' }
-    & dotnet publish (Join-Path $repositoryRoot 'windows\src\WeChatBridge.ShareTarget\WeChatBridge.ShareTarget.csproj') -c Release -r win-x64 --self-contained true "-p:Version=$Version" "-p:ApplicationManifest=$helperManifestPath" -o (Join-Path $payload 'share-target') --nologo
+    # The helper installs next to the main exe so both hosts share a single copy
+    # of the self-contained runtime — a share-target subdirectory would carry a
+    # second ~195MB runtime. Only its own application files move into the payload.
+    $shareTargetStage = Join-Path $DistDirectory 'share-target'
+    & dotnet publish (Join-Path $repositoryRoot 'windows\src\WeChatBridge.ShareTarget\WeChatBridge.ShareTarget.csproj') -c Release -r win-x64 --self-contained true "-p:Version=$Version" "-p:ApplicationManifest=$helperManifestPath" -o $shareTargetStage --nologo
     if ($LASTEXITCODE -ne 0) { throw 'ShareTarget publish failed.' }
+    Get-ChildItem -LiteralPath $shareTargetStage -Filter 'WeChatBridge.ShareTarget.*' -File | Copy-Item -Destination $payload -Force
 }
+# Stale helpers from builds that predated the single-directory layout must not
+# reach the installer: the payload is reused incrementally between versions.
+Remove-Item -LiteralPath (Join-Path $payload 'share-target') -Recurse -Force -ErrorAction SilentlyContinue
 # A self-contained payload must not silently become a framework-dependent installer.
 foreach ($applicationFile in @(
     'WeChatBridge.Windows.exe', 'WeChatBridge.Windows.dll', 'WeChatBridge.Windows.Core.dll',
-    'share-target\WeChatBridge.ShareTarget.exe', 'share-target\WeChatBridge.ShareTarget.dll',
-    'share-target\WeChatBridge.Windows.Core.dll'
+    'WeChatBridge.ShareTarget.exe', 'WeChatBridge.ShareTarget.dll'
 )) {
     $file = Get-Item -LiteralPath (Join-Path $payload $applicationFile)
     if ([version]$file.VersionInfo.FileVersion -ne [version]"$Version.0") {
         throw "Application file version does not match installer version: $applicationFile ($($file.VersionInfo.FileVersion))"
     }
 }
-foreach ($hostDirectory in @($payload, (Join-Path $payload 'share-target'))) {
-    foreach ($runtimeFile in @('hostfxr.dll','hostpolicy.dll','coreclr.dll','PresentationFramework.dll')) {
-        if (-not (Test-Path (Join-Path $hostDirectory $runtimeFile))) { throw "Missing embedded runtime: $runtimeFile" }
-    }
+foreach ($runtimeFile in @('hostfxr.dll','hostpolicy.dll','coreclr.dll','PresentationFramework.dll')) {
+    if (-not (Test-Path (Join-Path $payload $runtimeFile))) { throw "Missing embedded runtime: $runtimeFile" }
 }
 $certDirectory = Join-Path $payload 'certs'
 New-Item -ItemType Directory -Path $certDirectory -Force | Out-Null
@@ -60,7 +65,7 @@ $msix = Join-Path $payload 'WeChatBridge.ShareTarget.msix'
 & (Join-Path $PSScriptRoot 'Test-SharePackage.ps1') -InstallRoot $payload
 foreach ($file in @(
     (Join-Path $payload 'WeChatBridge.Windows.exe'),
-    (Join-Path $payload 'share-target\WeChatBridge.ShareTarget.exe'),
+    (Join-Path $payload 'WeChatBridge.ShareTarget.exe'),
     $msix
 )) {
     & signtool sign /fd SHA256 /sha1 $SigningThumbprint /s My $file

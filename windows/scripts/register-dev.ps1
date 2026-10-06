@@ -18,7 +18,12 @@ trap {
     throw
 }
 
-$helper = Join-Path $installRoot 'share-target\WeChatBridge.ShareTarget.exe'
+$helper = Join-Path $installRoot 'WeChatBridge.ShareTarget.exe'
+if (-not (Test-Path $helper)) {
+    # Development trees published before the single-directory layout kept the
+    # helper under share-target\.
+    $helper = Join-Path $installRoot 'share-target\WeChatBridge.ShareTarget.exe'
+}
 $manifestDir = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\packaging\SparsePackage'))
 $manifestPath = Join-Path $manifestDir 'AppxManifest.xml'
 $packagePath = Join-Path $installRoot 'WeChatBridge.ShareTarget.msix'

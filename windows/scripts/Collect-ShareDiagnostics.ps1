@@ -35,6 +35,7 @@ Section 'System' {
 $appRoot = Join-Path $env:LOCALAPPDATA 'WeChatBridge\App'
 Section 'Installed files' {
     foreach ($relative in @('WeChatBridge.Windows.exe','WeChatBridge.Windows.dll','WeChatBridge.Windows.Core.dll',
+        'WeChatBridge.ShareTarget.exe','WeChatBridge.ShareTarget.dll',
         'share-target\WeChatBridge.ShareTarget.exe','share-target\WeChatBridge.ShareTarget.dll',
         'WeChatBridge.ShareTarget.msix','resources.pri','Assets\Square44x44Logo.png','Assets\Square150x150Logo.png')) {
         $path = Join-Path $appRoot $relative
@@ -45,7 +46,8 @@ Section 'Installed files' {
     }
 }
 Section 'Share component runtime identity (1.0.5 or later)' {
-    $helper=Join-Path $appRoot 'share-target\WeChatBridge.ShareTarget.exe'
+    $helper=Join-Path $appRoot 'WeChatBridge.ShareTarget.exe'
+    if (-not (Test-Path -LiteralPath $helper)) { $helper=Join-Path $appRoot 'share-target\WeChatBridge.ShareTarget.exe' }
     if (-not (Test-Path -LiteralPath $helper)) { Record 'HelperMissing'; return }
     $version=(Get-Item -LiteralPath $helper).VersionInfo.FileVersion
     if ([version]$version -lt [version]'1.0.5.0') { Record 'Older build has no side-effect-free identity probe.'; return }

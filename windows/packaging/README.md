@@ -5,7 +5,7 @@ registration. The executables remain outside the package:
 
 ```text
 <install-root>/WeChatBridge.Windows.exe
-<install-root>/share-target/WeChatBridge.ShareTarget.exe
+<install-root>/WeChatBridge.ShareTarget.exe
 <install-root>/resources.pri
 <install-root>/Assets/
 ```
@@ -43,7 +43,7 @@ external WPF/helper binaries and the sparse MSIX in one ZIP bundle.
 
 `windows/scripts/build-installer.ps1` produces a self-contained x64 MSI and Setup.exe with both the main app and ShareTarget runtime included. Setup has no runtime download step when built with `-SelfContained`.
 
-Version 1.0.1 is the minimum supported installer version: older Windows application files used file version 1.0.0 even when their MSI version was 0.1.0. Publishing with a lower file version can make Windows Installer skip the application components during an upgrade. The builder checks all six application EXE/DLL file versions against the installer version, and registration checks that all six files exist before reporting installation success.
+Version 1.0.1 is the minimum supported installer version: older Windows application files used file version 1.0.0 even when their MSI version was 0.1.0. Publishing with a lower file version can make Windows Installer skip the application components during an upgrade. The builder checks all five application EXE/DLL file versions against the installer version, and registration checks that all five files exist before reporting installation success.
 
 Requirements to build: .NET 10 SDK, Windows SDK (`makepri`, `makeappx`, `signtool`), WiX 6 and UI/Util/Bal/Netfx extensions, and an existing code-signing certificate. Set `-WixExtensionDirectory` and `-SigningThumbprint` to the local tooling and certificate. Only public `.cer` files are embedded; private signing material is rejected.
 
