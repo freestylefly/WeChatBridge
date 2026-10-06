@@ -13,6 +13,13 @@
     <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
 
+  <!-- The full-Windows C#/WinRT projection is ~53MB after crossgen — nearly a
+       third of the payload — and its methods are rarely on a hot path, so it
+       stays IL-only while everything else keeps ReadyToRun. -->
+  <ItemGroup>
+    <PublishReadyToRunExclude Include="Microsoft.Windows.SDK.NET.dll" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\WeChatBridge.Windows.Core\WeChatBridge.Windows.Core.csproj" />
   </ItemGroup>

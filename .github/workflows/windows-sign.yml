@@ -56,9 +56,10 @@ jobs:
 
       - name: Publish external binaries
         run: |
-          New-Item -ItemType Directory -Force -Path windows/artifacts/release/share-target | Out-Null
           dotnet publish windows/src/WeChatBridge.Windows/WeChatBridge.Windows.csproj --configuration Release --runtime win-x64 --self-contained false --output windows/artifacts/release --nologo
-          dotnet publish windows/src/WeChatBridge.ShareTarget/WeChatBridge.ShareTarget.csproj --configuration Release --runtime win-x64 --self-contained false --output windows/artifacts/release/share-target --nologo
+          dotnet publish windows/src/WeChatBridge.ShareTarget/WeChatBridge.ShareTarget.csproj --configuration Release --runtime win-x64 --self-contained false --output windows/artifacts/release/share-target-stage --nologo
+          Copy-Item windows/artifacts/release/share-target-stage/WeChatBridge.ShareTarget.* windows/artifacts/release/
+          Remove-Item windows/artifacts/release/share-target-stage -Recurse -Force
 
       - name: Create unsigned MSIX
         shell: pwsh

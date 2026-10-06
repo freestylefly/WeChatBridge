@@ -23,7 +23,7 @@ $dotnet = 'C:\Program Files\dotnet\dotnet.exe'
 
 ```text
 <install-root>\WeChatBridge.Windows.exe
-<install-root>\share-target\WeChatBridge.ShareTarget.exe
+<install-root>\WeChatBridge.ShareTarget.exe
 ```
 
 随后运行：

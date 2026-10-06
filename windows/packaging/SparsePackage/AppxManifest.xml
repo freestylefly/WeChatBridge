@@ -40,7 +40,12 @@
       微<U+2060>信流 word-joiner spelling: a contiguous 微信/WeChat/Weixin
       substring is still hidden by WeChat's filter.
     -->
-    <Application Id="Share.Hub" Executable="share-target\WeChatBridge.ShareTarget.exe" uap10:TrustLevel="mediumIL" uap10:RuntimeBehavior="win32App">
+    <!--
+      The helper installs next to the main exe at the external-content root so
+      both hosts share one self-contained runtime — a dedicated subdirectory
+      would ship a second full copy.
+    -->
+    <Application Id="Share.Hub" Executable="WeChatBridge.ShareTarget.exe" uap10:TrustLevel="mediumIL" uap10:RuntimeBehavior="win32App">
       <uap:VisualElements AppListEntry="none" DisplayName="微⁠信流" Description="将聊天归档交给微⁠信流选择目标" BackgroundColor="transparent" Square44x44Logo="Assets\Square44x44Logo.png" Square150x150Logo="Assets\Square150x150Logo.png" />
       <Extensions>
         <uap:Extension Category="windows.shareTarget">
