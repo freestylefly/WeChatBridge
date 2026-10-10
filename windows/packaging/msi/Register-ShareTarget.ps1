@@ -182,7 +182,9 @@ public static class UserenvNative {
         Add-AppxPackage -Path $msix -ExternalLocation $InstallRoot -ForceApplicationShutdown -ForceUpdateFromAnyVersion
     }
     catch {
-        Log "Add-AppxPackage initial attempt failed ($($_.Exception.Message)). Cleaning AppContainer profiles and retrying..."
+        Log "Add-AppxPackage initial attempt failed ($($_.Exception.Message)). Unregistering old package, cleaning AppContainer profiles and retrying..."
+        Get-AppxPackage -Name 'WeChatBridge.Windows.ShareTarget' -ErrorAction SilentlyContinue |
+            Remove-AppxPackage -ErrorAction SilentlyContinue
         Clear-AppContainerProfiles
         Add-AppxPackage -Path $msix -ExternalLocation $InstallRoot -ForceApplicationShutdown -ForceUpdateFromAnyVersion
     }

@@ -152,6 +152,8 @@ try {
     Add-AppxPackage -Path $packagePath -ExternalLocation $installRoot -ForceApplicationShutdown -ForceUpdateFromAnyVersion
 }
 catch {
+    Get-AppxPackage -Name 'WeChatBridge.Windows.ShareTarget' -ErrorAction SilentlyContinue |
+        Remove-AppxPackage -ErrorAction SilentlyContinue
     Clear-AppContainerProfiles
     try {
         Add-AppxPackage -Path $packagePath -ExternalLocation $installRoot -ForceApplicationShutdown -ForceUpdateFromAnyVersion
