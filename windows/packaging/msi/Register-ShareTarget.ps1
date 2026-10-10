@@ -79,15 +79,113 @@ try {
         }
     }
 
+    function Clear-AppContainerProfiles {
+        Log "Starting AppContainer profile cleanup..."
+        $code = @"
+using System;
+using System.Runtime.InteropServices;
+public static class UserenvNative {
+    [DllImport("userenv.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    public static extern int DeleteAppContainerProfile(string pszAppContainerName);
+}
+"@
+        if (-not ([System.Management.Automation.PSTypeName]'UserenvNative').Type) {
+            Add-Type -TypeDefinition $code -ErrorAction SilentlyContinue
+        }
+
+        $patterns = @('WeChatBridge.Windows.ShareTarget_*', 'ChatBridge.Windows.ShareTarget_*')
+        $families = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+
+        $packagesRoot = Join-Path $env:LOCALAPPDATA 'Packages'
+        if (Test-Path -LiteralPath $packagesRoot) {
+            foreach ($pat in $patterns) {
+                Get-ChildItem -LiteralPath $packagesRoot -Filter $pat -Directory -ErrorAction SilentlyContinue |
+                    ForEach-Object { [void]$families.Add($_.Name) }
+            }
+        }
+
+        $mappingPath = 'HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Mappings'
+        if (Test-Path -LiteralPath $mappingPath) {
+            Get-ItemProperty "$mappingPath\*" -ErrorAction SilentlyContinue |
+                Where-Object { $_.Moniker -match '^(wechatbridge|chatbridge)\.windows\.sharetarget_' } |
+                ForEach-Object { [void]$families.Add($_.Moniker) }
+        }
+        $storagePath = 'HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage'
+        if (Test-Path -LiteralPath $storagePath) {
+            Get-ChildItem -LiteralPath $storagePath -ErrorAction SilentlyContinue |
+                Where-Object { $_.PSChildName -match '^(wechatbridge|chatbridge)\.windows\.sharetarget_' } |
+                ForEach-Object { [void]$families.Add($_.PSChildName) }
+        }
+
+        foreach ($family in $families) {
+            Log "Cleaning AppContainer profile $family"
+            $packageDir = Join-Path $packagesRoot $family
+            if (Test-Path -LiteralPath $packageDir) {
+                Get-ChildItem -LiteralPath $packageDir -Recurse -Force -ErrorAction SilentlyContinue |
+                    Where-Object { $_.Attributes -band [System.IO.FileAttributes]::ReparsePoint } |
+                    ForEach-Object {
+                        try {
+                            if ($_.PSIsContainer) {
+                                [System.IO.Directory]::Delete($_.FullName, $false)
+                            } else {
+                                [System.IO.File]::Delete($_.FullName)
+                            }
+                        } catch {
+                            Log "Warning: could not delete junction $($_.FullName): $($_.Exception.Message)"
+                        }
+                    }
+                try {
+                    Remove-Item -LiteralPath $packageDir -Recurse -Force -ErrorAction SilentlyContinue
+                } catch {
+                    Log "Warning: could not delete package folder $packageDir: $($_.Exception.Message)"
+                }
+            }
+
+            try {
+                if (([System.Management.Automation.PSTypeName]'UserenvNative').Type) {
+                    $delResult = [UserenvNative]::DeleteAppContainerProfile($family)
+                    Log "DeleteAppContainerProfile($family) -> $('0x{0:X8}' -f ($delResult -band 0xffffffff))"
+                }
+            } catch {
+                Log "Warning: DeleteAppContainerProfile failed: $($_.Exception.Message)"
+            }
+
+            if (Test-Path -LiteralPath $mappingPath) {
+                Get-ChildItem -LiteralPath $mappingPath -ErrorAction SilentlyContinue | ForEach-Object {
+                    $m = (Get-ItemProperty -LiteralPath $_.PSPath -Name 'Moniker' -ErrorAction SilentlyContinue).Moniker
+                    if ($m -and $m.Equals($family, [StringComparison]::OrdinalIgnoreCase)) {
+                        Remove-Item -LiteralPath $_.PSPath -Recurse -Force -ErrorAction SilentlyContinue
+                    }
+                }
+            }
+            $storageDir = Join-Path $storagePath $family
+            if (Test-Path -LiteralPath $storageDir) {
+                Remove-Item -LiteralPath $storageDir -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
+
     Get-Process -Name 'WeChatBridge.ShareTarget', 'WeChatBridge.Windows' -ErrorAction SilentlyContinue |
         Stop-Process -Force -ErrorAction SilentlyContinue
 
-    # Also sweep the short-lived 1.0.7 ChatBridge.* registration — same
-    # publisher, so its share-menu row would linger next to 微信流's.
-    Get-AppxPackage -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -in 'WeChatBridge.Windows.ShareTarget', 'ChatBridge.Windows.ShareTarget' } |
+    # Sweep the short-lived 1.0.7 ChatBridge.* registration if present
+    Get-AppxPackage -Name 'ChatBridge.Windows.ShareTarget' -ErrorAction SilentlyContinue |
         Remove-AppxPackage -ErrorAction SilentlyContinue
-    Add-AppxPackage -Path $msix -ExternalLocation $InstallRoot
+
+    # Clean orphaned AppContainer profiles if WeChatBridge.Windows.ShareTarget is not registered
+    $existing = Get-AppxPackage -Name 'WeChatBridge.Windows.ShareTarget' -ErrorAction SilentlyContinue
+    if (-not $existing) {
+        Clear-AppContainerProfiles
+    }
+
+    try {
+        Add-AppxPackage -Path $msix -ExternalLocation $InstallRoot -ForceApplicationShutdown -ForceUpdateFromAnyVersion
+    }
+    catch {
+        Log "Add-AppxPackage initial attempt failed ($($_.Exception.Message)). Cleaning AppContainer profiles and retrying..."
+        Clear-AppContainerProfiles
+        Add-AppxPackage -Path $msix -ExternalLocation $InstallRoot -ForceApplicationShutdown -ForceUpdateFromAnyVersion
+    }
     $registered = Get-AppxPackage -Name 'WeChatBridge.Windows.ShareTarget' -ErrorAction SilentlyContinue
     if (-not $registered) { throw 'Package registration did not stick.' }
     if ($registered.Status -ne 'Ok') { throw "Registered package is unhealthy: $($registered.Status)" }
