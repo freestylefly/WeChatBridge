@@ -12,6 +12,15 @@ enum AppVersion {
     static var build: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"
     }
+
+    /// The same two values as numbers, for the update checker's comparison.
+    static var components: [Int] {
+        short.split(separator: ".").compactMap { Int($0) }
+    }
+
+    static var buildNumber: Int {
+        Int(build) ?? 0
+    }
 }
 
 struct AboutPane: View {
@@ -22,6 +31,33 @@ struct AboutPane: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             appHeader
+            divider
+
+            aboutSection(title: L10n.text("软件更新"), systemImage: "arrow.triangle.2.circlepath") {
+                if updater.usesSparkleFeed {
+                    paragraph(L10n.text("自动检查并安装新版本。"))
+                } else {
+                    paragraph(L10n.text("从蓝奏云分享页检查新版本。"))
+                    updateStatus
+                }
+                HStack(spacing: Space.m) {
+                    Button(L10n.text("检查更新…")) { updater.checkForUpdates() }
+                        .buttonStyle(SettingsActionButtonStyle(width: 150))
+                        .disabled(!updater.canCheckForUpdates)
+                    if let release = updater.availableUpdate {
+                        Button(L10n.text("前往下载")) {
+                            AppLinks.open(release.pageURL.absoluteString)
+                        }
+                        .buttonStyle(SettingsActionButtonStyle(width: 150))
+                    }
+                }
+                if updater.availableUpdate != nil {
+                    paragraph(L10n.format("网盘密码：%@", LanzouUpdateChecker.sharePassword))
+                }
+            }
+            .padding(.vertical, Space.xl)
+            .task { updater.checkForUpdatesIfIdle() }
+
             divider
 
             aboutSection(title: L10n.text("WeChatBridge 做什么"), systemImage: "info.circle") {
@@ -153,6 +189,31 @@ struct AboutPane: View {
             Label(title, systemImage: systemImage)
         }
         .buttonStyle(SettingsActionButtonStyle(width: 150))
+    }
+
+    @ViewBuilder
+    private var updateStatus: some View {
+        switch updater.updateState {
+        case .idle:
+            paragraph(L10n.text("尚未检查更新。"))
+        case .checking:
+            HStack(spacing: 10) {
+                ProgressView()
+                    .controlSize(.small)
+                Text(L10n.text("正在检查更新…"))
+                    .font(.system(size: 14))
+                    .foregroundStyle(Theme.inkSecondary)
+            }
+        case .upToDate:
+            paragraph(L10n.format("已是最新版本 %@ (%@)。", AppVersion.short, AppVersion.build))
+        case .updateAvailable(let release):
+            paragraph(L10n.format(
+                "发现新版本 %@ (%@)，大小 %@。",
+                release.versionLabel, String(release.build), release.size
+            ))
+        case .failed(let message):
+            paragraph(L10n.format("检查更新失败：%@", message))
+        }
     }
 
     private func paragraph(_ text: String) -> some View {

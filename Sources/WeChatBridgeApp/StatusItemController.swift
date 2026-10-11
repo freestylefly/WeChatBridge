@@ -80,9 +80,15 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(item(L10n.text("关于 WeChatBridge…")) { [weak self] in self?.openSettings(.about) })
         // Where a regular app keeps it: under the About item. A menu bar app
         // has no application menu, so the status menu is the only one it has.
-        menu.addItem(item(L10n.text("检查更新…"), enabled: updater.canCheckForUpdates) { [weak self] in
-            self?.updater.checkForUpdates()
-        })
+        if let release = updater.availableUpdate {
+            menu.addItem(item(L10n.format("下载新版本 %@…", release.versionLabel)) {
+                AppLinks.open(release.pageURL.absoluteString)
+            })
+        } else {
+            menu.addItem(item(L10n.text("检查更新…"), enabled: updater.canCheckForUpdates) { [weak self] in
+                self?.updater.checkForUpdates()
+            })
+        }
         menu.addItem(.separator())
         menu.addItem(item(L10n.text("退出 WeChatBridge"), key: "q") { NSApp.terminate(nil) })
     }
