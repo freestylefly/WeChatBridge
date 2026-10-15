@@ -19,7 +19,7 @@
 
 ## 转发入口
 
-十二个入口覆盖主流 Agent、笔记软件和剪贴板，随时可以用开关收窄或放开。
+十三个入口覆盖主流 Agent、笔记软件和剪贴板，随时可以用开关收窄或放开。
 
 ![入口设置页](shared/Screenshots/usage-entries.png)
 
@@ -29,7 +29,7 @@
 
 ![支持的 Agent](shared/Screenshots/usage-supported-agents.png)
 
-- 发给 Codex / Claude / 豆包 / 千问办公 / WorkBuddy / WeSight：激活目标应用并粘贴聊天归档。
+- 发给 Codex / Claude / 豆包 / 千问办公 / WorkBuddy / WeSight / DeepSeek Harness / Qoder CN：激活目标应用并粘贴聊天归档。
 - 沉淀到 Obsidian：生成 Markdown 笔记，同时保存微信导出的原始压缩包；通过通知打开笔记。
 - 沉淀到文件夹：将 Markdown、原始 ZIP 和附件保存到选定目录，默认位置为下载目录下的「微信流」文件夹。
 - 复制到剪贴板：只写文件，不自动粘贴，由你自己决定贴到哪里。

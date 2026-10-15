@@ -6,7 +6,7 @@
 # same pkd election System Settings → General → Login Items & Extensions →
 # Sharing does.
 #
-# All twelve run the same executable and tell themselves apart by DKShareAction,
+# All of them run the same executable and tell themselves apart by DKShareAction,
 # so adding an entry costs a row here and a pair of InfoPlist.strings — not a
 # second copy of the import code.
 #
@@ -25,6 +25,7 @@ SHARE_SLOTS=(
 	"WorkBuddy|WeChatBridgeShareWorkBuddy|ShareWorkBuddy|workBuddy|发给 WorkBuddy"
 	"WeSight|WeChatBridgeShareWeSight|ShareWeSight|weSight|发给 WeSight"
 	"DeepSeekHarness|WeChatBridgeShareDeepSeekHarness|ShareDeepSeekHarness|deepSeekHarness|发给 DeepSeek Harness"
+	"QoderCN|WeChatBridgeShareQoderCN|ShareQoderCN|qoderCN|发给 Qoder CN"
 	"Obsidian|WeChatBridgeShareObsidian|ShareObsidian|obsidian|沉淀到 Obsidian"
 	"Collection|WeChatBridgeShareCollection|ShareCollection|collect|分批收集到微信流"
 	"Folder|WeChatBridgeShareFolder|ShareFolder|folder|沉淀到文件夹"
@@ -42,6 +43,7 @@ share_logo_name() {
 		QwenWork) printf '%s' "02-qwen.png" ;;
 		WorkBuddy) printf '%s' "06-workbuddy.png" ;;
 		WeSight) printf '%s' "07-wesight.png" ;;
+		QoderCN) printf '%s' "08-qodercn.png" ;;
 		Obsidian) printf '%s' "05-obsidian.png" ;;
 	esac
 }

@@ -19,7 +19,7 @@ These entries come from WeChatBridge and sit in the same menu as AirDrop, Messag
 
 ## Destinations
 
-Twelve entries cover mainstream agents, note-taking apps, and the clipboard. You can narrow or widen the list at any time.
+Thirteen entries cover mainstream agents, note-taking apps, and the clipboard. You can narrow or widen the list at any time.
 
 ![Entries settings](shared/Screenshots/usage-entries.png)
 
@@ -29,7 +29,7 @@ Supported agents:
 
 ![Supported agents](shared/Screenshots/usage-supported-agents.png)
 
-- Send to Codex / Claude / Doubao / QwenWork / WorkBuddy / WeSight: activate the target app and paste the archive.
+- Send to Codex / Claude / Doubao / QwenWork / WorkBuddy / WeSight / DeepSeek Harness / Qoder CN: activate the target app and paste the archive.
 - Save to Obsidian: create a Markdown note and keep the original WeChat export.
 - Copy to Clipboard: write the files without pasting, so you decide where they land.
 - Send to Custom: add any macOS app; terminal-style apps can receive file paths only.

@@ -172,6 +172,7 @@ struct ShareEntryList: View {
         case .qwen: file = "02-qwen.png"
         case .workBuddy: file = "06-workbuddy.png"
         case .weSight: file = "07-wesight.png"
+        case .qoderCN: file = "08-qodercn.png"
         case .obsidian: file = "05-obsidian.png"
         case .deepSeekHarness, .collect, .folder, .clipboard, .custom: return nil
         }
@@ -187,7 +188,7 @@ struct ShareEntryList: View {
     /// table of symbols would be a second answer to "which icon is this entry".
     static func symbol(for action: ShareAction) -> String {
         switch action {
-        case .codex, .claude, .doubao, .qwen, .workBuddy, .weSight, .deepSeekHarness: "paperplane"
+        case .codex, .claude, .doubao, .qwen, .workBuddy, .weSight, .deepSeekHarness, .qoderCN: "paperplane"
         case .obsidian: "book.closed"
         case .collect: "tray.and.arrow.down"
         case .folder: "folder"
@@ -199,7 +200,7 @@ struct ShareEntryList: View {
     private func detail(for action: ShareAction) -> String {
         if compactDetails {
             switch action {
-            case .codex, .claude, .doubao, .qwen, .workBuddy, .weSight, .deepSeekHarness:
+            case .codex, .claude, .doubao, .qwen, .workBuddy, .weSight, .deepSeekHarness, .qoderCN:
                 guard let bundleIdentifier = action.targetBundleIdentifier else {
                     return L10n.text("未安装")
                 }
@@ -231,6 +232,7 @@ struct ShareEntryList: View {
         case .workBuddy: return L10n.text("激活 WorkBuddy 并直接粘贴到输入框。")
         case .weSight: return L10n.text("激活 WeSight 并直接粘贴到输入框。")
         case .deepSeekHarness: return L10n.text("激活 DeepSeek Harness 并直接粘贴到输入框。")
+        case .qoderCN: return L10n.text("激活 Qoder CN 并直接粘贴到输入框。")
         case .obsidian: return L10n.text("把聊天记录转成 Markdown，写入选定的 Obsidian 知识库。")
         case .collect: return L10n.text("多次分享，收齐后一起发送")
         case .folder: return L10n.text("把聊天记录转成 Markdown 和附件，写入选定的文件夹。")
@@ -242,7 +244,7 @@ struct ShareEntryList: View {
     private func detailIsWarning(for action: ShareAction) -> Bool {
         guard compactDetails else { return false }
         switch action {
-        case .codex, .claude, .doubao, .qwen, .workBuddy, .weSight, .deepSeekHarness:
+        case .codex, .claude, .doubao, .qwen, .workBuddy, .weSight, .deepSeekHarness, .qoderCN:
             return action.targetBundleIdentifier.map {
                 !InstalledApp.lookup($0).isInstalled
             } ?? true

@@ -220,7 +220,7 @@ final class AppModel: ObservableObject {
                 // Already copied, by the extension, and already recorded as
                 // such by `BatchState.initial`. Nothing left to do.
                 return false
-            case .codex, .claude, .doubao, .qwen, .workBuddy, .weSight, .deepSeekHarness, .obsidian, .folder, .custom:
+            case .codex, .claude, .doubao, .qwen, .workBuddy, .weSight, .deepSeekHarness, .qoderCN, .obsidian, .folder, .custom:
                 // A forward whose one-shot request is already gone: the file was
                 // consumed by a run that then died before it could act, or the
                 // extension never managed to write it. Either way nothing can be

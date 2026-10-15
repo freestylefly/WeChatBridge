@@ -23,6 +23,8 @@ public enum ShareAction: String, Codable, Sendable, CaseIterable {
     case weSight
     /// Paste into DeepSeek Harness.
     case deepSeekHarness
+    /// Paste into Qoder CN.
+    case qoderCN
     /// Write a Markdown note and its source archive into the configured vault.
     case obsidian
     /// Write a Markdown note and its attachments into the configured folder,
@@ -83,6 +85,7 @@ public enum ShareAction: String, Codable, Sendable, CaseIterable {
         case .workBuddy: return "com.tencent.workbuddy.mac"
         case .weSight: return "ai.wesight.app"
         case .deepSeekHarness: return "com.deepseek.dsh"
+        case .qoderCN: return "com.qodercn.app"
         case .obsidian: return "md.obsidian"
         // `.custom` has no fixed destination and no destination in its intent
         // either. `ActionRunner` resolves one from the user's own list, or takes
@@ -102,7 +105,7 @@ public enum ShareAction: String, Codable, Sendable, CaseIterable {
     public var needsIntent: Bool {
         switch self {
         case .collect, .clipboard: return false
-        case .codex, .claude, .doubao, .qwen, .workBuddy, .weSight, .deepSeekHarness, .obsidian, .folder, .custom: return true
+        case .codex, .claude, .doubao, .qwen, .workBuddy, .weSight, .deepSeekHarness, .qoderCN, .obsidian, .folder, .custom: return true
         }
     }
 
@@ -118,6 +121,7 @@ public enum ShareAction: String, Codable, Sendable, CaseIterable {
         case .workBuddy: return "WorkBuddy"
         case .weSight: return L10n.text("WeSight")
         case .deepSeekHarness: return "DeepSeek Harness"
+        case .qoderCN: return "Qoder CN"
         case .obsidian: return L10n.text("Obsidian")
         case .collect: return L10n.text("分批收集")
         case .folder: return L10n.text("文件夹")
@@ -141,6 +145,7 @@ public enum ShareAction: String, Codable, Sendable, CaseIterable {
         case .workBuddy: return L10n.text("发给 WorkBuddy")
         case .weSight: return L10n.text("发给 WeSight")
         case .deepSeekHarness: return L10n.text("发给 DeepSeek Harness")
+        case .qoderCN: return L10n.text("发给 Qoder CN")
         case .obsidian: return L10n.text("沉淀到 Obsidian")
         case .collect: return L10n.text("分批收集到微信流")
         case .folder: return L10n.text("沉淀到文件夹")
@@ -162,6 +167,7 @@ public enum ShareAction: String, Codable, Sendable, CaseIterable {
         case .workBuddy: return "ShareWorkBuddy"
         case .weSight: return "ShareWeSight"
         case .deepSeekHarness: return "ShareDeepSeekHarness"
+        case .qoderCN: return "ShareQoderCN"
         case .obsidian: return "ShareObsidian"
         case .collect: return "ShareCollection"
         case .folder: return "ShareFolder"
