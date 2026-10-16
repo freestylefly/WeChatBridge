@@ -39,7 +39,7 @@ flowchart LR
 
 | 能力 | 使用体验 |
 | --- | --- |
-| 十二个原生入口 | 在微信转发菜单直接选择目标，无需打开微信流主窗口 |
+| 十三个原生入口 | 在微信转发菜单直接选择目标，无需打开微信流主窗口 |
 | AI Agent 转发 | 激活目标 App，附加场景指令并自动粘贴聊天归档 |
 | Obsidian 沉淀 | 生成 Markdown 笔记，保存原始 ZIP，并按聊天名组织内容 |
 | 自定义目标 | 添加任意 macOS 应用，终端类应用可只接收文件路径 |
@@ -59,6 +59,7 @@ flowchart LR
 | 发给 WorkBuddy | 激活 WorkBuddy 并粘贴聊天归档 |
 | 发给 WeSight | 激活 WeSight 并粘贴聊天归档 |
 | 发给 DeepSeek Harness | 激活 DeepSeek Harness 并粘贴聊天归档 |
+| 发给 Qoder CN | 激活 Qoder CN 并粘贴聊天归档 |
 | 沉淀到 Obsidian | 创建 Markdown 笔记并保存原始附件，通知可打开笔记 |
 | 沉淀到文件夹 | 写入选定目录中的 Markdown 与附件，通知可在访达中定位 |
 | 分批收集到微信流 | 连续分享多批原始 ZIP，收齐后一次选择目标和场景 |
@@ -85,7 +86,7 @@ flowchart LR
     <td align="center"><img src="shared/Screenshots/usage-scenes.png" width="420" alt="场景管理页" /></td>
   </tr>
   <tr>
-    <td align="center"><sub>十二个入口随时开关，未安装的应用直接标注</sub></td>
+    <td align="center"><sub>十三个入口随时开关，未安装的应用直接标注</sub></td>
     <td align="center"><sub>场景保存提示词与适用 Agent，转发时挑一个</sub></td>
   </tr>
   <tr>
@@ -186,7 +187,7 @@ shared/                 # 两端共用的资产与契约
 site/                   # Sparkle 更新源与版本说明
 ```
 
-项目使用 Swift Package Manager 管理 macOS 源码和 Sparkle 依赖。`macos/Scripts/make-app.sh` 会把主程序与十二个 Share Extension 组装成完整的 `.app`。Windows 侧见 `windows/AGENTS.md` 与 `windows/docs/README.zh-CN.md`。
+项目使用 Swift Package Manager 管理 macOS 源码和 Sparkle 依赖。`macos/Scripts/make-app.sh` 会把主程序与十三个 Share Extension 组装成完整的 `.app`。Windows 侧见 `windows/AGENTS.md` 与 `windows/docs/README.zh-CN.md`。
 
 ## 开发与验证
 

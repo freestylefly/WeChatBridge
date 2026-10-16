@@ -9,6 +9,7 @@ Official 1024 x 1024 App Store artwork, ordered for the forwarding flow:
 5. `05-obsidian.png` - [Obsidian](https://apps.apple.com/cn/app/id1557175442)
 6. `06-workbuddy.png` - [WorkBuddy](https://apps.apple.com/cn/app/id6761374913)
 7. `07-wesight.png` - WeSight
+8. `08-qodercn.png` - Qoder CN (icon extracted from the local `/Applications/Qoder CN.app` bundle; no App Store listing)
 
 Doubao, Qwen, Obsidian, and WorkBuddy use the China App Store listing.
 Claude and ChatGPT have no China App Store listing, so their official

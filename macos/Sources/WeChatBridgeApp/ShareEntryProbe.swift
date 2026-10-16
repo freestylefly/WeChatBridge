@@ -142,7 +142,7 @@ final class ShareEntryProbe: ObservableObject {
     ///
     /// `run` blocks on a `DispatchSemaphore`, and a blocked cooperative thread
     /// is gone until it unblocks — the runtime cannot reclaim it. `refresh`
-    /// probes nine entries in a row, so one cold `pkd` could park a pool thread
+    /// probes every entry in a row, so one cold `pkd` could park a pool thread
     /// for 15 s, and flipping several switches quickly parks more. On a
     /// four-core Mac that is most of the pool, and the `Task.sleep` loop
     /// `AutoPaste` uses to wait for the target app to come frontmost has a

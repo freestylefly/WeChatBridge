@@ -32,6 +32,7 @@
 "发给豆包" = "发给豆包";
 "发给 WeSight" = "发给 WeSight";
 "发给 DeepSeek Harness" = "发给 DeepSeek Harness";
+"发给 Qoder CN" = "发给 Qoder CN";
 "沉淀到 Obsidian" = "沉淀到 Obsidian";
 "沉淀到文件夹" = "沉淀到文件夹";
 "添加应用…" = "添加应用…";
@@ -131,6 +132,7 @@
 "激活豆包并直接粘贴到输入框。" = "激活豆包并直接粘贴到输入框。";
 "激活 WeSight 并直接粘贴到输入框。" = "激活 WeSight 并直接粘贴到输入框。";
 "激活 DeepSeek Harness 并直接粘贴到输入框。" = "激活 DeepSeek Harness 并直接粘贴到输入框。";
+"激活 Qoder CN 并直接粘贴到输入框。" = "激活 Qoder CN 并直接粘贴到输入框。";
 "把聊天记录转成 Markdown，写入选定的 Obsidian 知识库。" = "把聊天记录转成 Markdown，写入选定的 Obsidian 知识库。";
 "把聊天记录转成 Markdown 和附件，写入选定的文件夹。" = "把聊天记录转成 Markdown 和附件，写入选定的文件夹。";
 "只放进剪贴板，去哪儿按 ⌘V 由你决定。" = "只放进剪贴板，去哪儿按 ⌘V 由你决定。";

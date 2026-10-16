@@ -17,7 +17,7 @@ public struct ShareFailure: Codable, Sendable, Hashable {
     public let at: Date
     /// Which Share-menu entry the user picked. Not shown anywhere yet — the
     /// message already names what went wrong — but a field report is worth
-    /// little without knowing which of the nine entries produced it.
+    /// little without knowing which entry produced it.
     public let action: ShareAction
     public let message: String
 

@@ -16,7 +16,7 @@ final class ShareActionTests: XCTestCase {
     }
 
     func testOnlyForwardingActionsNameATargetApp() {
-        XCTAssertEqual(ShareAction.allCases.count, 12)
+        XCTAssertEqual(ShareAction.allCases.count, 13)
         XCTAssertEqual(ShareAction.codex.targetBundleIdentifier, "com.openai.codex")
         XCTAssertEqual(ShareAction.claude.targetBundleIdentifier, "com.anthropic.claudefordesktop")
         XCTAssertEqual(ShareAction.doubao.targetBundleIdentifier, "com.bot.pc.doubao")
@@ -24,6 +24,7 @@ final class ShareActionTests: XCTestCase {
         XCTAssertEqual(ShareAction.workBuddy.targetBundleIdentifier, "com.tencent.workbuddy.mac")
         XCTAssertEqual(ShareAction.weSight.targetBundleIdentifier, "ai.wesight.app")
         XCTAssertEqual(ShareAction.deepSeekHarness.targetBundleIdentifier, "com.deepseek.dsh")
+        XCTAssertEqual(ShareAction.qoderCN.targetBundleIdentifier, "com.qodercn.app")
         XCTAssertEqual(ShareAction.obsidian.targetBundleIdentifier, "md.obsidian")
         XCTAssertNil(ShareAction.clipboard.targetBundleIdentifier)
         // 「沉淀到文件夹」 delivers to a path, not an app.
@@ -49,6 +50,18 @@ final class ShareActionTests: XCTestCase {
         )
         let manifestData = try BatchManifest.encoder().encode(manifest)
         XCTAssertEqual(try BatchManifest.decoder().decode(BatchManifest.self, from: manifestData).action, .folder)
+    }
+
+    /// The raw value is the wire contract: `Scripts/share-slots.sh` stamps it
+    /// into the appex's `DKShareAction`, and `ShareAction.declared` reads it
+    /// back. Renaming the case without the slot row breaks the entry silently,
+    /// so both halves are pinned together here.
+    func testQoderCNActionRoundTripsThroughCodable() throws {
+        let data = try JSONEncoder().encode(ShareAction.qoderCN)
+        XCTAssertEqual(String(data: data, encoding: .utf8), "\"qoderCN\"")
+        XCTAssertEqual(try JSONDecoder().decode(ShareAction.self, from: data), .qoderCN)
+        XCTAssertEqual(ShareAction.qoderCN.bundleIdentifierSuffix, "ShareQoderCN")
+        XCTAssertTrue(ShareAction.qoderCN.needsIntent)
     }
 
     func testAnIntentIsReadableExactlyOnce() throws {
@@ -84,7 +97,7 @@ final class ShareActionTests: XCTestCase {
         XCTAssertFalse(ShareAction.clipboard.needsIntent)
         for action in [
             ShareAction.codex, .claude, .doubao, .qwen, .workBuddy,
-            .weSight, .deepSeekHarness, .obsidian, .folder, .custom,
+            .weSight, .deepSeekHarness, .qoderCN, .obsidian, .folder, .custom,
         ] {
             XCTAssertTrue(action.needsIntent, "\(action)")
         }
