@@ -6,7 +6,7 @@
 
   <p>
     <a href="https://github.com/freestylefly/WeChatBridge/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/freestylefly/WeChatBridge/ci.yml?branch=main&style=flat-square&label=build" alt="Build status" /></a>
-    <a href="https://github.com/freestylefly/WeChatBridge/releases/latest"><img src="https://img.shields.io/github/v/release/freestylefly/WeChatBridge?style=flat-square&label=download" alt="Download latest release" /></a>
+    <a href="#download"><img src="https://img.shields.io/badge/download-蓝奏云-blue?style=flat-square" alt="Download latest release" /></a>
     <img src="https://img.shields.io/badge/macOS-14%2B-black?style=flat-square&logo=apple" alt="macOS 14+" />
     <img src="https://img.shields.io/badge/Swift-6.0-F05138?style=flat-square&logo=swift&logoColor=white" alt="Swift 6.0" />
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT License" /></a>
@@ -17,7 +17,7 @@
 </div>
 
 > [!NOTE]
-> The Developer ID-signed and Apple-notarized [WeChatBridge 0.1.15 DMG](https://github.com/freestylefly/WeChatBridge/releases/latest) is now available.
+> All installers are distributed through Lanzou Cloud: [Windows build](https://wwbsr.lanzout.com/b0umjur4d) and [macOS build](https://wwbsr.lanzout.com/b0umjur8h), both using the extraction password `向明`. See [Download](#download).
 
 ## Why WeChatBridge
 
@@ -110,7 +110,7 @@ Full steps, permissions, and troubleshooting live in the [usage guide](USAGE_EN.
 - Every Share Extension runs inside the macOS sandbox without network access.
 - Screen Recording is used only to recognize the chat name in WeChat's title bar; images are processed in memory.
 - Accessibility is used only to activate a destination and perform the paste action.
-- The update path is reserved for GitHub Releases; automatic checks are currently disabled in the source configuration.
+- Update packages are distributed through Lanzou Cloud; automatic checks are currently disabled in the source configuration.
 
 ## Requirements
 
@@ -121,7 +121,17 @@ Full steps, permissions, and troubleshooting live in the [usage guide](USAGE_EN.
 
 ## Download
 
-Download the latest DMG from [GitHub Releases](https://github.com/freestylefly/WeChatBridge/releases/latest), open it, and drag WeChatBridge into Applications. The package supports both Apple Silicon and Intel Macs.
+All installers are distributed through Lanzou Cloud. Pick your platform below; the extraction password is `向明` for both.
+
+| Platform | Download | Password |
+| --- | --- | --- |
+| Windows | [wwbsr.lanzout.com/b0umjur4d](https://wwbsr.lanzout.com/b0umjur4d) | `向明` |
+| macOS | [wwbsr.lanzout.com/b0umjur8h](https://wwbsr.lanzout.com/b0umjur8h) | `向明` |
+
+For macOS, open the DMG and drag WeChatBridge into Applications; the package supports both Apple Silicon and Intel Macs. For Windows, unzip the archive and follow the instructions inside.
+
+> [!TIP]
+> If WeChatBridge is useful to you, follow our WeChat Official Account “向明”: new releases, tutorials, and project updates are posted there, and the complete source code lives in this repository.
 
 ## Build from source
 
