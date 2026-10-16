@@ -133,6 +133,12 @@ For macOS, open the DMG and drag WeChatBridge into Applications; the package sup
 > [!TIP]
 > If WeChatBridge is useful to you, follow our WeChat Official Account “向明”: new releases, tutorials, and project updates are posted there, and the complete source code lives in this repository.
 
+<div align="center">
+  <img src="shared/Screenshots/wechat-xiangming.jpg" width="420" alt="QR code for the WeChat Official Account 向明" />
+  <br />
+  <sub>Scan the QR code or search “向明” in WeChat to follow the Official Account</sub>
+</div>
+
 ## Build from source
 
 ```bash
@@ -229,7 +235,7 @@ Follow project updates, join the discussion, or contact us on WeChat by searchin
     <th align="center">苍何</th>
   </tr>
   <tr>
-    <td align="center"><img src="shared/Screenshots/wechat-xiangming.jpg" width="420" alt="WeChat QR code for 向明" /></td>
+    <td align="center"><img src="shared/Screenshots/wechat-xiangming.jpg" width="420" alt="QR code for the WeChat Official Account 向明" /></td>
     <td align="center"><img src="shared/Screenshots/wechat-canghe.jpg" width="420" alt="WeChat QR code for 苍何" /></td>
   </tr>
 </table>

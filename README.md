@@ -139,6 +139,12 @@ macOS 版下载后打开 DMG，将“微信流”拖入“应用程序”，安�
 > [!TIP]
 > 如果微信流对你有帮助，欢迎关注公众号「向明」：新版本发布、使用教程与项目进展都会在这里同步，本项目的全部代码也都在当前仓库开源。
 
+<div align="center">
+  <img src="shared/Screenshots/wechat-xiangming.jpg" width="420" alt="公众号「向明」二维码" />
+  <br />
+  <sub>微信扫码或搜索「向明」关注公众号</sub>
+</div>
+
 ## 从源码构建
 
 ```bash
@@ -248,7 +254,7 @@ dotnet test windows/WeChatBridge.Windows.sln -c Release
     <th align="center">苍何</th>
   </tr>
   <tr>
-    <td align="center"><img src="shared/Screenshots/wechat-xiangming.jpg" width="420" alt="向明微信二维码" /></td>
+    <td align="center"><img src="shared/Screenshots/wechat-xiangming.jpg" width="420" alt="公众号「向明」二维码" /></td>
     <td align="center"><img src="shared/Screenshots/wechat-canghe.jpg" width="420" alt="苍何微信二维码" /></td>
   </tr>
 </table>
