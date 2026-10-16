@@ -130,15 +130,6 @@ All installers are distributed through Lanzou Cloud. Pick your platform below; t
 
 For macOS, open the DMG and drag WeChatBridge into Applications; the package supports both Apple Silicon and Intel Macs. For Windows, unzip the archive and follow the instructions inside.
 
-> [!TIP]
-> If WeChatBridge is useful to you, follow our WeChat Official Account “向明”: new releases, tutorials, and project updates are posted there, and the complete source code lives in this repository.
-
-<div align="center">
-  <img src="shared/Screenshots/wechat-xiangming.jpg" width="420" alt="QR code for the WeChat Official Account 向明" />
-  <br />
-  <sub>Scan the QR code or search “向明” in WeChat to follow the Official Account</sub>
-</div>
-
 ## Build from source
 
 ```bash
