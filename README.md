@@ -6,7 +6,7 @@
 
   <p>
     <a href="https://github.com/freestylefly/WeChatBridge/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/freestylefly/WeChatBridge/ci.yml?branch=main&style=flat-square&label=build" alt="构建状态" /></a>
-    <a href="https://github.com/freestylefly/WeChatBridge/releases/latest"><img src="https://img.shields.io/github/v/release/freestylefly/WeChatBridge?style=flat-square&label=download" alt="下载最新版本" /></a>
+    <a href="#下载安装"><img src="https://img.shields.io/badge/download-蓝奏云-blue?style=flat-square" alt="下载最新版本" /></a>
     <img src="https://img.shields.io/badge/macOS-14%2B-black?style=flat-square&logo=apple" alt="macOS 14+" />
     <img src="https://img.shields.io/badge/Swift-6.0-F05138?style=flat-square&logo=swift&logoColor=white" alt="Swift 6.0" />
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT License" /></a>
@@ -17,7 +17,7 @@
 </div>
 
 > [!NOTE]
-> 已发布经过 Developer ID 签名和 Apple 公证的 [WeChatBridge 0.1.15 DMG](https://github.com/freestylefly/WeChatBridge/releases/latest)。
+> 安装包统一通过蓝奏云发布：[Windows 版](https://wwbsr.lanzout.com/b0umjur4d)与 [macOS 版](https://wwbsr.lanzout.com/b0umjur8h)的提取密码均为 `向明`，详见[下载安装](#下载安装)。
 
 ## 为什么做微信流
 
@@ -114,7 +114,7 @@ flowchart LR
 - Share Extension 在 macOS 沙盒中运行且没有网络权限。
 - 屏幕录制权限只用于识别微信标题栏中的聊天名，图像仅在内存中处理。
 - 辅助功能权限只用于激活目标应用和执行粘贴。
-- 自动更新机制预留给 GitHub Releases，当前源码配置尚未启用自动检查。
+- 更新包统一从蓝奏云获取，当前源码配置尚未启用自动检查。
 
 更完整的能力边界见 [产品能力文档](PRODUCT_CAPABILITIES.zh-CN.md)。
 
@@ -127,7 +127,17 @@ flowchart LR
 
 ## 下载安装
 
-前往 [GitHub Releases](https://github.com/freestylefly/WeChatBridge/releases/latest) 下载最新 DMG，打开后将“微信流”拖入“应用程序”。安装包同时支持 Apple Silicon 和 Intel Mac。
+全部安装包统一在蓝奏云发布，请按下表选择对应平台，提取密码均为 `向明`：
+
+| 平台 | 下载地址 | 提取密码 |
+| --- | --- | --- |
+| Windows | [wwbsr.lanzout.com/b0umjur4d](https://wwbsr.lanzout.com/b0umjur4d) | `向明` |
+| macOS | [wwbsr.lanzout.com/b0umjur8h](https://wwbsr.lanzout.com/b0umjur8h) | `向明` |
+
+macOS 版下载后打开 DMG，将“微信流”拖入“应用程序”，安装包同时支持 Apple Silicon 和 Intel Mac；Windows 版解压后按目录内说明运行。
+
+> [!TIP]
+> 如果微信流对你有帮助，欢迎关注我们的公众号：新版本发布、使用教程与项目进展都会在这里同步，本项目的全部代码也都在当前仓库开源。
 
 ## 从源码构建
 
