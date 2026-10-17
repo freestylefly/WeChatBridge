@@ -134,7 +134,11 @@ flowchart LR
 | Windows | [wwbsr.lanzout.com/b0umjur4d](https://wwbsr.lanzout.com/b0umjur4d) | `向明` |
 | macOS | [wwbsr.lanzout.com/b0umjur8h](https://wwbsr.lanzout.com/b0umjur8h) | `向明` |
 
-macOS 版下载后打开 DMG，将“微信流”拖入“应用程序”，安装包同时支持 Apple Silicon 和 Intel Mac；Windows 版解压后按目录内说明运行。
+macOS 版下载后打开 DMG，将“微信流”拖入“应用程序”，安装包同时支持 Apple Silicon 和 Intel Mac。
+
+Windows 版下载后运行 `WeChatBridge-<版本>-Windows-Setup.exe`，按向导安装即可，过程会请求一次管理员授权用于信任安装包的签名证书。**不要直接解压后运行**——解压会跳过证书信任这一步，微信分享菜单随后无法注册。
+
+不想安装可以用便携版：解压 `WeChatBridge-<版本>-Windows-Portable.zip` 到 U 盘任意目录，双击根目录下的 `FirstRun.bat` 即可。便携版的所有数据都写在 U 盘里，拔下后不留痕；微信分享菜单默认不启用，需要时在「入口」页点「在这台电脑上启用分享入口」。
 
 ## 从源码构建
 
@@ -186,7 +190,7 @@ shared/                 # 两端共用的资产与契约
 site/                   # Sparkle 更新源与版本说明
 ```
 
-项目使用 Swift Package Manager 管理 macOS 源码和 Sparkle 依赖。`macos/Scripts/make-app.sh` 会把主程序与十二个 Share Extension 组装成完整的 `.app`。Windows 侧见 `windows/AGENTS.md` 与 `windows/docs/README.zh-CN.md`。
+项目使用 Swift Package Manager 管理 macOS 源码和 Sparkle 依赖。`macos/Scripts/make-app.sh` 会把主程序与十二个 Share Extension 组装成完整的 `.app`。Windows 侧见 `windows/docs/README.zh-CN.md` 与 `windows/packaging/README.md`。
 
 ## 开发与验证
 

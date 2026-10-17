@@ -128,7 +128,11 @@ All installers are distributed through Lanzou Cloud. Pick your platform below; t
 | Windows | [wwbsr.lanzout.com/b0umjur4d](https://wwbsr.lanzout.com/b0umjur4d) | `向明` |
 | macOS | [wwbsr.lanzout.com/b0umjur8h](https://wwbsr.lanzout.com/b0umjur8h) | `向明` |
 
-For macOS, open the DMG and drag WeChatBridge into Applications; the package supports both Apple Silicon and Intel Macs. For Windows, unzip the archive and follow the instructions inside.
+For macOS, open the DMG and drag WeChatBridge into Applications; the package supports both Apple Silicon and Intel Macs.
+
+For Windows, run `WeChatBridge-<version>-Windows-Setup.exe` and follow the wizard. It asks for administrator approval once, to trust the installer package's signing certificate. **Do not unzip and run the contents directly** — unzipping skips that trust step, and the WeChat share menu then fails to register.
+
+If you would rather not install anything, use the portable build: unzip `WeChatBridge-<version>-Windows-Portable.zip` to any directory on a USB drive and run `FirstRun.bat` in the root. Every piece of data stays on the drive; the WeChat share menu is off by default and can be turned on from the Entries page with “Enable the share entry on this computer”.
 
 ## Build from source
 
