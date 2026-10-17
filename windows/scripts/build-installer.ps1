@@ -3,7 +3,10 @@ param(
     [string]$Version = '1.0.8',
     [string]$DistDirectory = (Join-Path $PSScriptRoot '..\artifacts\dist'),
     [string]$WixExtensionDirectory = 'D:\WeChatB-Hub\_scratch\tools\wixext',
-    [string]$SigningThumbprint = '40ED85A6287A88A950D0FEE9EA3C9DBC032358CD',
+    # No machine-specific thumbprint default: new-dev-certificate.ps1 mints a fresh
+    # certificate per machine, so a hardcoded one goes stale silently. Resolved from
+    # the subject below, the same way register-dev.ps1 does.
+    [string]$SigningThumbprint,
     [switch]$SkipPublish
 )
 $ErrorActionPreference = 'Stop'
@@ -14,6 +17,12 @@ $DistDirectory = [IO.Path]::GetFullPath($DistDirectory)
 $payload = Join-Path $DistDirectory 'payload\x64'
 $msiDirectory = Join-Path $repositoryRoot 'windows\packaging\msi'
 New-Item -ItemType Directory -Path $payload -Force | Out-Null
+if (-not $SigningThumbprint) {
+    $SigningThumbprint = (Get-ChildItem Cert:\CurrentUser\My |
+        Where-Object Subject -eq 'CN=WeChatBridge Windows Dev' |
+        Sort-Object NotAfter -Descending | Select-Object -First 1).Thumbprint
+    if (-not $SigningThumbprint) { throw 'No development certificate found. Run new-dev-certificate.ps1 or pass -SigningThumbprint.' }
+}
 $certificate = Get-Item "Cert:\CurrentUser\My\$SigningThumbprint"
 if (-not $certificate.HasPrivateKey -or $certificate.NotAfter -le (Get-Date)) { throw 'A valid signing certificate with a private key is required.' }
 [xml]$helperManifest = Get-Content -LiteralPath (Join-Path $repositoryRoot 'windows\share-target.manifest') -Raw -Encoding UTF8
