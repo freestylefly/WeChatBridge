@@ -61,7 +61,7 @@ internal static class Program
             Environment.Exit(ShareIdentityCheck.Run());
             return;
         }
-        var paths = new InboxPaths();
+        var paths = InboxResolver.Resolve();
 
         // Dev/self-test hook: `WeChatBridge.ShareTarget.exe --picker-preview`
         // opens the entry panel with sample rows so the design can be
@@ -542,7 +542,7 @@ internal static class Program
             ContextLine = "聊天记录_产品讨论组.zip · 203 KB",
         };
         var answer = await window.ShowAndAwait();
-        InboxLogger.Write(new InboxPaths(),
+        InboxLogger.Write(InboxResolver.Resolve(),
             $"picker-preview: kind={answer.Kind} action={answer.Action?.RawValue() ?? "null"} target={answer.Target?.DisplayName ?? "null"}");
     }
 

@@ -204,7 +204,7 @@ public sealed class TrayIconService : IDisposable
         _model.ToastRequested += OnToastRequested;
         _model.DeliveryNotificationRequested += OnDeliveryNotification;
 
-        InboxLogger.Write(new InboxPaths(), $"tray icon registered: {_added}, v4={versioned}, hwnd={_hwnd}");
+        InboxLogger.Write(InboxResolver.Resolve(), $"tray icon registered: {_added}, v4={versioned}, hwnd={_hwnd}");
     }
 
     // MARK: - Window procedure
@@ -214,7 +214,7 @@ public sealed class TrayIconService : IDisposable
         if (msg == Native.WmTrayIcon)
         {
             var notifyCode = (uint)lParam.ToInt64() & 0xFFFF;
-            InboxLogger.Write(new InboxPaths(), $"tray event 0x{notifyCode:x4}");
+            InboxLogger.Write(InboxResolver.Resolve(), $"tray event 0x{notifyCode:x4}");
             switch (notifyCode)
             {
                 // Left click opens the window, exactly like the macOS status item.
