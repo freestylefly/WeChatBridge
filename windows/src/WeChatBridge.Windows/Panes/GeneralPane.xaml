@@ -167,6 +167,22 @@
                     <ComboBoxItem><ComboBoxItem.Content><loc:Loc Key="保留 30 天"/></ComboBoxItem.Content></ComboBoxItem>
                 </ComboBox>
             </Grid>
+            <Grid Margin="0,16,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock FontSize="13.5" Foreground="{StaticResource InkColor}"
+                               Text="{loc:Loc Key='自动导入 WorkBuddy 聊天包'}" />
+                    <TextBlock Margin="0,3,0,0" FontSize="12"
+                               Foreground="{StaticResource InkSecondaryColor}" TextWrapping="Wrap"
+                               Text="{loc:Loc Key='只监视 WorkBuddy 的本机聊天记录导出目录；新 ZIP 写完后自动出现在记录中，不会自动发送。'}" />
+                </StackPanel>
+                <CheckBox Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0"
+                          Style="{StaticResource MacToggle}"
+                          IsChecked="{Binding WorkBuddyAutoImport, Mode=TwoWay}" />
+            </Grid>
         </StackPanel>
 
         <DockPanel Margin="0,20,0,0">

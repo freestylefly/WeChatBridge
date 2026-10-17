@@ -2,6 +2,7 @@ using System.Threading;
 using System.Windows;
 using WeChatBridge.Windows.Core;
 using WeChatBridge.Windows.Onboarding;
+using WeChatBridge.Windows.Services;
 
 namespace WeChatBridge.Windows;
 
@@ -33,6 +34,7 @@ public partial class App : Application
     private InboxPaths? _paths;
     private MainViewModel? _model;
     private TrayIconService? _tray;
+    private WorkBuddyArchiveWatcher? _workBuddyWatcher;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -67,6 +69,8 @@ public partial class App : Application
         var requestedBatch = ReadArgument(e.Args, "--batch-id");
         var model = new MainViewModel(_paths);
         _model = model;
+        model.WorkBuddyAutoImportChanged += ConfigureWorkBuddyWatcher;
+        ConfigureWorkBuddyWatcher(model.WorkBuddyAutoImport);
         var window = new MainWindow(model, requestedBatch);
         MainWindow = window;
         // The tray exists in every instance — it is the resident process's
@@ -123,6 +127,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _tray?.Dispose();
+        _workBuddyWatcher?.Dispose();
         _model?.DisposeServices();
         _shutdown?.Cancel();
         _changeEvent?.Dispose();
@@ -135,6 +140,32 @@ public partial class App : Application
             _mutex.Dispose();
         }
         base.OnExit(e);
+    }
+
+    private void ConfigureWorkBuddyWatcher(bool enabled)
+    {
+        _workBuddyWatcher?.Dispose();
+        _workBuddyWatcher = null;
+        if (!enabled || _model is null || _paths is null) return;
+        try
+        {
+            _workBuddyWatcher = new WorkBuddyArchiveWatcher(
+                path => Dispatcher.BeginInvoke(new Action(() => _ = ImportWorkBuddyArchiveAsync(path))),
+                error => InboxLogger.Write(_paths, L10n.Text("WorkBuddy 自动导入监听失败"), error));
+            InboxLogger.Write(_paths, $"WorkBuddy 自动导入已启用：{WorkBuddyArchiveWatcher.DefaultDirectory}");
+        }
+        catch (Exception error)
+        {
+            InboxLogger.Write(_paths, L10n.Text("WorkBuddy 自动导入监听失败"), error);
+            _model.ShowToast(L10n.Text("无法监视 WorkBuddy 聊天记录目录。"), warning: true);
+        }
+    }
+
+    private async Task ImportWorkBuddyArchiveAsync(string path)
+    {
+        if (_model is null || MainWindow is not MainWindow window) return;
+        await _model.ImportWorkBuddyArchiveAsync(path);
+        window.RefreshBatches();
     }
 
     private async Task WaitForChangesAsync(CancellationToken cancellationToken)

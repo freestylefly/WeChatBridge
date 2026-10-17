@@ -1,14 +1,14 @@
-# 微信流 Windows PoC
+# 微信流 Windows 版
 
-这是与 macOS 版本共仓库维护的 Windows 迁移起点。
+这是与 macOS 版本共仓库维护的 Windows 实现。
 
-第一阶段只验证：
+微信分享入口的处理链路为：
 
 ```text
 微信 Windows → Share Target → ZIP → Inbox → FileDropList → 最小 WPF 主程序
 ```
 
-当前不包含自动粘贴、OCR、Agent 适配、Obsidian、技能管理或正式发布。
+也可以从本地导入聊天文件或粘贴文字，再使用主程序中的转发和归档操作，见下文。
 
 ## 本地构建
 
@@ -18,6 +18,18 @@ $dotnet = 'C:\Program Files\dotnet\dotnet.exe'
 & $dotnet build windows\WeChatBridge.Windows.sln -c Release
 & $dotnet test windows\WeChatBridge.Windows.sln -c Release
 ```
+
+## Windows 10 本地聊天导入
+
+不依赖微信分享菜单，也不要求注册分享包：打开「记录」页，点击「导入聊天文件…」选择 ZIP / TXT，或把文件拖到记录页；也可以点击「粘贴聊天文字…」，确认文字并填写可选的聊天名称。
+
+ZIP 原样保存，TXT（UTF-8 或带 BOM 的 UTF-16）及粘贴文字会转换为包含 `聊天记录.txt` 的 ZIP，继续使用现有转发和归档流程。单个文字文件及粘贴文字最多 16 MiB，归档和批次沿用 1 GiB 上限。手动导入只处理用户选择的文件；自动导入只监视下文指定的 WorkBuddy 聊天包目录。
+
+通用设置默认开启「自动导入 WorkBuddy 聊天包」：仅监视 `%USERPROFILE%\.workbuddy\app\tmp\chat-history` 中新建的 ZIP，等文件写完后复制到 Inbox 并刷新记录；启用监听时已有文件不会重新导入。入口设置中的「WorkBuddy 聊天包导入后自动归档到微信会话」默认开启，使用当前 Obsidian Vault 写入 `31.微信会话` 子文件夹，生成 Markdown 并保存原始 ZIP 与媒体附件。可以分别关闭自动导入或自动归档。自动导入不会自动发送给 AI，也不会删除 WorkBuddy 原文件。
+
+导入后记录显示「待发送」。点击记录中的「发给…」选择目标；复制文件、重新发送及文件夹定位也可使用。导入本身不会写剪贴板、自动转发，重启后仍保持待发送。图片、视频需要由原始 ZIP 提供，纯文字导入不会还原附件。微信备份文件不等同于聊天导出 ZIP。
+
+Windows 10 可以运行主程序并使用此导入方式。分享包注册与微信自身的菜单枚举是两个环节；注册成功不能补齐微信依赖的新版 Windows 接口。
 
 ## 本地发布布局
 

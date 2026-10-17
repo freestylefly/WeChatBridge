@@ -140,6 +140,7 @@ public sealed class TrayIconService : IDisposable
     private readonly IntPtr _hwnd;
     private readonly IntPtr _icon;
     private bool _added;
+    private bool _useGuid = true;
     private bool _menuOpen;
     private long _menuShownAt = -MenuDebounceMs;
 
@@ -188,6 +189,15 @@ public sealed class TrayIconService : IDisposable
         data.hIcon = _icon;
         data.szTip = "微信流";
         _added = Native.Shell_NotifyIcon(Native.NimAdd, ref data);
+        if (!_added)
+        {
+            // Explorer can retain an unsigned development binary's old path for
+            // this GUID. The window/id identity still works after installation.
+            _useGuid = false;
+            data.uFlags &= ~Native.NifGuid;
+            data.guidItem = Guid.Empty;
+            _added = Native.Shell_NotifyIcon(Native.NimAdd, ref data);
+        }
         var versioned = false;
         if (_added)
         {
@@ -569,8 +579,8 @@ public sealed class TrayIconService : IDisposable
         cbSize = Marshal.SizeOf<Native.NOTIFYICONDATA>(),
         hWnd = _hwnd,
         uID = 1,
-        uFlags = flags,
-        guidItem = IconGuid,
+        uFlags = flags | (_useGuid ? Native.NifGuid : 0),
+        guidItem = _useGuid ? IconGuid : Guid.Empty,
         szTip = string.Empty,
         szInfo = string.Empty,
         szInfoTitle = string.Empty,

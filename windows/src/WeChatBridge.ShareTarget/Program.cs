@@ -90,12 +90,18 @@ internal static class Program
     private static void RunMessageLoop(Func<Task> run)
     {
         SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
+        // Captured here, on the STA thread, because the continuation below runs
+        // on a thread-pool thread — Dispatcher.CurrentDispatcher there is a
+        // second, empty dispatcher, and shutting that one down leaves this loop
+        // pumping forever. That is how a process that lost the keeper election
+        // used to linger instead of exiting.
+        var dispatcher = Dispatcher.CurrentDispatcher;
         var task = run();
         task.ContinueWith(t =>
         {
             _ = t.Exception; // observed; every branch already logs its own failure
             if (!_resident)
-                Dispatcher.CurrentDispatcher.BeginInvokeShutdown(DispatcherPriority.Background);
+                dispatcher.BeginInvokeShutdown(DispatcherPriority.Background);
         });
         Dispatcher.Run();
     }

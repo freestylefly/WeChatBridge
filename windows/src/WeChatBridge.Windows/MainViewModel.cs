@@ -104,7 +104,8 @@ public sealed class BatchRow : INotifyPropertyChanged
         BatchOutcomeKind.Failed => batch.Outcome.Detail is { Length: > 0 } detail
             ? L10n.Format($"未送达 · {detail}")
             : L10n.Text("未送达"),
-        _ => batch.Action == ShareAction.Collect ? L10n.Text("收集中") : L10n.Text("未执行"),
+        _ => batch.Action == ShareAction.Collect ? L10n.Text("收集中")
+            : batch.Outcome is null && batch.Action == ShareAction.Hub ? L10n.Text("待发送") : L10n.Text("未执行"),
     };
 
     private static StatusTone StatusToneFor(ReadyBatch batch) => batch.Outcome?.Kind switch
@@ -321,6 +322,21 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    public bool WorkBuddyAutoImport
+    {
+        get => _settings.WorkBuddyAutoImport;
+        set
+        {
+            if (value == _settings.WorkBuddyAutoImport) return;
+            _settings.WorkBuddyAutoImport = value;
+            SaveSettings();
+            OnPropertyChanged(nameof(WorkBuddyAutoImport));
+            WorkBuddyAutoImportChanged?.Invoke(value);
+        }
+    }
+
+    public event Action<bool>? WorkBuddyAutoImportChanged;
+
     public string? ObsidianVaultPath
     {
         get => _settings.ObsidianVaultPath;
@@ -345,6 +361,18 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             _settings.ObsidianSubfolder = value;
             SaveSettings();
             OnPropertyChanged(nameof(ObsidianSubfolder));
+        }
+    }
+
+    public bool AutoArchiveWorkBuddyToObsidian
+    {
+        get => _settings.AutoArchiveWorkBuddyToObsidian;
+        set
+        {
+            if (value == _settings.AutoArchiveWorkBuddyToObsidian) return;
+            _settings.AutoArchiveWorkBuddyToObsidian = value;
+            SaveSettings();
+            OnPropertyChanged(nameof(AutoArchiveWorkBuddyToObsidian));
         }
     }
 

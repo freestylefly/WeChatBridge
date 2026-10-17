@@ -1,10 +1,12 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using WeChatBridge.Windows.Core;
+using Microsoft.Win32;
 
 namespace WeChatBridge.Windows.Panes;
 
@@ -24,6 +26,50 @@ public partial class HistoryPane : UserControl
 
     private MainViewModel? Model => DataContext as MainViewModel;
     private MainViewModel? _hooked;
+
+    private async void ImportFiles_Click(object sender, RoutedEventArgs e)
+    {
+        if (Model is not { CanImport: true } model) return;
+        var dialog = new OpenFileDialog
+        {
+            Title = L10n.Text("导入聊天文件"),
+            Filter = L10n.Text("聊天文件 (*.zip;*.txt)|*.zip;*.txt"),
+            Multiselect = true,
+            CheckFileExists = true,
+        };
+        if (dialog.ShowDialog(Window.GetWindow(this)) == true)
+            await model.ImportLocalFilesAsync(dialog.FileNames);
+    }
+
+    private async void ImportText_Click(object sender, RoutedEventArgs e)
+    {
+        if (Model is not { CanImport: true } model) return;
+        string text = "";
+        try { if (Clipboard.ContainsText()) text = Clipboard.GetText(); }
+        catch (System.Runtime.InteropServices.ExternalException) { }
+        var editor = new TextImportWindow(text) { Owner = Window.GetWindow(this) };
+        if (editor.ShowDialog() == true)
+            await model.ImportLocalTextAsync(editor.ChatText, editor.ChatName);
+    }
+
+    private void Import_DragOver(object sender, DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+        var files = e.Data.GetData(DataFormats.FileDrop) as string[];
+        e.Effects = Model is { CanImport: true } && files is { Length: > 0 }
+            && files.All(f => File.Exists(f) && (Path.GetExtension(f).Equals(".zip", StringComparison.OrdinalIgnoreCase)
+                || Path.GetExtension(f).Equals(".txt", StringComparison.OrdinalIgnoreCase)))
+            ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private async void Import_Drop(object sender, DragEventArgs e)
+    {
+        if (Model is not { CanImport: true } model || !e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+        e.Handled = true;
+        if (e.Data.GetData(DataFormats.FileDrop) is string[] { Length: > 0 } files)
+            await model.ImportLocalFilesAsync(files);
+    }
 
     private void HookModel()
     {

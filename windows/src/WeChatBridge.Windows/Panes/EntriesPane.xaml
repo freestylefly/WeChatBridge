@@ -161,6 +161,9 @@
             <CheckBox Content="{loc:Loc Key='保存后自动打开 Obsidian 笔记'}" Margin="0,12,0,0"
                                   Foreground="{StaticResource InkColor}"
                                   IsChecked="{Binding OpenObsidianAfterDelivery}"/>
+            <CheckBox Content="{loc:Loc Key='WorkBuddy 聊天包导入后自动归档到微信会话'}" Margin="0,10,0,0"
+                      Foreground="{StaticResource InkColor}"
+                      IsChecked="{Binding AutoArchiveWorkBuddyToObsidian, Mode=TwoWay}"/>
                         </StackPanel>
 
             <!-- 「发送到自定义」的应用 — the ForwardTargetList port. -->

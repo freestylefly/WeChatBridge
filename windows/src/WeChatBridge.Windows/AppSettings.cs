@@ -38,9 +38,12 @@ public sealed class AppSettings
     public string? ObsidianVaultPath { get; set; }
 
     /// <summary>Folder under the vault the chat Markdown and original ZIP land in.</summary>
-    public string ObsidianSubfolder { get; set; } = "微信流";
+    public string ObsidianSubfolder { get; set; } = "31.微信会话";
+    public bool AutoArchiveWorkBuddyToObsidian { get; set; } = true;
     public string Language { get; set; } = "system";
     public bool OpenObsidianAfterDelivery { get; set; }
+    /// <summary>Import newly-created chat ZIPs from WorkBuddy's local export folder.</summary>
+    public bool WorkBuddyAutoImport { get; set; } = true;
     public string? DeliveryFolderPath { get; set; }
     public string DeliverySubfolder { get; set; } = "微信流";
 
