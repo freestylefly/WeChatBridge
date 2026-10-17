@@ -47,12 +47,6 @@ public sealed class AppSettings
     public string? DeliveryFolderPath { get; set; }
     public string DeliverySubfolder { get; set; } = "微信流";
 
-    /// <summary>
-    /// 自定义的 Inbox 根目录。为 null 时使用默认 %LOCALAPPDATA%\WeChatBridge\Inbox；
-    /// 非空时，主程序与分享助手都会把 Staging/Ready/Failed/Logs 建在该目录之下。
-    /// </summary>
-    public string? InboxRoot { get; set; }
-
     public string? LastCollectionTarget { get; set; }
     public List<string> RecentCollectionFolders { get; set; } = [];
     public string? LastCollectionScene { get; set; }
@@ -89,14 +83,4 @@ public sealed class AppSettingsStore
 
     public void Save(AppSettings settings) =>
         ConfigStore.Save(_directory, AppSettings.FileName, settings);
-}
-
-/// <summary>
-/// 从已保存的设置解析 Inbox 路径：<see cref="AppSettings.InboxRoot"/> 为空时回退到默认
-/// %LOCALAPPDATA%\WeChatBridge\Inbox。主程序与分享助手共用，确保两边落在同一个 Inbox。
-/// </summary>
-public static class InboxResolver
-{
-    public static InboxPaths Resolve() =>
-        new InboxPaths(new AppSettingsStore().Load().InboxRoot);
 }

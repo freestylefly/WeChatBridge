@@ -39,7 +39,7 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        _paths = InboxResolver.Resolve();
+        _paths = new InboxPaths();
         _paths.EnsureCreated();
 
         var background = e.Args.Any(a => string.Equals(a, "--background", StringComparison.OrdinalIgnoreCase));
