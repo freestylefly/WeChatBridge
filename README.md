@@ -192,6 +192,8 @@ site/                   # Sparkle 更新源与版本说明
 
 项目使用 Swift Package Manager 管理 macOS 源码和 Sparkle 依赖。`macos/Scripts/make-app.sh` 会把主程序与十二个 Share Extension 组装成完整的 `.app`。Windows 侧见 `windows/docs/README.zh-CN.md` 与 `windows/packaging/README.md`。
 
+完整的目录说明——每个目录的用途、三个用户数据根的定义位置、以及几条不看代码看不出来的约定（本地化方向、.ps1 的 UTF-8 BOM 要求、免 SDK 构建工具）——见 [`docs/repository-structure.zh-CN.md`](docs/repository-structure.zh-CN.md)。
+
 ## 开发与验证
 
 ```bash
