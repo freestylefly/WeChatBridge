@@ -58,7 +58,7 @@ public sealed class SkillStore
     private readonly string _configDirectory;
     private readonly Func<DateTimeOffset> _clock;
 
-    /// <param name="root">Library directory; null means %LOCALAPPDATA%\WeChatBridge\Skills.</param>
+    /// <param name="root">Library directory; null means <see cref="AppLayout.Skills"/>.</param>
     /// <param name="configDirectory">Where the registry lives; null means <see cref="ConfigStore.DefaultDirectory"/>.</param>
     /// <param name="backupRoot">Backup directory; null means a SkillBackups sibling of <paramref name="root"/>.</param>
     /// <param name="clock">Timestamp source for registry entries and backup names.</param>
@@ -68,12 +68,9 @@ public sealed class SkillStore
         string? backupRoot = null,
         Func<DateTimeOffset>? clock = null)
     {
-        var appData = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "WeChatBridge");
-        Root = Path.GetFullPath(root ?? Path.Combine(appData, "Skills"));
+        Root = Path.GetFullPath(root ?? AppLayout.Current.Skills);
         BackupRoot = Path.GetFullPath(backupRoot
-            ?? Path.Combine(Path.GetDirectoryName(Root) ?? appData, "SkillBackups"));
+            ?? Path.Combine(Path.GetDirectoryName(Root) ?? AppLayout.Current.DataRoot, "SkillBackups"));
         _configDirectory = configDirectory ?? ConfigStore.DefaultDirectory;
         _clock = clock ?? (() => DateTimeOffset.UtcNow);
     }

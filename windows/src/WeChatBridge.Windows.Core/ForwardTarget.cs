@@ -25,10 +25,13 @@ public sealed record ForwardTarget(
 /// </summary>
 public static class ConfigStore
 {
-    public static string DefaultDirectory { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "WeChatBridge",
-        "Config");
+    /// <summary>
+    /// An expression-bodied property, not a field with an initializer: the
+    /// default has to be resolved on every read so a portable build keeps
+    /// working after <see cref="AppLayout.Current"/> has been resolved. A
+    /// static initializer would evaluate once and freeze the first answer.
+    /// </summary>
+    public static string DefaultDirectory => AppLayout.Current.Config;
 
     public static T? Load<T>(string directory, string fileName)
     {

@@ -1,3 +1,4 @@
+using System.IO;
 using System.Threading;
 using System.Windows;
 using WeChatBridge.Windows.Core;
@@ -9,21 +10,31 @@ namespace WeChatBridge.Windows;
 public partial class App : Application
 {
     public App() => L10n.Language = new AppSettingsStore().Load().Language;
-    private const string MutexName = "Local\\WeChatBridge.Windows.Main";
-    private const string ChangeEventName = "Local\\WeChatBridge.Windows.InboxChanged";
+
+    // Every machine-wide name gets the layout suffix. A portable copy and an
+    // installed copy on the same machine would otherwise silently evict each
+    // other: the second launch creates its Inbox, loses the single-instance
+    // mutex, and exits with no window and no message. Installed builds keep an
+    // empty suffix, so their names are unchanged.
+    private static readonly string Suffix = AppLayout.Current.CoordinationSuffix;
+    private static string MutexName => "Local\\WeChatBridge.Windows.Main" + Suffix;
+    private static string ChangeEventName => "Local\\WeChatBridge.Windows.InboxChanged" + Suffix;
     /// <summary>
     /// A second *interactive* launch asks for the window. Kept separate from
     /// <see cref="ChangeEventName"/>: a share must never pull our window to the
     /// front — the delivery engine is busy foregrounding the target app, and a
     /// window that grabs focus mid-paste steals the Ctrl+V.
     /// </summary>
-    private const string ForegroundEventName = "Local\\WeChatBridge.Windows.Foreground";
+    private static string ForegroundEventName => "Local\\WeChatBridge.Windows.Foreground" + Suffix;
     /// <summary>
     /// The helper's "a batch is staged, the pick is still open" signal — the
     /// cue to start the scene reads inside the user's decision time. Distinct
     /// from <see cref="ChangeEventName"/>: that one means "committed, reload".
     /// </summary>
-    private const string PrefetchEventName = PrefetchHint.EventName;
+    private static string PrefetchEventName => PrefetchHint.EventName + Suffix;
+
+    /// <summary>How long the inbox relay waits after an I/O failure before retrying.</summary>
+    private static readonly TimeSpan RelayRetryDelay = TimeSpan.FromSeconds(2);
 
     private Mutex? _mutex;
     private EventWaitHandle? _changeEvent;
@@ -39,10 +50,29 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        _paths = new InboxPaths();
-        _paths.EnsureCreated();
-
         var background = e.Args.Any(a => string.Equals(a, "--background", StringComparison.OrdinalIgnoreCase));
+        _paths = new InboxPaths();
+        // A portable build's Inbox lives on a removable drive, which can be
+        // read-only, full, or mid-rename. Directory.CreateDirectory throws for
+        // all three, and letting it escape OnStartup means no window and no
+        // explanation — the same "nothing happened" the mutex path below used
+        // to produce. Say what is wrong instead.
+        try
+        {
+            _paths.EnsureCreated();
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show(
+                string.Format(
+                    System.Globalization.CultureInfo.CurrentCulture,
+                    L10n.Text("无法在 {0} 创建数据目录。请检查磁盘是否已插入、是否可写，或换一个目录再试。"),
+                    _paths.Root) + "\n\n" + error.Message,
+                L10n.Text("微信流"), MessageBoxButton.OK, MessageBoxImage.Warning);
+            Shutdown(1);
+            return;
+        }
+
         _mutex = new Mutex(initiallyOwned: true, MutexName, out var createdNew);
         if (!createdNew)
         {
@@ -86,7 +116,12 @@ public partial class App : Application
         if (!background)
         {
             window.Show();
-            if (new OnboardingStateStore().NeedsOnboarding())
+            // The guide is written for an installed build: it tells an unregistered
+            // user to reinstall the full package, offers a sign-in-startup toggle
+            // that a removable drive cannot honour, and lists twelve entries that
+            // mean nothing before the share menu is registered. Portable mode skips
+            // it — the Entries page carries the share-registration action instead.
+            if (!AppLayout.Current.IsPortable && new OnboardingStateStore().NeedsOnboarding())
                 new OnboardingWindow(model) { Owner = window }.Show();
         }
         // MainWindow's inbox load rides the Loaded event — a hidden window
@@ -213,7 +248,13 @@ public partial class App : Application
             {
                 if (_paths is not null)
                     InboxLogger.Write(_paths, L10n.Text("监听 Inbox 失败"), error);
-                return;
+                // Keep relaying. A removable drive makes transient errors routine
+                // — a slow read, an indexer holding a handle, the volume being
+                // re-enumerated — and one of them used to end the share relay for
+                // the life of the process. Back off so a permanently broken root
+                // does not spin, and so a drive that comes back recovers on its own.
+                try { await Task.Delay(RelayRetryDelay, cancellationToken); }
+                catch (OperationCanceledException) { return; }
             }
         }
     }

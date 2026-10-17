@@ -7,6 +7,8 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using Microsoft.Win32;
 using WeChatBridge.Windows.Core;
+using WeChatBridge.Windows.Onboarding;
+using WeChatBridge.Windows.Services;
 
 namespace WeChatBridge.Windows.Panes;
 
@@ -20,7 +22,7 @@ public partial class EntriesPane : UserControl
     public EntriesPane()
     {
         InitializeComponent();
-        Loaded += (_, _) => HookModel();
+        Loaded += (_, _) => { HookModel(); _ = RefreshShareRegistrationAsync(); };
         DataContextChanged += (_, _) => HookModel();
     }
 
@@ -32,6 +34,7 @@ public partial class EntriesPane : UserControl
         if (ReferenceEquals(_hooked, Model))
         {
             UpdateTargetsEmpty();
+            UpdateShareRegistrationCard();
             return;
         }
         if (_hooked is not null)
@@ -40,6 +43,7 @@ public partial class EntriesPane : UserControl
         if (_hooked is not null)
             _hooked.TargetRows.CollectionChanged += OnTargetsChanged;
         UpdateTargetsEmpty();
+        UpdateShareRegistrationCard();
     }
 
     private void OnTargetsChanged(object? sender, NotifyCollectionChangedEventArgs e) => UpdateTargetsEmpty();
@@ -77,6 +81,83 @@ public partial class EntriesPane : UserControl
         var dialog = new OpenFolderDialog { Title = L10n.Text("选择沉淀文件夹"), Multiselect = false };
         if (dialog.ShowDialog(Window.GetWindow(this)) == true && Model is { } model)
             model.DeliveryFolderPath = dialog.FolderName;
+    }
+
+    // --- portable share registration -----------------------------------------
+
+    private bool _registrationBusy;
+
+    private void UpdateShareRegistrationCard()
+    {
+        if (!IsLoaded)
+            return;
+        // Only a portable build has anything to register: an installed one is
+        // registered by its own installer, which also prepares certificate trust.
+        ShareRegistrationCard.Visibility = AppLayout.Current.IsPortable
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
+
+    private async Task RefreshShareRegistrationAsync()
+    {
+        if (!AppLayout.Current.IsPortable)
+            return;
+        var state = await ShareRegistrationService.Current;
+        if (!IsLoaded)
+            return;
+        switch (state)
+        {
+            case ShareRegistrationState.Registered:
+                ShareRegistrationTitle.Text = L10n.Text("微信分享菜单已启用");
+                ShareRegistrationDetail.Text = L10n.Text("请重启微信，在「转发到其他应用」里确认「微信流」。");
+                ShareRegistrationButton.Visibility = Visibility.Collapsed;
+                break;
+            case ShareRegistrationState.Moved:
+                ShareRegistrationTitle.Text = L10n.Text("U 盘位置变了，需要重新注册");
+                ShareRegistrationDetail.Text = L10n.Text("分享菜单仍然指向插入时的旧位置。请在当前 U 盘上重新启用一次，然后重启微信。");
+                ShareRegistrationButton.Visibility = Visibility.Visible;
+                ShareRegistrationButton.Content = L10n.Text("重新注册");
+                break;
+            case ShareRegistrationState.Unknown:
+                ShareRegistrationTitle.Text = L10n.Text("无法检查分享入口状态");
+                ShareRegistrationDetail.Text = L10n.Text("系统没有返回可判断的结果。可以点下面的按钮重新注册一次。");
+                ShareRegistrationButton.Visibility = Visibility.Visible;
+                ShareRegistrationButton.Content = L10n.Text("在这台电脑上启用分享入口");
+                break;
+            default:
+                ShareRegistrationTitle.Text = L10n.Text("微信分享菜单未启用");
+                ShareRegistrationDetail.Text = ShareRegistrationService.InstalledCopyPresent
+                    ? L10n.Text("启用后会顶掉本机已安装的微信流的分享入口（菜单里仍然只有一行）。不启用也能用：在「记录」页点「导入聊天文件」，或把 ZIP 拖进来。")
+                    : L10n.Text("不启用也能用：在「记录」页点「导入聊天文件」，或把 ZIP 拖进来。启用需要一次管理员授权，并在之后重启微信。");
+                ShareRegistrationButton.Visibility = Visibility.Visible;
+                ShareRegistrationButton.Content = L10n.Text("在这台电脑上启用分享入口");
+                break;
+        }
+    }
+
+    private async void ShareRegistration_Click(object sender, RoutedEventArgs e)
+    {
+        if (_registrationBusy || Model is not { } model)
+            return;
+        _registrationBusy = true;
+        ShareRegistrationButton.IsEnabled = false;
+        ShareRegistrationTitle.Text = L10n.Text("正在注册…请在弹出的窗口中允许管理员授权。");
+        try
+        {
+            var result = await ShareRegistrationService.RegisterAsync();
+            model.Notify(
+                result.Success
+                    ? L10n.Text("分享入口已注册，请重启微信后在「转发到其他应用」里确认「微信流」。")
+                    : result.Message ?? L10n.Text("注册失败。"),
+                buttonText: null,
+                warn: !result.Success);
+        }
+        finally
+        {
+            _registrationBusy = false;
+            ShareRegistrationButton.IsEnabled = true;
+            await RefreshShareRegistrationAsync();
+        }
     }
 
     private void ChooseVault_Click(object sender, RoutedEventArgs e)

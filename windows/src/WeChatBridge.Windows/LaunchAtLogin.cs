@@ -1,5 +1,6 @@
 using Microsoft.Win32;
 using System.Diagnostics;
+using WeChatBridge.Windows.Core;
 
 namespace WeChatBridge.Windows;
 
@@ -12,7 +13,11 @@ namespace WeChatBridge.Windows;
 internal static class LaunchAtLogin
 {
     private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    private const string ValueName = "WeChatBridge.Windows";
+    /// <summary>
+    /// Suffixed so a portable copy disabling autostart deletes its own value
+    /// rather than the installed build's. Installed builds keep the plain name.
+    /// </summary>
+    private static string ValueName => "WeChatBridge.Windows" + AppLayout.Current.CoordinationSuffix;
 
     private static string Command =>
         $"\"{Process.GetCurrentProcess().MainModule?.FileName}\" --background";

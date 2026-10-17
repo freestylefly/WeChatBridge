@@ -10,13 +10,13 @@ public partial class OnboardingWindow : Window
 {
     private readonly MainViewModel _model;
     private readonly OnboardingStateStore _store;
-    private readonly Func<Task<bool>> _registrationProbe;
+    private readonly Func<Task<ShareRegistrationState>> _registrationProbe;
     private readonly List<WizardEntry> _entries;
     private int _step;
-    private bool _registered;
+    private ShareRegistrationState _registration;
     private bool _checking;
     public int CurrentStep => _step;
-    public OnboardingWindow(MainViewModel model, OnboardingStateStore? store = null, Func<Task<bool>>? registrationProbe = null)
+    public OnboardingWindow(MainViewModel model, OnboardingStateStore? store = null, Func<Task<ShareRegistrationState>>? registrationProbe = null)
     {
         _model = model;
         _store = store ?? new OnboardingStateStore();
@@ -51,13 +51,27 @@ public partial class OnboardingWindow : Window
         _checking = true;
         RefreshButton.IsEnabled = false;
         RegistrationTitle.Text = L10n.Text("正在检查分享入口…");
-        try { _registered = await _registrationProbe(); } catch { _registered = false; }
+        try { _registration = await _registrationProbe(); } catch { _registration = ShareRegistrationState.Unknown; }
         finally { _checking = false; RefreshButton.IsEnabled = true; }
-        RegistrationTitle.Text = L10n.Text(_registered ? "Windows 分享入口已注册" : "未检测到 Windows 分享入口");
-        RegistrationDetail.Text = L10n.Text(_registered ? "请重启微信，在「转发到其他应用」里确认「微信流」。"
-            : "请使用完整安装包重新安装并允许管理员授权，也可以先完成目标配置。");
-        RegistrationMark.Text = _registered ? "✓" : "!";
-        RegistrationMark.Foreground = (System.Windows.Media.Brush)FindResource(_registered ? "BrandColor" : "WarnInkColor");
+        // Four states, not two: telling someone to reinstall because our own
+        // PackageManager query threw leaves them nothing to do about it.
+        RegistrationTitle.Text = L10n.Text(_registration switch
+        {
+            ShareRegistrationState.Registered => "Windows 分享入口已注册",
+            ShareRegistrationState.Moved => "U 盘位置变了，分享入口需要重新注册",
+            ShareRegistrationState.Unknown => "无法检查分享入口状态",
+            _ => "未检测到 Windows 分享入口",
+        });
+        RegistrationDetail.Text = L10n.Text(_registration switch
+        {
+            ShareRegistrationState.Registered => "请重启微信，在「转发到其他应用」里确认「微信流」。",
+            ShareRegistrationState.Moved => "插入 U 盘的位置变了，分享菜单会指向旧路径。请重新注册后再重启微信。",
+            ShareRegistrationState.Unknown => "系统没有返回可判断的结果，可以稍后再检查一次。",
+            _ => "请使用完整安装包重新安装并允许管理员授权，也可以先完成目标配置。",
+        });
+        var good = _registration == ShareRegistrationState.Registered;
+        RegistrationMark.Text = good ? "✓" : "!";
+        RegistrationMark.Foreground = (System.Windows.Media.Brush)FindResource(good ? "BrandColor" : "WarnInkColor");
         RefreshSummary();
     }
     private void RefreshSummary()
@@ -66,7 +80,8 @@ public partial class OnboardingWindow : Window
         var enabled = _entries.Where(row => row.Enabled).Select(row => row.Title).ToArray();
         SelectedSummary.Text = enabled.Length > 0 ? string.Join("、", enabled) : L10n.Text("尚未开启目标，可稍后在「入口」页设置。");
         SummaryStartup.Text = L10n.Text(_model.AutoStartEnabled ? "登录后在后台运行" : "需要时再启动");
-        SummaryRegistration.Text = L10n.Text(_registered ? "已注册到 Windows，下一步请在微信中确认。" : "分享入口待检查；目标配置仍会保存。");
+        SummaryRegistration.Text = L10n.Text(_registration == ShareRegistrationState.Registered
+            ? "已注册到 Windows，下一步请在微信中确认。" : "分享入口待检查；目标配置仍会保存。");
         SelectionCount.Text = L10n.Format($"已开启 {_entries.Count(row => row.Enabled)} 个目标");
     }
     private async void OnRefreshClicked(object sender, RoutedEventArgs e) => await CheckRegistrationAsync();

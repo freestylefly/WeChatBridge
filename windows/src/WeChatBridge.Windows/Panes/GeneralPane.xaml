@@ -141,10 +141,11 @@
                                Text="{loc:Loc Key='开机自动启动'}" />
                     <TextBlock Margin="0,3,0,0" FontSize="12"
                                Foreground="{StaticResource InkSecondaryColor}" TextWrapping="Wrap"
-                               Text="{loc:Loc Key='登录后后台驻留，分享进来时几乎立即转发；关掉则每次分享要冷启动。'}" />
+                               Text="{Binding AutoStartHint}" />
                 </StackPanel>
                 <CheckBox Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0"
                           Style="{StaticResource MacToggle}"
+                          IsEnabled="{Binding AutoStartAvailable}"
                           IsChecked="{Binding AutoStartEnabled, Mode=TwoWay}" />
             </Grid>
             <Grid Margin="0,16,0,0">
