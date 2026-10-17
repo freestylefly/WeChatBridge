@@ -2,7 +2,10 @@
 param(
     [string]$Version = '1.0.8',
     [string]$DistDirectory = (Join-Path $PSScriptRoot '..\artifacts\dist'),
-    [string]$WixExtensionDirectory = 'D:\WeChatB-Hub\_scratch\tools\wixext',
+    # No machine-specific default: this used to point at another checkout's
+    # scratch directory, which fails with an opaque path error on anyone else.
+    # Required — validated below alongside the signing thumbprint.
+    [string]$WixExtensionDirectory,
     # No machine-specific thumbprint default: new-dev-certificate.ps1 mints a fresh
     # certificate per machine, so a hardcoded one goes stale silently. Resolved from
     # the subject below, the same way register-dev.ps1 does.
@@ -14,9 +17,25 @@ if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Version must have three numer
 if ([version]$Version -lt [version]'1.0.1') { throw 'Version must be at least 1.0.1: existing Windows application files already use version 1.0.0.' }
 $repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 $DistDirectory = [IO.Path]::GetFullPath($DistDirectory)
+# The product version lives in Directory.Build.props; five call sites used to
+# hardcode it independently and drifted silently. Assert instead.
+$propsPath = Join-Path $repositoryRoot 'windows\Directory.Build.props'
+[xml]$props = Get-Content -LiteralPath $propsPath -Raw
+$productVersion = $props.Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+if ($Version -ne $productVersion) {
+    throw "Version $Version does not match windows\Directory.Build.props ($productVersion). Bump the props file instead of passing -Version."
+}
+# x64 is the only architecture built today. arm64 needs a RID here, a payload
+# directory, -arch on both wix invocations, and build-bundle.ps1's runtime table.
 $payload = Join-Path $DistDirectory 'payload\x64'
 $msiDirectory = Join-Path $repositoryRoot 'windows\packaging\msi'
 New-Item -ItemType Directory -Path $payload -Force | Out-Null
+if (-not $WixExtensionDirectory) {
+    throw '-WixExtensionDirectory is required: point it at the directory holding wixtoolset.util.wixext and wixtoolset.ui.wixext.'
+}
+if (-not (Test-Path -LiteralPath $WixExtensionDirectory)) {
+    throw "Wix extension directory does not exist: $WixExtensionDirectory"
+}
 if (-not $SigningThumbprint) {
     $SigningThumbprint = (Get-ChildItem Cert:\CurrentUser\My |
         Where-Object Subject -eq 'CN=WeChatBridge Windows Dev' |

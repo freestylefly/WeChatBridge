@@ -13,11 +13,18 @@ param(
   [string]$Version = '1.0.8',
   [switch]$SelfContained,
   [string]$CertificateTrustMsiPath,
-  [string]$WixExtensionDirectory = 'D:\WeChatB-Hub\_scratch\tools\wixext',
+  [string]$WixExtensionDirectory,
   [string]$DistDir = (Join-Path $PSScriptRoot '..\..\artifacts\dist')
 )
 
 $ErrorActionPreference = 'Stop'
+
+if (-not $WixExtensionDirectory) {
+  throw '-WixExtensionDirectory is required: point it at the directory holding wixtoolset.util.wixext and wixtoolset.ui.wixext.'
+}
+if (-not (Test-Path -LiteralPath $WixExtensionDirectory)) {
+  throw "Wix extension directory does not exist: $WixExtensionDirectory"
+}
 
 $extDir = $WixExtensionDirectory
 $exts = @(
