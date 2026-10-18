@@ -82,6 +82,13 @@ SignPath 项目创建完成后，工作流会先构建和测试，再发布外�
 
 见 [WECHAT_ECOSYSTEM_INTEGRATION.zh-CN.md](WECHAT_ECOSYSTEM_INTEGRATION.zh-CN.md)：按买断版与订阅版两种形态展开的完整技术方案，含微信扫码登录、微信支付 Native 扫码购买和离线许可证校验。
 
-该文档目前是**设计稿，尚未实施**。当前发布的是买断形态的免费档，完全离线；买断形态现有的隐私承诺全部成立，不需要改动，买断版 Pro 仅在兑换许可证时联网一次。联网、认证与云端能力只属于订阅版，其联网范围见该文档 §7 与 §16。订阅版目前只规划了 Windows，macOS 尚未接入。
+该方案目前是**服务端已实现、客户端未实施**的状态（截至 2026-10）。当前发布的是买断形态的免费档，完全离线；买断形态现有的隐私承诺全部成立，不需要改动，买断版 Pro 仅在兑换许可证时联网一次。联网、认证与云端能力只属于订阅版，其联网范围见该文档 §7 与 §16。订阅版目前只规划了 Windows，macOS 尚未接入。
 
 该方案的前提是**客户端不直连微信**：`AppID`/`AppSecret` 与商户密钥只存在于服务端，客户端只与自己的后端对话。
+
+> ⚠️ **服务端已开始实现，但客户端有一处必须先修的 wire 契约问题**：
+> 客户端 `LicenseEnvelope` 用 `DateTimeOffset` 声明 `iat`/`nbf`/`exp` 且无 converter，
+> 而服务端发的是 Unix 秒整数，`LicenseStore.Load()` 会静默返回 `null`——用户看到的是「没有许可证」。
+> 修法与证据见 [LICENCE-ENVELOPE-WIRE-CONTRACT.zh-CN.md](LICENCE-ENVELOPE-WIRE-CONTRACT.zh-CN.md)。
+> 同目录的 `../shared/License/license-test-vectors.json`（仓库 `shared/`）是服务端产出的跨端测试向量，
+> 可直接用作 C# 侧的回归夹具。
