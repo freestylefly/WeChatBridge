@@ -4,9 +4,8 @@ go 1.26
 
 require (
 	github.com/gin-gonic/gin v1.11.0
-	github.com/jackc/pgx/v5 v5.6.0
-	github.com/pashagolub/pgxmock/v3 v3.4.0
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
+	modernc.org/sqlite v1.34.5
 )
 
 require (
@@ -22,9 +21,6 @@ require (
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/goccy/go-yaml v1.18.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/jackc/pgpassfile v1.0.0 // indirect
-	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
-	github.com/jackc/puddle/v2 v2.2.1 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
@@ -51,5 +47,4 @@ require (
 	modernc.org/libc v1.55.3 // indirect
 	modernc.org/mathutil v1.6.0 // indirect
 	modernc.org/memory v1.8.0 // indirect
-	modernc.org/sqlite v1.34.5 // indirect
 )

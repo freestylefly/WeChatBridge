@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/freestylefly/WeChatBridge/server/internal/activation"
 	"github.com/freestylefly/WeChatBridge/server/internal/admin"
@@ -30,7 +29,8 @@ import (
 	"github.com/freestylefly/WeChatBridge/server/internal/config"
 	"github.com/freestylefly/WeChatBridge/server/internal/httpx"
 	"github.com/freestylefly/WeChatBridge/server/internal/license"
-	"github.com/freestylefly/WeChatBridge/server/internal/store/postgres"
+	"github.com/freestylefly/WeChatBridge/server/internal/migrate"
+	"github.com/freestylefly/WeChatBridge/server/internal/store/sqlite"
 	"github.com/freestylefly/WeChatBridge/server/internal/token"
 	"github.com/freestylefly/WeChatBridge/server/internal/wechat"
 	"github.com/freestylefly/WeChatBridge/server/migrations"
@@ -62,11 +62,11 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	if err := migrate(ctx, cfg.DatabaseURL, logger); err != nil {
+	if err := migrateSchema(ctx, cfg.DatabaseURL, logger); err != nil {
 		return fmt.Errorf("migrate: %w", err)
 	}
 
-	st, err := postgres.New(ctx, cfg.DatabaseURL)
+	st, err := sqlite.New(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return err
 	}
@@ -235,19 +235,24 @@ func run() error {
 	return nil
 }
 
-// migrate brings the database up to the embedded schema through its own
-// short-lived pool, which is closed before the server starts serving. DDL
-// does not need the application pool's sizing or its UTC session setting,
-// and keeping the two apart means a failed migration never leaves a pool
-// behind for the deploy to wonder about.
-func migrate(ctx context.Context, dsn string, logger *slog.Logger) error {
-	pool, err := pgxpool.New(ctx, dsn)
+// migrateSchema brings the database up to the embedded schema through its
+// own short-lived handle, which is closed before the server starts serving.
+// DDL does not need the store's pool sizing, and keeping the two apart means
+// a failed migration never leaves a handle behind for the deploy to wonder
+// about.
+//
+// The handle comes from the store package's Open rather than a bare
+// sql.Open: the DSN assembly — pragmas, one-connection pool, the start-up
+// ping — lives in exactly one place, so the migration runs against the same
+// settings the service will.
+func migrateSchema(ctx context.Context, dsn string, logger *slog.Logger) error {
+	db, err := sqlite.Open(ctx, dsn)
 	if err != nil {
-		return fmt.Errorf("open migration pool: %w", err)
+		return fmt.Errorf("open migration database: %w", err)
 	}
-	defer pool.Close()
+	defer db.Close()
 
-	applied, err := migrateFrom(ctx, pool, migrations.FS)
+	applied, err := migrate.From(ctx, db, migrations.FS)
 	if err != nil {
 		return err
 	}

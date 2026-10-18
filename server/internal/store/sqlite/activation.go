@@ -1,13 +1,12 @@
-package postgres
+package sqlite
 
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"time"
-
-	"github.com/jackc/pgx/v5"
 
 	"github.com/freestylefly/WeChatBridge/server/internal/store"
 )
@@ -29,8 +28,8 @@ import (
 // The columns carry no table qualifier because every other query that uses
 // this list reads activation_requests alone. The one query that joins accounts
 // needs the qualified form below — install_id and created_at exist on both
-// tables, and an unqualified reference in a join is an ambiguity error
-// (SQLSTATE 42702), not a warning.
+// tables, and an unqualified reference in a join is an ambiguity error, not a
+// warning.
 const activationRequestColumns = `
 	request_id, account_id, install_id, anchor_digest, amount_fen,
 	status, envelope_json, license_id, created_at, confirmed_at`
@@ -49,6 +48,10 @@ const qualifiedActivationRequestColumns = `
 // what keeps a stranger's machine code from being adopted into somebody
 // else's purchase, and a refused predicate falls through to the caller's
 // fallback read rather than to an error.
+//
+// The conflict target carries the partial index's WHERE predicate, and the
+// predicate and the index have to describe the same rows for the upsert to
+// find its target at all — they do, because both name status = 'pending'.
 //
 // RETURNING is load-bearing, not a convenience. The UPDATE branch deliberately
 // keeps the row's original request_id — a caller that echoed back the id it
@@ -99,22 +102,26 @@ const listActivationRequestsSQL = `
 	WHERE $1 = '' OR r.status = $1
 	ORDER BY r.created_at DESC`
 
-// confirmLockSQL takes the row lock the conditional flip needs. Without it two
-// sellers reading the same pending row could both mint.
-const confirmLockSQL = `
+// loadConfirmRowSQL reads the row the conditional flip needs. The PostgreSQL
+// version carried FOR UPDATE; the row lock is gone with it. What keeps two
+// sellers from both minting is BEGIN IMMEDIATE — the second transaction
+// cannot even start until the first has committed, so it reads the row the
+// first one left behind and answers with a conflict — and the conditional
+// UPDATE below, which is the line a reviewer greps for and the line that
+// would still hold if the transaction were ever weakened.
+const loadConfirmRowSQL = `
 	SELECT ` + activationRequestColumns + `
 	FROM activation_requests
-	WHERE request_id = $1
-	FOR UPDATE`
+	WHERE request_id = $1`
 
 const confirmInsertBindingSQL = `
 	INSERT INTO licence_bindings (license_id, install_id, account_id, request_id, issued_at)
 	VALUES ($1, $2, $3, $4, $5)`
 
 // confirmFlipSQL is the seller's answer. It is conditional on the row still
-// being pending, and the guard is not redundant with the lock: it is the line
-// a reviewer greps for, and the line that keeps the answer at one licence if
-// the lock is ever traded for a weaker read.
+// being pending, and the guard is not redundant with the transaction: it is
+// the line a reviewer greps for, and the line that keeps the answer at one
+// licence if the isolation is ever traded for a weaker read.
 const confirmFlipSQL = `
 	UPDATE activation_requests
 	SET status = 'confirmed', license_id = $2, envelope_json = $3, confirmed_at = $4
@@ -129,13 +136,13 @@ const confirmFlipSQL = `
 // another account produces no row at all — the predicate refused — and the
 // caller is handed that row back so it can refuse the purchase in turn.
 func (s *Store) CreateActivationRequest(ctx context.Context, r store.ActivationRequest) (store.ActivationRequest, error) {
-	created, err := scanActivationRequest(s.db.QueryRow(ctx, createActivationRequestSQL,
+	created, err := scanActivationRequest(s.db.QueryRowContext(ctx, createActivationRequestSQL,
 		r.RequestID, r.AccountID, r.InstallID, r.AnchorDigest,
 		r.AmountFen, utc(r.CreatedAt)))
 	if err == nil {
 		return created, nil
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if !errors.Is(err, sql.ErrNoRows) {
 		// The partial unique index absorbed the install collision; what is
 		// left is a primary-key collision, which is a caller reusing a minted
 		// id across machines.
@@ -150,7 +157,7 @@ func (s *Store) CreateActivationRequest(ctx context.Context, r store.ActivationR
 // LatestActivationRequest is the buyer's own view: the most recent request
 // they made, which is the one their poller is waiting on.
 func (s *Store) LatestActivationRequest(ctx context.Context, accountID store.ID) (store.ActivationRequest, error) {
-	r, err := scanActivationRequest(s.db.QueryRow(ctx, latestActivationRequestSQL, accountID))
+	r, err := scanActivationRequest(s.db.QueryRowContext(ctx, latestActivationRequestSQL, accountID))
 	if err != nil {
 		return store.ActivationRequest{}, notFound("latest activation request", err)
 	}
@@ -160,7 +167,7 @@ func (s *Store) LatestActivationRequest(ctx context.Context, accountID store.ID)
 // GetActivationRequest reads one request by id — the buyer polling a ticket
 // they were handed, or the seller re-reading after a conflict.
 func (s *Store) GetActivationRequest(ctx context.Context, requestID string) (store.ActivationRequest, error) {
-	r, err := scanActivationRequest(s.db.QueryRow(ctx, getActivationRequestSQL, requestID))
+	r, err := scanActivationRequest(s.db.QueryRowContext(ctx, getActivationRequestSQL, requestID))
 	if err != nil {
 		return store.ActivationRequest{}, notFound("get activation request", err)
 	}
@@ -171,7 +178,7 @@ func (s *Store) GetActivationRequest(ctx context.Context, requestID string) (sto
 // it. The buyer's own reads never go through here; this is the upsert's
 // fallback and the seller's lookup of a machine code.
 func (s *Store) GetRequestByInstallID(ctx context.Context, installID string) (store.ActivationRequest, error) {
-	r, err := scanActivationRequest(s.db.QueryRow(ctx, requestByInstallIDSQL, installID))
+	r, err := scanActivationRequest(s.db.QueryRowContext(ctx, requestByInstallIDSQL, installID))
 	if err != nil {
 		return store.ActivationRequest{}, notFound("request by install id", err)
 	}
@@ -181,7 +188,7 @@ func (s *Store) GetRequestByInstallID(ctx context.Context, installID string) (st
 // ListActivationRequests returns the console's table, newest first. An empty
 // status means every state.
 func (s *Store) ListActivationRequests(ctx context.Context, status store.ActivationStatus) ([]store.ActivationRequestView, error) {
-	rows, err := s.db.Query(ctx, listActivationRequestsSQL, string(status))
+	rows, err := s.db.QueryContext(ctx, listActivationRequestsSQL, string(status))
 	if err != nil {
 		return nil, wrap("list activation requests", err)
 	}
@@ -213,8 +220,8 @@ func (s *Store) ConfirmActivationRequest(ctx context.Context, requestID, license
 	var result store.ActivationRequest
 	now := utc(at)
 
-	err := s.inTx(ctx, func(tx pgx.Tx) error {
-		r, err := scanActivationRequest(tx.QueryRow(ctx, confirmLockSQL, requestID))
+	err := s.inTx(ctx, func(tx querier) error {
+		r, err := scanActivationRequest(tx.QueryRowContext(ctx, loadConfirmRowSQL, requestID))
 		if err != nil {
 			return notFound("confirm activation request: load", err)
 		}
@@ -224,18 +231,23 @@ func (s *Store) ConfirmActivationRequest(ctx context.Context, requestID, license
 			return store.ErrConflict
 		}
 
-		if _, err := tx.Exec(ctx, confirmInsertBindingSQL,
+		if _, err := tx.ExecContext(ctx, confirmInsertBindingSQL,
 			licenseID, r.InstallID, r.AccountID, requestID, now); err != nil {
 			return bindingConflict("confirm activation request: bind", err)
 		}
 
-		tag, err := tx.Exec(ctx, confirmFlipSQL, requestID, licenseID, envelopeJSON, now)
+		res, err := tx.ExecContext(ctx, confirmFlipSQL, requestID, licenseID, envelopeJSON, now)
 		if err != nil {
 			return wrap("confirm activation request: flip", err)
 		}
-		// The row is locked and was pending; zero rows would mean somebody
-		// changed the state through a path that bypassed the lock.
-		if err := conflictWhenUnchanged("confirm activation request: flip", nil, tag.RowsAffected()); err != nil {
+		affected, err := res.RowsAffected()
+		if err != nil {
+			return wrap("confirm activation request: flip: row count", err)
+		}
+		// The row was read and was pending inside a write transaction; zero
+		// rows would mean somebody changed the state through a path that
+		// bypassed the transaction.
+		if err := conflictWhenUnchanged("confirm activation request: flip", nil, affected); err != nil {
 			return err
 		}
 
@@ -313,15 +325,15 @@ func (s *Store) ReissueLicence(ctx context.Context, installID, licenseID string,
 	var result store.ActivationRequest
 	now := utc(at)
 
-	err := s.inTx(ctx, func(tx pgx.Tx) error {
+	err := s.inTx(ctx, func(tx querier) error {
 		var oldAccount string
-		if err := tx.QueryRow(ctx, reissueRetireSQL, installID, now).Scan(&oldAccount); err != nil &&
-			!errors.Is(err, pgx.ErrNoRows) {
+		if err := tx.QueryRowContext(ctx, reissueRetireSQL, installID, now).Scan(&oldAccount); err != nil &&
+			!errors.Is(err, sql.ErrNoRows) {
 			return wrap("reissue licence: retire old binding", err)
 		}
 
-		latest, latestErr := scanActivationRequest(tx.QueryRow(ctx, reissueLatestSQL, installID))
-		if latestErr != nil && !errors.Is(latestErr, pgx.ErrNoRows) {
+		latest, latestErr := scanActivationRequest(tx.QueryRowContext(ctx, reissueLatestSQL, installID))
+		if latestErr != nil && !errors.Is(latestErr, sql.ErrNoRows) {
 			return wrap("reissue licence: load machine's request", latestErr)
 		}
 		hasRequest := latestErr == nil
@@ -349,7 +361,7 @@ func (s *Store) ReissueLicence(ctx context.Context, installID, licenseID string,
 		if hasPending {
 			requestID = latest.RequestID
 		}
-		if _, err := tx.Exec(ctx, confirmInsertBindingSQL,
+		if _, err := tx.ExecContext(ctx, confirmInsertBindingSQL,
 			licenseID, installID, account, requestID, now); err != nil {
 			return bindingConflict("reissue licence: bind", err)
 		}
@@ -364,7 +376,7 @@ func (s *Store) ReissueLicence(ctx context.Context, installID, licenseID string,
 			if hasRequest {
 				anchor, amount = latest.AnchorDigest, latest.AmountFen
 			}
-			if _, err := tx.Exec(ctx, reissueInsertRequestSQL,
+			if _, err := tx.ExecContext(ctx, reissueInsertRequestSQL,
 				freshID, account, installID, anchor, amount,
 				licenseID, envelopeJSON, now, now); err != nil {
 				return wrap("reissue licence: file request", err)
@@ -385,11 +397,15 @@ func (s *Store) ReissueLicence(ctx context.Context, installID, licenseID string,
 			return nil
 		}
 
-		tag, err := tx.Exec(ctx, confirmFlipSQL, latest.RequestID, licenseID, envelopeJSON, now)
+		res, err := tx.ExecContext(ctx, confirmFlipSQL, latest.RequestID, licenseID, envelopeJSON, now)
 		if err != nil {
 			return wrap("reissue licence: confirm pending", err)
 		}
-		if err := conflictWhenUnchanged("reissue licence: confirm pending", nil, tag.RowsAffected()); err != nil {
+		affected, err := res.RowsAffected()
+		if err != nil {
+			return wrap("reissue licence: confirm pending: row count", err)
+		}
+		if err := conflictWhenUnchanged("reissue licence: confirm pending", nil, affected); err != nil {
 			return err
 		}
 
@@ -417,8 +433,8 @@ const bindingExistsSQL = `
 	FROM licence_bindings
 	WHERE license_id = $1`
 
-// RevokeBinding marks a licence revoked. The row stays: the honest answer to
-// "is this licence still valid" is a date, not a deletion.
+// RevokeBinding marks a licence revoked. The row stays: the honest answer
+// to "is this licence still valid" is a date, not a deletion.
 //
 // Zero rows updated is two different stories — already revoked, or never
 // existed — and they get different answers. Revoking twice is a misclick on a
@@ -426,17 +442,21 @@ const bindingExistsSQL = `
 // a 404.
 func (s *Store) RevokeBinding(ctx context.Context, licenseID string, at time.Time) error {
 	now := utc(at)
-	tag, err := s.db.Exec(ctx, revokeBindingSQL, licenseID, now)
+	res, err := s.db.ExecContext(ctx, revokeBindingSQL, licenseID, now)
 	if err != nil {
 		return wrap("revoke binding", err)
 	}
-	if tag.RowsAffected() > 0 {
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return wrap("revoke binding: row count", err)
+	}
+	if affected > 0 {
 		return nil
 	}
 
 	var existing string
-	switch err := s.db.QueryRow(ctx, bindingExistsSQL, licenseID).Scan(&existing); {
-	case errors.Is(err, pgx.ErrNoRows):
+	switch err := s.db.QueryRowContext(ctx, bindingExistsSQL, licenseID).Scan(&existing); {
+	case errors.Is(err, sql.ErrNoRows):
 		return store.ErrNotFound
 	case err != nil:
 		return wrap("revoke binding: re-read", err)
@@ -473,7 +493,7 @@ const listBindingsSQL = `
 
 // LiveBindingByInstallID finds the licence a machine currently holds.
 func (s *Store) LiveBindingByInstallID(ctx context.Context, installID string) (store.LicenceBinding, error) {
-	b, err := scanLicenceBinding(s.db.QueryRow(ctx, liveBindingSQL, installID))
+	b, err := scanLicenceBinding(s.db.QueryRowContext(ctx, liveBindingSQL, installID))
 	if err != nil {
 		return store.LicenceBinding{}, notFound("live binding by install id", err)
 	}
@@ -483,7 +503,7 @@ func (s *Store) LiveBindingByInstallID(ctx context.Context, installID string) (s
 // ListBindings is the ledger page: everything ever issued, newest first, with
 // the person it belongs to.
 func (s *Store) ListBindings(ctx context.Context) ([]store.LicenceBindingView, error) {
-	rows, err := s.db.Query(ctx, listBindingsSQL)
+	rows, err := s.db.QueryContext(ctx, listBindingsSQL)
 	if err != nil {
 		return nil, wrap("list bindings", err)
 	}

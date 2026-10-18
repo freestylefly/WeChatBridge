@@ -1,9 +1,8 @@
-package postgres
+package sqlite
 
 import (
+	"database/sql"
 	"time"
-
-	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/freestylefly/WeChatBridge/server/internal/store"
 )
@@ -14,11 +13,17 @@ import (
 // of counting arguments by eye. Every scanner here also normalises timestamps to
 // UTC on the way out, so no caller ever receives a local-zone time.Time and
 // serialises it into a licence.
+//
+// The nullable columns go through sql.Null* rather than through **T, the
+// driver-level double pointer: the double pointer is a driver feature, not a
+// language one, and anything that is not the real driver — a mock, a future
+// pool, an instrumented wrapper — silently ignores it. sql.Null* makes the
+// nullability visible at the scan site instead.
 
-// nullTime converts a nullable timestamptz column into the domain type's
-// pointer. The copy is deliberate: pgtype hands back a value the driver may
+// nullTime converts a nullable timestamp column into the domain type's
+// pointer. The copy is deliberate: the driver hands back a value it may
 // reuse.
-func nullTime(ts pgtype.Timestamptz) *time.Time {
+func nullTime(ts sql.NullTime) *time.Time {
 	if !ts.Valid {
 		return nil
 	}
@@ -35,8 +40,8 @@ func utc(t time.Time) time.Time { return t.UTC() }
 func scanAccount(row rowScanner) (store.Account, error) {
 	var (
 		a       store.Account
-		unionID pgtype.Text
-		install pgtype.Text
+		unionID sql.NullString
+		install sql.NullString
 	)
 	err := row.Scan(
 		&a.ID,
@@ -64,8 +69,8 @@ func scanAccount(row rowScanner) (store.Account, error) {
 //
 // The presented hash is what the caller is holding, and it is what the
 // returned session reports as its refresh token: the row's stored hash is the
-// live one, which after a rotation is not the token the caller holds, and a
-// caller comparing the two would conclude a perfectly good token had been
+// live one, which after a rotation is not the token the caller holds, and
+// a caller comparing the two would conclude a perfectly good token had been
 // replaced. Telling "replayed" from "replaced" is RotateRefresh's job, and it
 // reads the row directly rather than trusting this projection.
 //
@@ -79,7 +84,7 @@ func scanSession(row rowScanner, presented string) (store.Session, error) {
 		live    string
 		prev    string
 		expires time.Time
-		revoked pgtype.Timestamptz
+		revoked sql.NullTime
 	)
 	err := row.Scan(
 		&s.ID, &s.ChainID, &live, &prev, &expires, &revoked,
@@ -102,9 +107,9 @@ func scanSession(row rowScanner, presented string) (store.Session, error) {
 func scanActivationRequest(row rowScanner) (store.ActivationRequest, error) {
 	var (
 		r         store.ActivationRequest
-		amount    pgtype.Int8
+		amount    sql.NullInt64
 		envelope  []byte
-		confirmed pgtype.Timestamptz
+		confirmed sql.NullTime
 	)
 	err := row.Scan(
 		&r.RequestID, &r.AccountID, &r.InstallID, &r.AnchorDigest, &amount,
@@ -125,14 +130,14 @@ func scanActivationRequest(row rowScanner) (store.ActivationRequest, error) {
 
 // scanActivationRequestView is scanActivationRequest plus the two account
 // columns the console shows beside each row. The duplication of the base
-// scanner is deliberate: pgx has consumed the row by the time the base
-// returns, so a view cannot be assembled from one.
+// scanner is deliberate: database/sql has consumed the row by the time the
+// base returns, so a view cannot be assembled from one.
 func scanActivationRequestView(row rowScanner) (store.ActivationRequestView, error) {
 	var (
 		v         store.ActivationRequestView
-		amount    pgtype.Int8
+		amount    sql.NullInt64
 		envelope  []byte
-		confirmed pgtype.Timestamptz
+		confirmed sql.NullTime
 	)
 	err := row.Scan(
 		&v.RequestID, &v.AccountID, &v.InstallID, &v.AnchorDigest, &amount,
@@ -158,8 +163,8 @@ func scanActivationRequestView(row rowScanner) (store.ActivationRequestView, err
 func scanLicenceBinding(row rowScanner) (store.LicenceBinding, error) {
 	var (
 		b       store.LicenceBinding
-		request pgtype.Text
-		revoked pgtype.Timestamptz
+		request sql.NullString
+		revoked sql.NullTime
 	)
 	err := row.Scan(
 		&b.LicenseID, &b.InstallID, &b.AccountID, &request, &b.IssuedAt, &revoked,
@@ -178,8 +183,8 @@ func scanLicenceBinding(row rowScanner) (store.LicenceBinding, error) {
 func scanLicenceBindingView(row rowScanner) (store.LicenceBindingView, error) {
 	var (
 		v       store.LicenceBindingView
-		request pgtype.Text
-		revoked pgtype.Timestamptz
+		request sql.NullString
+		revoked sql.NullTime
 	)
 	err := row.Scan(
 		&v.LicenseID, &v.InstallID, &v.AccountID, &request,
@@ -194,7 +199,7 @@ func scanLicenceBindingView(row rowScanner) (store.LicenceBindingView, error) {
 	return v, nil
 }
 
-// rowScanner is pgx.Row without the query: scanners need to work on both a
+// rowScanner is sql.Row without the query: scanners need to work on both a
 // single row and the first row of a result set.
 type rowScanner interface {
 	Scan(dest ...any) error
@@ -202,13 +207,7 @@ type rowScanner interface {
 
 // text flattens a nullable text column. Empty text and NULL mean the same
 // thing to the domain types, which use plain strings for "unknown".
-//
-// It exists because scanning into **string is a driver feature rather than a
-// language one, and it is silently ignored by anything that is not the real
-// driver — a mock, a future pool, an instrumented wrapper. Going through
-// pgtype.Text makes the nullability visible at the scan site instead of
-// depending on what the reader happens to understand.
-func text(t pgtype.Text) string {
+func text(t sql.NullString) string {
 	if !t.Valid {
 		return ""
 	}

@@ -1,12 +1,13 @@
-package postgres
+package sqlite
 
 import (
 	"context"
+	"crypto/rand"
+	"database/sql"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"time"
-
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/freestylefly/WeChatBridge/server/internal/store"
 )
@@ -22,36 +23,61 @@ const accountColumns = `
 // It is an upsert rather than select-then-insert because two devices of the
 // same person can race through this at the same moment, and an
 // insert-then-catch-violation-then-select would leave one of them with an
-// account row it never read. Two details are load-bearing:
+// account row it never read. Three details are load-bearing:
 //
 //   - plan is never written by the DO UPDATE. Signing in must not demote
 //     someone who paid, so the entitlement column is insert-only.
-//   - xmax = 0 identifies the row the INSERT created (a heap tuple that was
-//     never updated has a zero xmax) which is how the caller learns whether
-//     this was a first sign-in or a return visit, without a second query.
+//   - insert_marker is written only by the INSERT branch and never touched
+//     by the DO UPDATE. PostgreSQL answered "was this row new?" with
+//     (xmax = 0) AS created, reading a heap-tuple system column SQLite does
+//     not have; the marker is the replacement: each call mints a fresh
+//     random nonce, and a row that already existed still carries the nonce
+//     of whichever call created it — which, barring a 128-bit collision,
+//     is never the one being compared against it now. The answer is a pure
+//     value comparison, so it costs no second query and cannot drift with
+//     the clock the way a timestamp sentinel would.
+//   - The nonce is bound twice ($7 in VALUES and again in RETURNING). The
+//     driver binds $NNN by number, so reuse is exact rather than positional.
 const upsertAccountSQL = `
-	INSERT INTO accounts (open_id, union_id, nickname, avatar_url, plan, install_id, last_login_at)
-	VALUES ($1, NULLIF($2, ''), $3, $4, 'free', NULLIF($5, ''), $6)
+	INSERT INTO accounts (open_id, union_id, nickname, avatar_url, plan, install_id, last_login_at, insert_marker)
+	VALUES ($1, NULLIF($2, ''), $3, $4, 'free', NULLIF($5, ''), $6, $7)
 	ON CONFLICT (open_id) DO UPDATE SET
 		last_login_at = EXCLUDED.last_login_at,
 		nickname      = CASE WHEN EXCLUDED.nickname   <> '' THEN EXCLUDED.nickname   ELSE accounts.nickname   END,
 		avatar_url    = CASE WHEN EXCLUDED.avatar_url <> '' THEN EXCLUDED.avatar_url ELSE accounts.avatar_url END,
 		union_id      = CASE WHEN EXCLUDED.union_id IS NOT NULL THEN EXCLUDED.union_id ELSE accounts.union_id END,
 		install_id    = COALESCE(accounts.install_id, EXCLUDED.install_id)
-	RETURNING ` + accountColumns + `, (xmax = 0) AS created`
+	RETURNING ` + accountColumns + `, (insert_marker = $7) AS created`
+
+// newInsertMarker mints the nonce one sign-in call compares against the row's
+// stored marker. It is never read as a value by anything — only compared —
+// so its only property that matters is that no two calls ever produce the
+// same one.
+func newInsertMarker() (string, error) {
+	var buf [16]byte
+	if _, err := rand.Read(buf[:]); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buf[:]), nil
+}
 
 // upsertAccount is the shared body of a plain sign-in and of the sign-in that
 // completes a QR session. q is a tx when the caller is inside one.
-func upsertAccount(ctx context.Context, q rowQuerier, openID, unionID, nickname, avatar, installID string, now time.Time) (store.Account, bool, error) {
+func upsertAccount(ctx context.Context, q querier, openID, unionID, nickname, avatar, installID string, now time.Time) (store.Account, bool, error) {
 	if openID == "" {
 		// An empty open_id would collide with every other empty open_id on the
 		// unique index, turning "WeChat said nothing" into "somebody else's
 		// account". It is a bug upstream and this is where it stops.
-		return store.Account{}, false, errors.New("postgres: upsert account: empty open id")
+		return store.Account{}, false, errors.New("sqlite: upsert account: empty open id")
 	}
 
-	row := q.QueryRow(ctx, upsertAccountSQL,
-		openID, unionID, nickname, avatar, installID, utc(now))
+	marker, err := newInsertMarker()
+	if err != nil {
+		return store.Account{}, false, fmt.Errorf("sqlite: upsert account: mint insert marker: %w", err)
+	}
+
+	row := q.QueryRowContext(ctx, upsertAccountSQL,
+		openID, unionID, nickname, avatar, installID, utc(now), marker)
 	acct, err := scanAccountWithCreated(row)
 	if err != nil {
 		return store.Account{}, false, notFound("upsert account", err)
@@ -63,8 +89,8 @@ func upsertAccount(ctx context.Context, q rowQuerier, openID, unionID, nickname,
 func scanAccountWithCreated(row rowScanner) (withCreated, error) {
 	var (
 		a       withCreated
-		unionID pgtype.Text
-		install pgtype.Text
+		unionID sql.NullString
+		install sql.NullString
 		created bool
 	)
 	err := row.Scan(
@@ -101,14 +127,17 @@ const getAuthSessionSQL = `
 	FROM auth_sessions
 	WHERE ticket = $1`
 
-// lockAuthSessionSQL takes the row lock CompleteAuthSession needs. The lock is
-// what makes "check the state, then change it" safe; without it two polling
-// clients could both read `pending` and both complete the same ticket.
-const lockAuthSessionSQL = `
+// loadAuthSessionSQL reads the row CompleteAuthSession needs. The PostgreSQL
+// version carried FOR UPDATE here; the row lock is gone with it, and not
+// because SQLite lacks the syntax — it is because the lock was defensive
+// redundancy. What makes "check the state, then change it" safe now is
+// BEGIN IMMEDIATE (see inTx): the whole database has one writer, so two
+// polling clients cannot both be inside this transaction at once. The
+// conditional UPDATE below is the line that still guards the write itself.
+const loadAuthSessionSQL = `
 	SELECT state, install_id, expires_at
 	FROM auth_sessions
-	WHERE ticket = $1
-	FOR UPDATE`
+	WHERE ticket = $1`
 
 const markAuthSessionAuthorizedSQL = `
 	UPDATE auth_sessions SET state = 'authorized', account_id = $2
@@ -120,7 +149,7 @@ func (s *Store) CreateAuthSession(ctx context.Context, sess store.AuthSession) e
 	if state == "" {
 		state = store.AuthPending
 	}
-	_, err := s.db.Exec(ctx, createAuthSessionSQL,
+	_, err := s.db.ExecContext(ctx, createAuthSessionSQL,
 		sess.Ticket, string(state), sess.InstallID, sess.AuthorizeURL,
 		utc(sess.ExpiresAt), utc(sess.CreatedAt))
 	if err := uniqueConflict("create auth session", constraintAuthSessionTicket, err); err != nil {
@@ -136,9 +165,9 @@ func (s *Store) GetAuthSession(ctx context.Context, ticket string) (store.AuthSe
 	var (
 		sess      store.AuthSession
 		state     string
-		accountID pgtype.Text
+		accountID sql.NullString
 	)
-	err := s.db.QueryRow(ctx, getAuthSessionSQL, ticket).Scan(
+	err := s.db.QueryRowContext(ctx, getAuthSessionSQL, ticket).Scan(
 		&sess.Ticket, &state, &sess.InstallID, &sess.AuthorizeURL,
 		&sess.ExpiresAt, &accountID, &sess.CreatedAt,
 	)
@@ -187,13 +216,13 @@ func (s *Store) CompleteAuthSession(ctx context.Context, ticket, openID, unionID
 	var result store.Account
 	now := time.Now().UTC()
 
-	err := s.inTx(ctx, func(tx pgx.Tx) error {
+	err := s.inTx(ctx, func(tx querier) error {
 		var (
 			storedState string
 			rowInst     string
 			expiresAt   time.Time
 		)
-		if err := tx.QueryRow(ctx, lockAuthSessionSQL, ticket).Scan(&storedState, &rowInst, &expiresAt); err != nil {
+		if err := tx.QueryRowContext(ctx, loadAuthSessionSQL, ticket).Scan(&storedState, &rowInst, &expiresAt); err != nil {
 			return notFound("complete auth session: load ticket", err)
 		}
 		if store.AuthSessionState(storedState) != store.AuthPending {
@@ -217,13 +246,18 @@ func (s *Store) CompleteAuthSession(ctx context.Context, ticket, openID, unionID
 			return err
 		}
 
-		tag, err := tx.Exec(ctx, markAuthSessionAuthorizedSQL, ticket, acct.ID)
+		res, err := tx.ExecContext(ctx, markAuthSessionAuthorizedSQL, ticket, acct.ID)
 		if err != nil {
 			return wrap("complete auth session: authorize", err)
 		}
-		// The row is locked and was pending; zero rows would mean somebody
-		// changed the state through a path that bypassed the lock.
-		if err := conflictWhenUnchanged("complete auth session: authorize", nil, tag.RowsAffected()); err != nil {
+		affected, err := res.RowsAffected()
+		if err != nil {
+			return wrap("complete auth session: authorize: row count", err)
+		}
+		// The row was read and was pending inside a write transaction; zero
+		// rows would mean somebody changed the state through a path that
+		// bypassed the transaction.
+		if err := conflictWhenUnchanged("complete auth session: authorize", nil, affected); err != nil {
 			return err
 		}
 
@@ -250,7 +284,7 @@ const getAccountSQL = `
 
 // GetAccount reads one account by primary key.
 func (s *Store) GetAccount(ctx context.Context, id store.ID) (store.Account, error) {
-	acct, err := scanAccount(s.db.QueryRow(ctx, getAccountSQL, id))
+	acct, err := scanAccount(s.db.QueryRowContext(ctx, getAccountSQL, id))
 	if err != nil {
 		return store.Account{}, notFound("get account", err)
 	}
@@ -281,7 +315,7 @@ const createSessionSQL = `
 	WHERE id = $1`
 
 // sessionColumns is the token-chain projection. It serves both the unlocked
-// lookup and the locked rotation read, so both see identical state.
+// lookup and the rotation read, so both see identical state.
 const sessionColumns = `
 	id, chain_id, refresh_token_hash, prev_refresh_token_hash,
 	refresh_expires_at, session_revoked_at`
@@ -290,18 +324,21 @@ const sessionColumns = `
 // and against the one generation before it. The second arm is what lets a
 // replay reach the caller's revocation path instead of looking like an
 // unknown token.
+//
+// The PostgreSQL version had a second copy of this query with FOR UPDATE
+// appended for the rotation path. It is gone: with BEGIN IMMEDIATE the
+// rotation transaction is the only writer in the database for its duration,
+// which is a stronger guarantee than a row lock ever was here, and the
+// conditional UPDATE below still guards the write on its own.
 const sessionMatchSQL = `
 	SELECT ` + sessionColumns + `
 	FROM accounts
 	WHERE refresh_token_hash = $1 OR prev_refresh_token_hash = $1`
 
-const sessionMatchForUpdateSQL = sessionMatchSQL + `
-	FOR UPDATE`
-
 // rotateReplaceSQL is the conditional swap. The `refresh_token_hash = $1`
-// guard is redundant while the row is locked and deliberately not removed:
-// it is the line that keeps the rotation safe if the lock is ever replaced
-// with a snapshot read, and it is the line a reviewer greps for.
+// guard is deliberately not removed: it is the line that keeps the rotation
+// safe if the transaction isolation is ever weakened, and it is the line a
+// reviewer greps for.
 const rotateReplaceSQL = `
 	UPDATE accounts
 	SET refresh_token_hash = $2, prev_refresh_token_hash = $1, refresh_expires_at = $4
@@ -316,16 +353,20 @@ const revokeChainSQL = `
 // nowhere else, so a database dump is not a set of credentials.
 func (s *Store) CreateSession(ctx context.Context, sess store.Session) error {
 	if sess.AccountID == "" {
-		return errors.New("postgres: create session: empty account id")
+		return errors.New("sqlite: create session: empty account id")
 	}
-	tag, err := s.db.Exec(ctx, createSessionSQL,
+	res, err := s.db.ExecContext(ctx, createSessionSQL,
 		sess.AccountID, sess.RefreshTokenHash,
 		utc(sess.RefreshExpiresAt), sess.ChainID,
 	)
 	if err != nil {
 		return wrap("create session", err)
 	}
-	if tag.RowsAffected() == 0 {
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return wrap("create session: row count", err)
+	}
+	if affected == 0 {
 		// No such account. The caller minted tokens for an account that does
 		// not exist, which is a bug and not a race.
 		return store.ErrNotFound
@@ -338,7 +379,7 @@ func (s *Store) GetSessionByRefreshHash(ctx context.Context, hash string) (store
 	if hash == "" {
 		return store.Session{}, store.ErrNotFound
 	}
-	sess, err := scanSession(s.db.QueryRow(ctx, sessionMatchSQL, hash), hash)
+	sess, err := scanSession(s.db.QueryRowContext(ctx, sessionMatchSQL, hash), hash)
 	if err != nil {
 		return store.Session{}, notFound("get session by refresh hash", err)
 	}
@@ -347,7 +388,7 @@ func (s *Store) GetSessionByRefreshHash(ctx context.Context, hash string) (store
 
 // RotateRefresh exchanges a refresh token for a new pair.
 //
-// The whole exchange is one transaction over one locked row. Presenting an
+// The whole exchange is one transaction over one row. Presenting an
 // already-consumed token is the signal that the chain is being replayed, and
 // the caller answers it by revoking the family — which is the difference
 // between an attacker's stolen token costing them one session and costing the
@@ -358,7 +399,7 @@ func (s *Store) GetSessionByRefreshHash(ctx context.Context, hash string) (store
 // forever and "sign in again every ninety days" becomes "never".
 func (s *Store) RotateRefresh(ctx context.Context, oldHash, newHash, newAccessHash string, accessExpiresAt time.Time) (store.Session, store.RefreshOutcome, error) {
 	if oldHash == "" || newHash == "" || newAccessHash == "" {
-		return store.Session{}, store.RefreshExpired, errors.New("postgres: rotate refresh: empty token hash")
+		return store.Session{}, store.RefreshExpired, errors.New("sqlite: rotate refresh: empty token hash")
 	}
 	now := time.Now().UTC()
 
@@ -366,18 +407,18 @@ func (s *Store) RotateRefresh(ctx context.Context, oldHash, newHash, newAccessHa
 		sess    store.Session
 		rotated bool
 	)
-	err := s.inTx(ctx, func(tx pgx.Tx) error {
+	err := s.inTx(ctx, func(tx querier) error {
 		var (
-			accountID, chainID  string
+			accountID, chainID    string
 			currentHash, prevHash string
-			expiresAt           time.Time
-			revokedAt           pgtype.Timestamptz
+			expiresAt             time.Time
+			revokedAt             sql.NullTime
 		)
-		err := tx.QueryRow(ctx, sessionMatchForUpdateSQL, oldHash).Scan(
+		err := tx.QueryRowContext(ctx, sessionMatchSQL, oldHash).Scan(
 			&accountID, &chainID, &currentHash, &prevHash, &expiresAt, &revokedAt,
 		)
 		if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
+			if errors.Is(err, sql.ErrNoRows) {
 				// No such token. The caller must clear its session: presenting
 				// something the server has never issued is not a transient
 				// condition.
@@ -413,11 +454,15 @@ func (s *Store) RotateRefresh(ctx context.Context, oldHash, newHash, newAccessHa
 			return nil
 		}
 
-		tag, err := tx.Exec(ctx, rotateReplaceSQL, oldHash, newHash, accountID, expiresAt)
+		res, err := tx.ExecContext(ctx, rotateReplaceSQL, oldHash, newHash, accountID, expiresAt)
 		if err != nil {
 			return wrap("rotate refresh: replace token", err)
 		}
-		if err := conflictWhenUnchanged("rotate refresh: replace token", nil, tag.RowsAffected()); err != nil {
+		affected, err := res.RowsAffected()
+		if err != nil {
+			return wrap("rotate refresh: replace token: row count", err)
+		}
+		if err := conflictWhenUnchanged("rotate refresh: replace token", nil, affected); err != nil {
 			return err
 		}
 
@@ -454,7 +499,7 @@ func refreshOutcomeFor(err error) store.RefreshOutcome {
 // per account that is one row, and the statement is unchanged in shape from
 // the two-table version so the guarantee is the same.
 func (s *Store) RevokeChain(ctx context.Context, chainID string, at time.Time) error {
-	_, err := s.db.Exec(ctx, revokeChainSQL, chainID, utc(at))
+	_, err := s.db.ExecContext(ctx, revokeChainSQL, chainID, utc(at))
 	if err != nil {
 		return wrap("revoke chain", err)
 	}
