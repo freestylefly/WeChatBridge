@@ -209,20 +209,52 @@ public sealed class LicenseVerifierTests
     }
 
     [Fact]
-    public void TheCompiledInKeyIsAPlaceholderAndVerifiesNothing()
+    public void TheCompiledInKeyIsUsableAndAnUnknownVersionIsNot()
     {
-        // The failure mode an unreleased build must have: it cannot unlock itself.
-        Assert.Null(LicensePublicKeys.ImportSubjectPublicKeyInfo(LicensePublicKeys.PlaceholderKeyV1));
+        // The compiled-in key used to be a placeholder that no import could
+        // read, and this test asserted that — encoding "an unreleased build
+        // must not be able to unlock itself". The key is real now, so that
+        // failure mode is gone and the assertion had to change with it.
+        //
+        // What survives the change is the half that still matters: an unknown
+        // format version has no key, so a licence claiming a version this
+        // build does not know cannot verify — including one signed by the very
+        // key that every other version trusts.
+        Assert.NotNull(LicensePublicKeys.ImportSubjectPublicKeyInfo(LicensePublicKeys.PlaceholderKeyV1));
         Assert.Null(LicensePublicKeys.ForSchemaVersion(999));
 
         var verifier = new LicenseVerifier();
         using var keys = new TestSigningKey();
 
-        // Even a correctly signed licence fails against the shipped keyring.
+        // Signed under the current version, but claiming a version the
+        // shipped keyring has no key for. The version is checked before the
+        // key is looked up, so this is a rejection on its own terms rather
+        // than a signature failure — and it is signed with a key that every
+        // other version trusts, which is what makes it worth asserting.
+        var forged = keys.Issue("install-subject", schemaVersion: LicenseToken.CurrentSchemaVersion + 1);
+        var verification = verifier.Verify(forged, TestTime.Now, Skew);
+
+        Assert.False(verification.IsValid);
+        Assert.Equal(
+            $"unsupported format version {LicenseToken.CurrentSchemaVersion + 1}",
+            verification.Failure);
+    }
+
+    [Fact]
+    public void ALicenceSignedByAnotherKeyDoesNotVerify()
+    {
+        // The other direction, and the one that matters for the compiled-in
+        // key being real: it must verify the issuing pipeline's signatures and
+        // nothing else. TestSigningKey is a throwaway pair the harness owns,
+        // so a licence it signs has to fail against the shipped keyring —
+        // otherwise a build would accept any key that happened to be linked in.
+        var verifier = new LicenseVerifier();
+        using var keys = new TestSigningKey();
+
         var verification = verifier.Verify(keys.Issue("install-subject"), TestTime.Now, Skew);
 
         Assert.False(verification.IsValid);
-        Assert.Equal("no key for format version", verification.Failure);
+        Assert.Equal("signature mismatch", verification.Failure);
     }
 
     [Fact]

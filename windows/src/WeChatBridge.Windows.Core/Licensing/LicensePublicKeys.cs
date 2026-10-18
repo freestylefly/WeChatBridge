@@ -19,19 +19,21 @@ namespace WeChatBridge.Windows.Core.Licensing;
 public static class LicensePublicKeys
 {
     /// <summary>
-    /// PLACEHOLDER — NOT A KEY.
+    /// The issuing key for licence format version 1: the base64url
+    /// SubjectPublicKeyInfo the server signs with.
     /// <para>
-    /// Before release this is replaced with the base64url SubjectPublicKeyInfo
-    /// produced by the server's signing pipeline. The private key is generated there
-    /// and lives only in that CI's secret store; it never enters this repository, and
-    /// no private key is generated, written or kept anywhere on a developer machine.
+    /// Paired with the private key in the server's signing pipeline, which is
+    /// where the key is generated and the only place it lives. It is not in
+    /// this repository and is not on any developer machine.
     /// </para>
     /// <para>
-    /// Until it is replaced every licence fails to verify, which is the intended
-    /// failure mode: an unreleased build must not be able to unlock itself.
+    /// base64url, unpadded — <see cref="Base64Url.TryDecode"/> is what reads
+    /// this, and the same encoding the canonical payload carries, so a key
+    /// written in standard base64 would import as different bytes here than
+    /// the server derived them from.
     /// </para>
     /// </summary>
-    public const string PlaceholderKeyV1 = "REPLACE-AT-RELEASE-WITH-THE-SERVER-CI-PUBLIC-KEY-FOR-FORMAT-VERSION-1";
+    public const string PlaceholderKeyV1 = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEhVxpyiTAh_oFRSPEUU7S1HLOYzjwOb1W5VF3Skp_-IH7yIInku28_WVWDtis0xuBAmCaHFycB3aWeQUDxkb5_g";
 
     /// <summary>Format version to base64url SubjectPublicKeyInfo.</summary>
     public static IReadOnlyDictionary<int, string> PublicKeys { get; } =
