@@ -5,6 +5,10 @@
 > 2026-10-18 校准：此前看板未随 `d48827f` 更新，C-①/③/⑤ 的数据层与控制器其实已落地。
 > 本表按 `docs/design/client-license-gate-progress.zh-CN.md` 的 0–19 细目重新核对代码后重写。
 > 逐项状态 ⬜ / ⏳ / ✅，⏳ = 已有代码但未收尾或未验证。
+>
+> 2026-10-19 校准：C-⑤ 的退避单测补齐（`cbcaa5d`）；C-④ 的 `ActivationGate` 早已随
+> `2d994b0` 落树，此前的「待提交」是看板滞后，不是代码缺失。同批补了 C-1 时间戳转换器
+> 修复（`b822761`）与 S1–S4 共 80 项新测试。
 
 ## 任务表
 
@@ -13,9 +17,9 @@
 | C-① | 微信登录（session → QR PNG → 轮询 → 存双令牌） | ✅ | `98061ea` | `LoginWindow` 已提交、编译通过 |
 | C-② | 机器码展示（installId 主键 + 硬件锚摘要辅证） | ✅ | `7232d39` | 购买窗内的可复制机器码 + 锚摘要；通用页另有一行常驻显示 |
 | C-③ | 购买（收款码静态图 + 登记 + 轮询 + 取票） | ⏳ | `7232d39` | `PurchaseWindow` 已写；**待产品方补齐收款码与开发者微信** |
-| C-④ | 启动门禁集成（未登录→登录页；已登录未授权→引导购买） | ✅ | 待提交 | `ActivationGate`；**不锁任何功能**，见下 |
-| C-⑤ | 轮询退避 + 卖家拒绝/超时提示 | ⏳ | `4ce2420` `d48827f` | `PollSchedule` + 控制器失败分支已写，**无测试** |
-| C-⑥ | 出口 = `dotnet build/test` 通过 + mock 全流程 | ⬜ | — | build/test 全绿；mock 全流程未跑，退避/登录/激活单测仍未补 |
+| C-④ | 启动门禁集成（未登录→登录页；已登录未授权→引导购买） | ✅ | `2d994b0` | `ActivationGate`；**不锁任何功能**，见下 |
+| C-⑤ | 轮询退避 + 卖家拒绝/超时提示 | ✅ | `4ce2420` `d48827f` `cbcaa5d` | `PollSchedule` + 控制器失败分支；退避算术单测已补（`cbcaa5d`） |
+| C-⑥ | 出口 = `dotnet build/test` 通过 + mock 全流程 | ⏳ | 见下 | 两形态 build/test 全绿， `-background` 实跑常驻；mock 全流程仍未跑 |
 
 ## 细目状态（对照 `client-license-gate-progress.zh-CN.md`）
 
@@ -29,9 +33,9 @@
 | 14 | 机器码展示控件 | ✅ 可复制 TextBox + 复制按钮，嵌在购买窗内；通用页另有常驻一行 |
 | 15 | 启动门禁接入 | ✅ `ActivationGate` + `App.xaml.cs` + 通用页 |
 | 16 | 新文案进 `en.json` | ✅ 40 条，登录 + 购买 + 两个控制器 |
-| 17 | Core 单测（退避 / 时间戳 / 登录 / 激活） | ⬜ 无任何 `*Activation*Tests.cs` |
-| 18 | AppTests：`HttpActivationTransport` handler 注入 | ⬜ |
-| 19 | 出口 | ⬜ |
+| 17 | Core 单测（退避 / 时间戳 / 登录 / 激活） | ✅ S1–S4 共 80 项：`PollScheduleTests` `cbcaa5d`、`ActivationContractTests` `77c33b2`、`AccountServiceTests` `a1624e3`、`ActivationServiceTests` `7de97be` |
+| 18 | AppTests：`HttpActivationTransport` handler 注入 | ⬜ 传输层靠 `IActivationTransport` seam 覆盖，真实 HttpClient 未测 |
+| 19 | 出口 | ⏳ build/test 双形态绿、`-background` 实跑常驻；mock 全流程未跑 |
 
 ## 门禁不锁任何东西（与任务书措辞不同）
 
@@ -88,16 +92,30 @@
 所以窗内给了独立可复制控件（`GateSmall` 样式 + 等宽字体），并明确提示「没备注的转账
 需要人工核对，会慢一些」。
 
-## 当前状态：绿
-
-编译与测试已恢复全绿（2026-10-18 本机验证）：
+## 当前状态：绿（2026-10-19 本机复核）
 
 | 检查 | 结果 |
 |---|---|
 | `dotnet build -c Release -p:WeChatBridgeEdition=Perpetual` | ✅ 0 警告 0 错误 |
-| `dotnet test -p:WeChatBridgeEdition=Perpetual` | ✅ 497 + 45 通过 |
-| `dotnet test -p:WeChatBridgeEdition=Subscription` | ✅ 496 + 45 通过（少一条为 edition 条件测试） |
-| `Test-NoNetworkCode.ps1 -Edition Perpetual` | ✅ |
+| `dotnet build -c Release -p:WeChatBridgeEdition=Subscription` | ✅ 0 警告 0 错误 |
+| `dotnet test -p:WeChatBridgeEdition=Perpetual` | ✅ 580 + 55 通过 |
+| `dotnet test -p:WeChatBridgeEdition=Subscription` | ✅ 579 + 55 通过（少一条为 edition 条件测试） |
+| `Test-NoNetworkCode.ps1 -Edition Perpetual` | ✅ 白名单内的 `System.Net.Http` 仍是 only Redeem 例外 |
+| `WeChatBridge.Windows.exe --background` 实跑 12 秒 | ✅ 常驻不崩，托盘注册成功；`--background` 不开窗，符合设计 |
+
+测试数从 497 + 45 → 580 + 55：新增 80 项（C-1 回归 3、退避 10、契约 29、登录 25、激活 16），
+AppTests 45 → 55 是 `git log` 之外同期落地的部分，勿回退。
+
+### `Test-NoNetworkCode.ps1` 的前置条件（本机踩过）
+
+脚本会读 `ShareTarget.dll` 的版本号来确认被测产物确实是 Perpetual 形态。**刚 build 过
+Subscription 就跑它会失败**（ShareTarget 版本串还停留在订阅版本号）。先重跑 Perpetual
+的 build 再检查：
+
+```powershell
+dotnet build windows/WeChatBridge.Windows.sln -c Release -p:WeChatBridgeEdition=Perpetual
+powershell -File windows/scripts/Test-NoNetworkCode.ps1 -Edition Perpetual
+```
 
 修了三处，都是让工作区从红回到绿所必需的：
 
@@ -135,13 +153,37 @@ C# raw string literal 保留文件里的行尾，所以 Windows 检出的字面�
 
 ## 出口标准
 
-- [ ] `dotnet build/test` 通过（当前 build 红）
+- [x] `dotnet build/test` 通过（两形态均绿，见上）
 - [ ] 对着 mock 走通：扫码登录 → 机器码展示 → 登记 → 确认 → 取票 → 验签缓存
 - [ ] 真服务端签名对下的终态验证（任务 17，走 `AppTests` 已有的 `TestLicenseIssuer`）
+
+未勾选两项都是 **需要人或另一台树** 才能完成的，不是代码缺口：
+
+- mock 全流程要 `server/mock/server.js`，而它**不在这棵树上**（本 worktree 的 `server/`
+  只有 `internal/`、`migrations/`，没有 `mock/`），得借主检出或机器 A 的侧鳍。
+- 终态验证要 `LicensePublicKeys.PlaceholderKeyV1` 换成真公钥（见下方阻塞项）。
 
 ## 红线（禁改）
 
 `windows/src/WeChatBridge.Windows.Core/Licensing/` 下 LicenseResolver.cs / LicenseVerifier.cs / InstallIdentityStore.cs / DeviceAnchor.cs 四个文件——契约级冻结，只读复用。
+
+## 契约登记册 §11.7 收尾情况
+
+| 项 | 状态 | 说明 |
+|---|---|---|
+| C-1 时间戳转换器 | ✅ 已修 `b822761` | Go 写 unix 秒数字，两处老链路 options 未注册转换器：`Load` 静默返回 null、`Accept` 抛 `JsonException`。各加一行注册 + 3 项回归；临时注掉转换器则红 |
+| C-2 base64 字母表 | ⬜ 归机器 A | Go 用 `StdEncoding`，C# 侧宽容才巧合工作。客户端不动，等服务侧收紧后会产生一次联调 |
+| M-1 admin 鉴权 | ✅ 无关本侧 | 改 Bearer + OpenID 白名单后，客户端登录拿到的就是 Bearer，正好对上 |
+
+## 发货前必换（代码层最后一处占位符）
+
+`ActivationContract.DefaultBaseAddress = "https://api.wechatbridge.invalid/"`——与
+`RedeemEndpoint` 一样的处理：RFC 2606 保留域名，首次请求必定大声失败，而不是悄悄连到
+别人的服务器。可用环境变量覆盖，本地与 mock 联调走这条：
+
+```
+set WECHATBRIDGE_LICENSE_SERVER=http://127.0.0.1:8901/
+```
 
 ## 阻塞项
 
