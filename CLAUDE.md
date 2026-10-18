@@ -11,7 +11,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | `macos/` | SwiftPM（Swift 6 / Swift 5） | macOS 端，主程序 + 12 个 Share Extension |
 | `windows/` | .NET 10 + WPF | Windows 端，主程序 + Share Target 助手 + 安装/便携两条分发路线 |
 | `server/` | Go 1.26 + gin | 授权服务端（**仅 Windows 版使用；macOS 完全离线，不碰这个服务**） |
+| `admin-console/` | 零依赖零构建静态页（UMD + 原生 JS） | 卖家后台。与服务端同源部署，走扫码登录 |
 | `shared/` | — | 两端共用的资产与契约，**唯一不允许出现平台特定代码的目录** |
+| `site/` | — | 发布物：`appcast.xml`（Sparkle 更新源）+ 逐版本发布说明，由 `pages.yml` 推到 GitHub Pages |
 
 产品分**买断版（Perpetual）**与**订阅版（Subscription）**两种形态，是同一份源码树构建出的两个产品，不是两套代码。当前发布的是买断版免费档。
 
@@ -89,6 +91,18 @@ go test ./internal/license/ -run TestVerify -v     # 单包单测试
 
 `go test ./...` 全绿**不需要**真实 PostgreSQL、微信凭据或网络——每个外部依赖都在接口后面，测试用 pgxmock / fake store 顶替。
 
+### 契约 mock 与卖家后台（Windows 端的前后端，不在 CI 里）
+
+```bash
+node server/mock/server.js --port 8901     # 零依赖 Node，契约 mock；字段/状态码/错误信封与真服务端逐字节一致
+cd admin-console && node test/smoke.mjs     # 契约冒烟 21 项
+cd admin-console && node test/browser.mjs   # 浏览器级 17 项，需 playwright-core + 本机 Chrome（可选）
+```
+
+mock 的诚实边界写在 `server/mock/README.md`：签名与 QR PNG 都是占位，任意非空 bearer/admin 密码都接受。真实 handler 已在 `feat/server-convergence` 落地，**mock 该删了但还留着**——它是当前唯一能在无 PostgreSQL 的机器上跑通客户端全流程的手段。
+
+`admin-console/` 的约束比代码更重要：**页面必须与服务端同源**。服务端不带任何 CORS 响应头，`baseURL` 指向别的源时浏览器在预检阶段就拦掉全部请求，页面只得到一句 `Failed to fetch`。改后端地址改 `js/config.js` 的 `baseURL` 一行；**不要为了省事给管理接口开 `*` 通配 CORS**。
+
 ## 架构要点
 
 ### macOS：12 个入口 = 1 个二进制
@@ -144,7 +158,15 @@ cmd/wcb/   唯一入口：装配、迁移执行、优雅关闭
 store/     接口在 store.go，实现在 store/postgres
 ```
 
-`billing/`（微信支付 Native）与 `redeem/`（兑换码）已随兑换码退役删除（`86abca3 [A-③]`）。买断版现在由卖家在后台人工核对微信付款后一键发证，客户端侧没有任何自助购买入口。
+`billing/`（微信支付 Native）与 `redeem/`（兑换码）已随兑换码退役删除（`86abca3 [A-③]`）。**没有支付网关**：买家自己转账，卖家人工核对微信零账后在后台一键发证。
+
+### 客户端侧：Activation 三件套（`windows/`）
+
+`Core/Activation/`（AccountService / ActivationService / PollSchedule / GateState）+ `Windows/Activation/`（LoginWindow / PurchaseWindow / 两个 Controller / `HttpActivationTransport`）。注意 `HttpActivationTransport` 在 **WPF 工程**里而不在 Core——Core 的 `System.Net.*` 白名单只有三条 `NetworkInformation`，放一个 `HttpClient` 进去 `EditionIsolationTests` 当场红。
+
+启动门禁是 `ActivationGate.Decide` 这个**纯函数**：`Licensed`/`Portable` 不开页，`Anonymous` 开登录页，`SignedIn` 直接接购买页，`Rejected`/`LicenseUnverifiable` 提示联系卖家。
+
+**门禁不锁任何功能。** 转发对所有人可用，`LicensingBootstrap.IsShareDeliveryAvailable` 恒为 true 并有测试守着；全仓库没有一处 UI 因 `IsPro` 为 false 而禁用。这是产品决策（买断版卖的是能力不是锁），改之前先看 `GateState.SignedIn` 的文档注释。`ActivationGateway` 全部惰性装配——已授权用户每次启动**连 `HttpClient` 都不构造**，因为隐私承诺写的是「0 次网络请求」。
 
 **签名从不是对 JSON 文本签的**，而是对规范化后的 8 行字符串签（域分隔符 `wechatbridge.license.v1`，空段用 `-` 占位，**无尾随换行**）。ent 排序去重，因为 map 迭代或没写 ORDER BY 的 SELECT 每次返回顺序都不同。
 
@@ -162,11 +184,11 @@ store/     接口在 store.go，实现在 store/postgres
 
 **`tests/…/TempInbox.cs` 是绝不能碰真实 `%LOCALAPPDATA%` 的 fixture。** 所有测试经由它拿一个临时 Inbox 根。
 
-**函数内部的顺序就是正确性论证。** `HandleCallback` 是「先落凭据再完成 ticket」、`HandleNotify` 是「验签→解密→查单→核对金额→MarkPaid」、`redeem` 是「先签后烧」。每处都有注释说明，不要「顺手简化」。
+**函数内部的顺序就是正确性论证。** `auth.Service.HandleCallback` 是「先落凭据再完成 ticket」。admin 的三条更细：**envelope 每张许可证只签一次**（ECDSA 每次签随机取 k，重签同一份 claims 会让买家每次轮询拿到不同的 token，store 写一次字节，买家的 `/licence` 端点只回放那份字节）；**confirm 按 requestId 幂等**（两个卖家同时点一次，只铸一张票，第二次读回第一张）；**卖家的身份只来自 token，永不来自 body**。每处都有注释说明，不要「顺手简化」。
 
-**回调里返回 200 等于丢钱。** 未处理的回调一律非 200（未知订单 500、金额不符 400、验签失败 401）；已支付的重投回调才回 200 SUCCESS。`trade_state` 非 SUCCESS 时回 200 成功体但**什么都不标记**——这是唯一能既停掉重投循环又不误付的组合。
+**错误码的严格程度不统一是有意的。** `admin` 比它写的时候所对的 mock 更严：未知的 `?status=` 是 400 而不是空列表——卖家把 "confirmed" 打成 "comfirmed" 时被告知「没有待确认的东西」，是这个 API 最不能给出的答案。`auth` 的 state 无效一律 400 且**故意不说是伪造、已用还是过期**，告诉攻击者是哪一种就等于送了他一个探针。上游（微信）不可用是 503 `service_unavailable` 而**不是**「凭据已过期」——ticket 原封不动、浏览器拿到可重试的答案；一次网络抖动把付费用户登出是这个端点能有的最坏故障。
 
-**拒绝是一种功能。** 状态错、码错、上游不可用是三个不同的 typed error；refresh 的 `transient` 必须是 HTTP 503 且带错误体，绝不能返回 `status:"expired"` 的 token 形状体——一次网络抖动把付费用户登出是这个端点能有的最坏故障。
+**admin 的 403 不是 401。** 鉴权走买家同一套微信扫码 bearer token，`WCB_ADMIN_OPENIDS` 白名单决定谁在后面。token 验得过但账号不在名单上是 403：凭据没问题，背后的身份不是卖家。空白名单是接线错误，`NewService` 直接拒绝——`cmd/wcb` 干脆不挂载 admin 路由（404 而非全信任）。
 
 ## CI 门禁的排序是有意的
 
@@ -174,32 +196,31 @@ store/     接口在 store.go，实现在 store/postgres
 
 **`Test-NoNetworkCode.ps1` 必须排在所有签名/发布步骤之前。** 签名是对一个持有密钥的服务的请求，不是对产物的批处理：一旦买断版二进制上了签名服务，事后再发现版本形态标错就不是重建，而是吊销——签名过的产物已经分发，用户机器上的 Authenticode 签名里已经烙死了版本字符串。这条线以下新增的任何东西都属于「发布候选」，需要先确认吊销预案成立。
 
-**当前 CI 不测 Go 服务端**（只有 macOS 与 Windows 两个 job）。服务端的全绿只在你本地成立。
+**当前 CI 不测 Go 服务端，也不测 `admin-console`**（`ci.yml` 只有 macOS 与 Windows 两个 job）。服务端的全绿、后台的冒烟全绿都只在你本地成立。另有两条不在 `ci.yml` 里的 workflow：`windows-sign.yml`（手动 dispatch，走 SignPath）与 `pages.yml`（`site/**` 推到 GitHub Pages，即 macOS 的 Sparkle 更新源）。
 
 ## 三分支并行开发协议
 
-当前开发走的是「3 台机器各领一条分支，fork 是唯一共享通道」的协议，规则见 `docs/design/progress-sync-protocol.zh-CN.md` 与 `branch-work-assignment.zh-CN.md`：
+**这轮已经合完了**（`487231c` server、`0762a85` admin，`feat/client-license-gate` 与 `feat/windows-portable-usb` 也都已在 `main` 的祖先里）。协议本身仍是下一次并行开工时的规矩，规则见 `docs/design/progress-sync-protocol.zh-CN.md` 与 `branch-work-assignment.zh-CN.md`：
 
 - **一个分支同一时刻只允许一台机器写。** 交接只能先确认对方 24 小时内不会回来。
 - **看板路径按分支隔离**：`docs/progress/{server-convergence,admin-console,client-license-gate}.md`，只有各自主人写，git 层面零冲突。**看板与代码同一个 commit**——「先 push 代码回头补看板」，补的那次永远不来。
 - **commit 带任务编号**：`feat(server): [A-③] …`，`git log --oneline` 即进度流水。子任务粒度，不攒大 commit。
-- **契约冻结**：license canonical 格式、auth 端点、httpx 错误码体系禁止私改。发现缺字段 → 先改 `docs/design/buyout-flow-convergence.zh-CN.md` §11.3 并推送，各分支跟进。
+- **契约冻结**：license canonical 格式、auth 端点、httpx 错误码体系禁止私改。发现缺字段 → 先改 `docs/design/buyout-flow-convergence.zh-CN.md` §11.3 并推送，各分支跟进。§11.7 是缺陷与变更登记册。
 - **工作区用 git worktree 隔离**（历史上真出过未跟踪文件跨分支的事故）。stash 栈在主检出与所有 worktree 间共享，`git stash` / `git stash pop` 会和其他会话抢——用 WIP commit，或 `git stash push -u -m "<唯一标签>"` 后立刻记下 SHA、用 `apply <sha>` 不用 `pop`。
 - 沙箱类环境里 git 网络操作会**静默失败或超时**（特征是 `Empty reply from server`，同时 curl 正常——别误判成凭据问题），必须在沙箱外跑。
 
-看三块总览：
-
-```bash
-git fetch --all --quiet && for b in server-convergence admin-console client-license-gate; do \
-  echo "=== $b ==="; git log --oneline -3 origin/$b; done
-```
+看板本身就是进度源，别只看文档：`docs/progress/*.md` 里 ⬜ / ⏳ 的行是**代码尚未落地**，`server-convergence.md` 的 A-⑧（全量集成测试）与 `client-license-gate.md` 的 C-⑥ / S5 / S6（mock 全流程）都还没做完。
 
 ## 已知缺口（别当成新 bug 去排查）
 
 - **`windows/src` 下不存在 `Cloud/`、`CloudQr/`、`Billing/` 目录。** 版本隔离机制全部建好并被 CI 守着，但订阅形态的源码还没有落地，所以 `Test-NoNetworkCode.ps1` 在 Subscription 下会打印 SKIPPED。
 - **`LicensePublicKeys.PlaceholderKeyV1` 是刻意的占位串**，不是忘了填。未替换前**每一张许可证都验不过**，`IsPro` 对所有用户恒为 false——这是 fail-closed 设计，不是 bug。填入服务端 SPKI 公钥是发版阻塞项。
+- **`PurchaseWindow.SellerWeChat = "（待填写）"`，收款码静态图也是占位。** 购买窗代码完成但产品方未填，C-③ 因此是 ⬏️。和上面那条一样是发版阻塞项。
+- **服务端已无 `POST /v1/license/redeem`，但 C# 侧的 `Redeem/` 还在**（Core 的 `RedeemContract.Path` 指向那个不存在的路由，`App.xaml.cs` 的 `--redeem` 仍会开兑换窗，`en.json` 里还有一整组兑换文案）。兑换码退役只做了服务端，客户端清理没跟上——今天兑换窗能开、能发请求、必然失败。
 - **`BuyoutProductID` 与 `httpx.CodeWrongProduct` 目前没有任何消费方**：字段被读进 `Config` 就没人用，错误码定义了也没有处理器返回。两者都是兑换码时代的残留，产品校验随兑换码一起退役了。**若日后重建产品校验，默认值已与客户端 `RedeemContract.ProductId` 统一为 `wechatbridge-windows-buyout`**，但别以为今天存在这条校验路径。
 - **Go 与 C# 的许可证信封仍有一处不一致**：base64（Go 用 std）对 base64url（C# `Base64Url`）。目前靠 C# 解码器的宽松映射兜住，实测可 roundtrip；一旦有人给 C# 加严格字母表校验就会当场炸。时间戳那处（int64 vs `DateTimeOffset`）已由 `b822761` 修复。成因与排查路径见 `windows/docs/LICENCE-ENVELOPE-WIRE-CONTRACT.zh-CN.md`。
+- **`server/mock/server.js` 该删了但还留着**（`server/mock/README.md` 自己写着「真实 handler 落地后本文件删除」）。它现在是有用的——无 PostgreSQL 时唯一能跑通客户端全流程的东西——但它的签名是占位，envelope 过不了客户端内嵌公钥。
+- **`admin-console` 的台账页许可证号列依赖本机 localStorage 日志**，因为冻结契约的 `GET /v1/admin/requests` 不返回 `licenseId`。非本机完成的签发显示「—」，作废得用页面底部的「手动操作」区输许可证号。
 - **`Tests/FolderDeliveryTests.swift` 的 11 个测试不在任何 target 里**，`swift test` 从不编译它们。
 - **`App.swift` / `ShareEntryProbe.swift` / `AppLink.swift` / `ShareFailure.swift` 引用的 ADR-0005 / ADR-0006 在仓库里不存在。**
 - **`ci.yml` 只在 `[main, feat/windows-port]` 上触发**，当前分支不在其中，本地必须自己跑。
