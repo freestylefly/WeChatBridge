@@ -117,6 +117,27 @@ func run() error {
 	}
 
 	engine := gin.New()
+
+	// Which peers' X-Forwarded-For to believe. Left unset, gin trusts every
+	// source, and a header any client can write becomes the address in the
+	// request log — so an unauthenticated caller could write whatever it
+	// liked into the only record of who called. Naming the proxy restores
+	// the real client address; naming nothing logs the connection's own
+	// origin, which is less precise but never a lie.
+	//
+	// A bad entry is a start-up failure rather than a silent fallback: a
+	// typo here would otherwise leave the service running and quietly
+	// logging proxy addresses forever.
+	if err := engine.SetTrustedProxies(cfg.TrustedProxies); err != nil {
+		return fmt.Errorf("trusted proxies: %w", err)
+	}
+	if len(cfg.TrustedProxies) > 0 {
+		logger.Info("forwarded headers trusted from", "proxies", cfg.TrustedProxies)
+	} else {
+		logger.Warn("no trusted proxies configured: client_ip in the log is the connecting peer, " +
+			"not the client behind a proxy")
+	}
+
 	engine.Use(
 		httpx.RequestIDMiddleware(),
 		httpx.Logger(logger),
