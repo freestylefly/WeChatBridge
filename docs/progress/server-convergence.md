@@ -27,7 +27,7 @@
 | A-④ | store 12 表 → 4 表 + migrations 重写 | ✅ | `88c07c9` | 4 表契约（AuthStore 9 + ActivationStore 9 + Close）；ConfirmActivationRequest/ReissueLicence 两事务；26 文件 +1754/-2321；build/vet/test 全绿；activation_test 22 用例 |
 | A-⑤ | activation 包（登记/状态/取票） | ✅ | `42ccdc8` | 4 表线上移植对方 A-⑤：HTTP 包 3 端点原样搬 + store upsert 化（ON CONFLICT 保号刷新 + RETURNING 防幻写 + 跨账号回落）；reissue 无 pending 时新插已确认行（复制 anchor/amount）；licence 判活走 LiveBindingByInstallID；18 测试 + 迁移加 live_install 部分索引；§11.7 补登 R-1/R-2/移植记录；build/vet/test 9 包全绿 |
 | A-⑥ | admin handler（列表/确认/重签/作废） | ✅ | `ad457b6` | Bearer + WCB_ADMIN_OPENIDS 白名单（403 非 401；§11.7 M-1 落地）；confirm Build+Issue 落 envelope 且幂等（双卖家竞态返赢家票）；reissue 委托 store 换机路径；revoke 幂等；item 契约字段 + RFC3339；29 测试；与 mock 两处严格化已登记 I-1 |
-| A-⑦ | cmd/main.go 装配 + healthz + 优雅关闭 + embed 迁移 | ⬜ | — | 服务第一次真正 listen |
+| A-⑦ | cmd/main.go 装配 + healthz + 优雅关闭 + embed 迁移 | ✅ | `ca2289c` | cmd/wcb：config→migrate→store→signer→services→routes→listen 全链；embed 迁移 + schema_migrations 簿记（每版独立事务含簿记行）；license.LoadPrivateKey 遍历 PEM 块（兼容 openssl ecparam 双块产出，已登记踩坑）；healthz liveness；SIGINT/SIGTERM 优雅关闭 10s；admin 空白名单不挂载（404 而非全信任）；启动门禁实测：无配置 exit 1、库不可达干净失败且不回显密码；真冒烟待 DB（沙箱无 postgres，并入 E/F 外部阻塞） |
 | A-⑧ | 全量单测 + 集成测试 | ⬜ | — | 出口标准 |
 
 ## 出口标准
@@ -38,4 +38,4 @@
 
 ## 阻塞项
 
-（暂无）
+- **真冒烟（起服务 + 迁移实跑 + /healthz 200）阻塞于可用 PostgreSQL**：沙箱内无 postgres 实例（探测确认）。启动门禁已实测（无配置 exit 1、库不可达干净失败且不回显密码），其余留待首次部署联调，与 §11.5 的 E/F 外部输入阻塞同类。
