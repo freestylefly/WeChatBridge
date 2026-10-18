@@ -8,8 +8,8 @@
 |---|---|---|---|---|
 | A-① | `server/` 入 git（基线） | ✅ | `446dc5f` | 50 文件 16,670 行；含三个 billing latent 问题修复 |
 | A-② | API 契约 mock（`server/mock/`） | ✅ | `6a3285a` | 14 项 curl 实测通过；真实 handler 落地后删除 |
-| A-③ | 删 billing/redeem 包 + config 瘦身 | 🔜 下一个 | — | 收敛第一刀，后面全压它 |
-| A-④ | store 12 表 → 4 表 + migrations 重写 | ⬜ | — | accounts / auth_sessions / activation_requests / licence_bindings |
+| A-③ | 删 billing/redeem 包 + config 瘦身 | ✅ | `86abca3` | 13 文件 -5,438 行；build/vet/test 全绿；已推 fork |
+| A-④ | store 12 表 → 4 表 + migrations 重写 | 🔄 进行中 | — | accounts / auth_sessions / activation_requests / licence_bindings |
 | A-⑤ | activation 包（登记/状态/取票） | ⬜ | — | 契约 §11.3，签名复用 license.Signer |
 | A-⑥ | admin handler（列表/确认/重签/作废） | ⬜ | — | D5 最小版占位 |
 | A-⑦ | cmd/main.go 装配 + healthz + 优雅关闭 + embed 迁移 | ⬜ | — | 服务第一次真正 listen |
