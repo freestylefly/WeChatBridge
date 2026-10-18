@@ -25,9 +25,23 @@ import (
 // activationRequestColumns is the activation_requests projection. Every query
 // that returns a request selects exactly these columns in this order; the
 // scanners in scan.go depend on it.
+//
+// The columns carry no table qualifier because every other query that uses
+// this list reads activation_requests alone. The one query that joins accounts
+// needs the qualified form below — install_id and created_at exist on both
+// tables, and an unqualified reference in a join is an ambiguity error
+// (SQLSTATE 42702), not a warning.
 const activationRequestColumns = `
 	request_id, account_id, install_id, anchor_digest, amount_fen,
 	status, envelope_json, license_id, created_at, confirmed_at`
+
+// qualifiedActivationRequestColumns is activationRequestColumns with the `r.`
+// prefix this table is joined under. Same columns, same order — the scanners
+// cannot tell the difference, and a second projection would only be able to
+// drift.
+const qualifiedActivationRequestColumns = `
+	r.request_id, r.account_id, r.install_id, r.anchor_digest, r.amount_fen,
+	r.status, r.envelope_json, r.license_id, r.created_at, r.confirmed_at`
 
 // createActivationRequestSQL is the idempotent registration. A machine with a
 // live request updates that row instead of queueing a second one on the
@@ -79,7 +93,7 @@ const requestByInstallIDSQL = `
 // page asks for; the (status, created_at DESC) index carries the filtered
 // sort, and at this table's size the unfiltered scan is the same plan.
 const listActivationRequestsSQL = `
-	SELECT ` + activationRequestColumns + `, a.nickname, a.avatar_url
+	SELECT ` + qualifiedActivationRequestColumns + `, a.nickname, a.avatar_url
 	FROM activation_requests r
 	JOIN accounts a ON a.id = r.account_id
 	WHERE $1 = '' OR r.status = $1
@@ -436,9 +450,15 @@ func (s *Store) RevokeBinding(ctx context.Context, licenseID string, at time.Tim
 // ---------------------------------------------------------------------------
 
 // licenceBindingColumns is the licence_bindings projection, in the order the
-// scanners expect.
+// scanners expect. Unqualified for the same reason as
+// activationRequestColumns: only single-table queries use it.
 const licenceBindingColumns = `
 	license_id, install_id, account_id, request_id, issued_at, revoked_at`
+
+// qualifiedLicenceBindingColumns is the b.-prefixed form, for the ledger's
+// join against accounts — install_id and issued_at are on both tables.
+const qualifiedLicenceBindingColumns = `
+	b.license_id, b.install_id, b.account_id, b.request_id, b.issued_at, b.revoked_at`
 
 const liveBindingSQL = `
 	SELECT ` + licenceBindingColumns + `
@@ -446,7 +466,7 @@ const liveBindingSQL = `
 	WHERE install_id = $1 AND revoked_at IS NULL`
 
 const listBindingsSQL = `
-	SELECT ` + licenceBindingColumns + `, a.nickname, a.open_id
+	SELECT ` + qualifiedLicenceBindingColumns + `, a.nickname, a.open_id
 	FROM licence_bindings b
 	JOIN accounts a ON a.id = b.account_id
 	ORDER BY b.issued_at DESC`

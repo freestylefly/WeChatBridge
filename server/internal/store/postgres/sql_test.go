@@ -87,6 +87,16 @@ func TestCriticalSQL(t *testing.T) {
 			must: []string{"$1 = '' OR r.status = $1"},
 		},
 		{
+			name: "the console's list qualifies every column it joins",
+			sql:  listActivationRequestsSQL,
+			// install_id and created_at exist on both tables in this join.
+			// An unqualified reference there is SQLSTATE 42702 at runtime —
+			// a 500 in the one endpoint the seller depends on — and every
+			// other test in this package runs against a fake store, so
+			// nothing else would notice. See TestJoinedProjectionsAreQualified.
+			must: []string{"r.request_id", "r.install_id", "r.created_at"},
+		},
+		{
 			name: "the buyer's poller waits on the newest request",
 			sql:  latestActivationRequestSQL,
 			must: []string{"ORDER BY created_at DESC", "LIMIT 1"},
@@ -95,6 +105,12 @@ func TestCriticalSQL(t *testing.T) {
 			name: "the ledger reads every binding, newest first",
 			sql:  listBindingsSQL,
 			must: []string{"ORDER BY b.issued_at DESC"},
+		},
+		{
+			name: "the ledger qualifies every column it joins",
+			sql:  listBindingsSQL,
+			// The same ambiguity as the console's list, one query over.
+			must: []string{"b.license_id", "b.install_id", "b.issued_at"},
 		},
 	}
 
@@ -167,5 +183,85 @@ func TestSignInNeverDemotesPlan(t *testing.T) {
 	}
 	if strings.Contains(clause, "plan") {
 		t.Fatalf("sign-in writes plan, which would demote a paying customer:\n%s", clause)
+	}
+}
+
+// TestJoinedProjectionsAreQualified is the check for the queries in this
+// package that join accounts, which shares column names with both tables it is
+// joined to.
+//
+// install_id, created_at and issued_at exist on more than one side of those
+// joins, so an unqualified reference in the SELECT is SQLSTATE 42702 at
+// runtime — a 500 in the endpoints the seller console depends on — and only
+// against a real Postgres. Every other test in this package runs on a fake
+// store, so nothing else in the suite can see it.
+//
+// Asserting on the text is the right level: the package deliberately has no
+// database in its tests, so this cannot be checked by running the query, and
+// checking it with a parser would be more machinery than the invariant is
+// worth. What it does hold is that each joined projection is its unqualified
+// twin with a prefix on every column, in the same order — which is exactly
+// what broke, a list written for a single-table scan reused under a join.
+func TestJoinedProjectionsAreQualified(t *testing.T) {
+	cases := []struct {
+		name         string
+		unqualified  string
+		qualified    string
+		query        string
+		prefix       string
+		sharedColumn string
+	}{
+		{
+			name:         "activation requests joined to accounts",
+			unqualified:  activationRequestColumns,
+			qualified:    qualifiedActivationRequestColumns,
+			query:        listActivationRequestsSQL,
+			prefix:       "r.",
+			sharedColumn: "install_id",
+		},
+		{
+			name:         "licence bindings joined to accounts",
+			unqualified:  licenceBindingColumns,
+			qualified:    qualifiedLicenceBindingColumns,
+			query:        listBindingsSQL,
+			prefix:       "b.",
+			sharedColumn: "install_id",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if !strings.Contains(tc.unqualified, tc.sharedColumn) {
+				t.Fatalf("setup changed: %q is no longer a column both tables have, "+
+					"so this case no longer describes a real ambiguity", tc.sharedColumn)
+			}
+
+			unqualified := strings.Split(norm(tc.unqualified), ", ")
+			qualified := strings.Split(norm(tc.qualified), ", ")
+
+			if len(unqualified) != len(qualified) {
+				t.Fatalf("projections disagree on column count: %d unqualified, %d qualified — "+
+					"the scanners in scan.go read positionally, so a mismatch misreads rows",
+					len(unqualified), len(qualified))
+			}
+
+			for i, col := range unqualified {
+				if !strings.HasPrefix(qualified[i], tc.prefix) {
+					t.Errorf("column %d (%q) is not qualified with %q in the joined projection; "+
+						"%q exists on both tables and an unqualified reference is an ambiguity "+
+						"error at runtime", i, col, tc.prefix, tc.sharedColumn)
+					continue
+				}
+				if got := strings.TrimPrefix(qualified[i], tc.prefix); got != col {
+					t.Errorf("column %d is %q in the joined projection but %q in the single-table one; "+
+						"same column, same position — a rename here silently shifts every field after it",
+						i, got, col)
+				}
+			}
+
+			if !strings.Contains(norm(tc.query), norm(tc.qualified)) {
+				t.Errorf("the joined query no longer selects the qualified projection")
+			}
+		})
 	}
 }
