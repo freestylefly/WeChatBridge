@@ -1,0 +1,80 @@
+# 三分支并行：进度同步协议
+
+> 记录时间：2026-10-18
+> 适用场景：3 台机器各自 clone 同一仓库、各自 checkout 一个分支并行开发，最后合并主干部署。
+> 配套文档：`branch-work-assignment.zh-CN.md`（任务与出口标准）、`buyout-flow-convergence.zh-CN.md`（架构与 API 契约 §11.3）。
+
+## 1. 核心原则
+
+**fork 是唯一共享通道。** 三台机器的工作区互不可见，任何「对方知道我的进度」都依赖 push 是否发生。推论：
+
+- 没 push = 没发生。本地 commit 堆成山，别人眼里你的分支还停在昨天。
+- **用户（操作三台机器的人）是中央协调者**。本协议的所有设计都服务一个场景：用户在任何一台机器上敲一条命令，就能看到三块的进度。
+
+## 2. 三层进度可见性
+
+| 层 | 载体 | 更新时机 | 回答的问题 |
+|---|---|---|---|
+| L1 代码事实 | 各分支 commit 历史 | 每个子任务完成 | 「做到哪了」——不可伪造，build/test 状态是硬证据 |
+| L2 结构化看板 | `docs/progress/<分支名>.md` | 与 L1 同一时刻 | 「什么状态、卡在哪、出口达标没」——含 commit 哈希可点击跳转 |
+| L3 汇合检查点 | 出口标准 checklist（分配文档） | 达到出口时 | 「能不能合了」 |
+
+**L2 看板规则（防冲突设计）：**
+
+- 路径按分支隔离：`docs/progress/server-convergence.md` 只有机器 A 写，`admin-console.md` 只有机器 B 写，`client-license-gate.md` 只有机器 C 写。
+- 三台机器 clone 后三个看板文件都在（基线 commit 带全部三个），但各分支只改自己那个——git 层面零冲突，合并时任取其一。
+- 看板与 commit **同一时刻更新**：改完代码 → 更新看板 → 一个 commit 带上 → push。不许「先 push 代码回头补看板」，补的那次永远不来。
+
+## 3. 提交与推送纪律
+
+1. **子任务粒度**：每个子任务一个 commit（分配文档 §4 各任务清单即粒度），禁止把 3 个任务攒成一个「大进展」commit——大 commit 是进度黑盒。
+2. **push 前过出口检查**：推自己分支前，本分支的 build/test 必须绿（A: `go build/vet/test ./...`；B/C: `dotnet build/test`）。红状态推上去 = 骗别人。
+3. **完成即推**：不允许本地超过 1 个 commit 未推送。攒机越大，合并时 rebase 越疼。
+4. **commit message 带任务编号**：如 `feat(server): [A-③] 删除 billing/redeem 包`——`git log --oneline` 即进度流水。
+
+## 4. 分支独占规则
+
+- **一个分支同一时刻只允许一台机器写。** 换机器接力（如 B 的活转给 A 干）：先确认对方 24 小时内不会回来，接手机器 `git fetch fork && git checkout <分支> && git reset --hard fork/<分支>`（先确认对方已 push，丢弃自己旧快照的代价已知会丢——接力方只应在新机器上 reset）。
+- 绝不在两台机器上同时推同一分支——non-fast-forward 冲突 + 可能的 force 诱惑。
+- 一分支一机器是分配文档的既定前提；要加人/换人，先在此登记。
+
+## 5. 阻塞上报
+
+被卡住时（等外部输入、等契约、决策未定），在看板「阻塞项」区登记三要素：**卡在什么 / 需要谁提供什么 / 已尝试什么**。例：
+
+```
+🔴 A-⑦ cmd/main.go 装配：等 D5 admin 鉴权模型拍板（单密码 vs 双人分管）
+```
+
+契约变更不在阻塞范围——走设计文档流程（先改 `buyout-flow-convergence.zh-CN.md` §11.3 并推送，各分支跟进），禁止私改已冻结契约（license canonical 格式、auth 端点、httpx 错误码体系）。
+
+## 6. 合并检查单（出口 = 合并门槛）
+
+各分支达到出口标准后，在汇合前逐项确认：
+
+- [ ] 本分支 build/test 全绿，出口标准 checklist 全部打勾
+- [ ] 看板状态全部更新到最新 commit
+- [ ] 已 push fork，本地与 fork 0/0
+- [ ] 合并顺序执行：分支 A 先合主干（地基）→ B/C rebase 最新主干后分别合
+- [ ] 合并后删 mock 依赖：`server/mock/` 在真实 handler 落地后删除（A 的收尾）
+
+## 7. 用户视角：一条命令看总览
+
+在三台机器中任意一台（已 clone 本仓库的）执行：
+
+```bash
+git fetch --all --quiet && for b in server-convergence admin-console client-license-gate; do \
+  echo "=== $b ==="; git log --oneline -3 origin/$b; done
+```
+
+看板总览（看阻塞与出口状态，比 log 更直观）：
+
+```bash
+for b in server-convergence admin-console client-license-gate; do \
+  echo "=== $b ==="; cat docs/progress/$b.md; done
+```
+
+## 8. 网络注意事项（本机已验证）
+
+- git 网络操作（push/fetch）在沙箱类环境会**静默失败或超时**（`Empty reply from server` 是特征，同时 curl 正常——别误判成凭据问题）。必须在沙箱外执行。
+- 瞬时 SSL 握手失败重试一次即可，不必排查。
