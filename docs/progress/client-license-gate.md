@@ -11,11 +11,11 @@
 | # | 任务 | 状态 | commit | 备注 |
 |---|---|---|---|---|
 | C-① | 微信登录（session → QR PNG → 轮询 → 存双令牌） | ✅ | `98061ea` | `LoginWindow` 已提交、编译通过 |
-| C-② | 机器码展示（installId 主键 + 硬件锚摘要辅证） | ✅ | 待提交 | 购买窗内的可复制机器码 + 锚摘要；见「机器码展示」小节 |
-| C-③ | 购买（收款码静态图 + 登记 + 轮询 + 取票） | ⏳ | 待提交 | `PurchaseWindow` 已写；**待产品方补齐收款码与开发者微信** |
-| C-④ | 启动门禁集成（未登录→登录页；已登录未授权→限制模式） | ⬜ | — | `ActivationGateway` **零引用**，`App.xaml.cs` 未接线 |
+| C-② | 机器码展示（installId 主键 + 硬件锚摘要辅证） | ✅ | `7232d39` | 购买窗内的可复制机器码 + 锚摘要；通用页另有一行常驻显示 |
+| C-③ | 购买（收款码静态图 + 登记 + 轮询 + 取票） | ⏳ | `7232d39` | `PurchaseWindow` 已写；**待产品方补齐收款码与开发者微信** |
+| C-④ | 启动门禁集成（未登录→登录页；已登录未授权→引导购买） | ✅ | 待提交 | `ActivationGate`；**不锁任何功能**，见下 |
 | C-⑤ | 轮询退避 + 卖家拒绝/超时提示 | ⏳ | `4ce2420` `d48827f` | `PollSchedule` + 控制器失败分支已写，**无测试** |
-| C-⑥ | 出口 = `dotnet build/test` 通过 + mock 全流程 | ⬜ | — | build/test 全绿；mock 全流程未跑，测试仍未补 |
+| C-⑥ | 出口 = `dotnet build/test` 通过 + mock 全流程 | ⬜ | — | build/test 全绿；mock 全流程未跑，退避/登录/激活单测仍未补 |
 
 ## 细目状态（对照 `client-license-gate-progress.zh-CN.md`）
 
@@ -26,12 +26,42 @@
 | 11 | `ActivationController`（登记+轮询+取票） | ✅ `d48827f` |
 | 12 | 登录窗 UI | ✅ `98061ea` |
 | 13 | 购买窗 UI | ✅ 代码完成，⏳ 两处占位符待补 |
-| 14 | 机器码展示控件 | ✅ 可复制 TextBox + 复制按钮，嵌在购买窗内 |
-| 15 | 启动门禁接入 | ⬜ |
+| 14 | 机器码展示控件 | ✅ 可复制 TextBox + 复制按钮，嵌在购买窗内；通用页另有常驻一行 |
+| 15 | 启动门禁接入 | ✅ `ActivationGate` + `App.xaml.cs` + 通用页 |
 | 16 | 新文案进 `en.json` | ✅ 40 条，登录 + 购买 + 两个控制器 |
 | 17 | Core 单测（退避 / 时间戳 / 登录 / 激活） | ⬜ 无任何 `*Activation*Tests.cs` |
 | 18 | AppTests：`HttpActivationTransport` handler 注入 | ⬜ |
 | 19 | 出口 | ⬜ |
+
+## 门禁不锁任何东西（与任务书措辞不同）
+
+任务 15 写的是「已登录未授权→功能限制模式」，但设计文档自己的注释否掉了这个说法：
+
+- `GateState.SignedIn` 的文档注释：*"The customer can buy; **nothing is locked behind a
+  licence they have not paid for**."*
+- `LicensingBootstrap.IsShareDeliveryAvailable => true`，恒为 true，有测试守着
+- 全仓库 grep `IsPro`：只被兑换窗用来显示「已经是 Pro」，**没有任何 UI 真的受它限制**
+
+所以按「引导购买」而非「上锁」实现。`ActivationGate.Decide` 是纯函数，快照决定开哪一页：
+
+| 状态 | 开什么 |
+| --- | --- |
+| `Licensed` / `Portable` | 什么都不开 |
+| `Anonymous` | 登录页（没账号，登记无从挂靠） |
+| `SignedIn` | 购买页 |
+| `Rejected` / `LicenseUnverifiable` | 提示联系卖家——这两样登录都修不好 |
+
+两个刻意的选择：
+
+**登录成功后直接接购买页。** 两页回答的是同一个问题（「这怎么买」），刚证明自己有微信的
+用户不该还要自己找下一步。
+
+**只主动弹一次。** `AppSettings.ActivationGateShown` 记的是「已经弹过」而不是「拒绝过」
+也不是「买过」——一个弹窗第二次出现就不再被阅读，常驻入口改放在通用页。任何 upsell 都
+不该在每次启动时重复索取注意力。
+
+**这两条是我的判断，不是文档规定的。** 若产品上要求每次启动都提示，把
+`ShowAtStartup` 里读 `ActivationGateShown` 那一行去掉即可。
 
 ## 购买窗的流程与两处待补
 

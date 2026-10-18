@@ -932,5 +932,13 @@
   "正在登记…": "Registering…",
   "卖家已确认，正在取许可证…": "The seller confirmed. Collecting the licence…",
   "服务响应较慢，正在重试…": "The service is slow. Retrying…",
-  "网络不稳定，正在重试…": "The network is unstable. Retrying…"
+  "网络不稳定，正在重试…": "The network is unstable. Retrying…",
+  "授权状态": "Licence status",
+  "已激活：本机已是买断版 Pro，许可证离线生效。": "Activated. This machine is buy-out Pro; the licence works offline.",
+  "便携版是买断版的免费档，不签发许可证，也不需要激活。": "The portable build is the buy-out product's free tier. It is issued no licence and needs no activation.",
+  "已登录为 {0}，尚未购买许可证。": "Signed in as {0}. No licence bought yet.",
+  "这台机器上的许可证属于另一台机器，需要卖家重新签发。请联系开发者。": "The licence on this machine belongs to another one. The seller has to re-issue it — please contact the developer.",
+  "本机有一份无法验证的许可证。请联系开发者处理。": "This machine has a licence that does not verify. Please contact the developer.",
+  "尚未登录。登录后才能购买许可证。": "Not signed in. A licence has to be bought while signed in.",
+  "本机机器码：{0}": "This machine's code: {0}"
 }

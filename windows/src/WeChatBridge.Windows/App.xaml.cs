@@ -143,6 +143,17 @@ public partial class App : Application
 
             if (e.Args.Any(a => string.Equals(a, "--redeem", StringComparison.OrdinalIgnoreCase)))
                 ShowRedeemWindow(window);
+
+            // The buy-out gate. Reached only from an interactive launch — the
+            // --background instance above returns long before this, because putting a
+            // window up would steal the foreground from the target app mid-delivery.
+            //
+            // It locks nothing: forwarding is available to everyone, and this only
+            // offers a path to buying. Offered once per install; the 通用 page keeps
+            // the button for anyone who wants it later.
+            var gate = ActivationGate.Current;
+            var page = gate.ShowAtStartup(window, LogStartup);
+            LogStartup($"activation: gate offered {page}, state={gate.Snapshot.State}");
         }
         // MainWindow's inbox load rides the Loaded event — a hidden window
         // never raises it, so a background launch must load explicitly or it

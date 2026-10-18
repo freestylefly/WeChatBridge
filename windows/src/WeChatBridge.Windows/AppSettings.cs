@@ -58,6 +58,17 @@ public sealed class AppSettings
     /// </summary>
     public bool LaunchAtLogin { get; set; } = true;
 
+    /// <summary>
+    /// The buy-out activation page has been offered on this install.
+    /// <para>
+    /// "Offered", not "declined" and not "bought". The gate locks nothing, so the only
+    /// thing repeated nagging costs is the customer's willingness to read the one
+    /// page; the 通用 pane keeps a button for anyone who changes their mind, which is
+    /// where an upsell belongs after the first showing.
+    /// </para>
+    /// </summary>
+    public bool ActivationGateShown { get; set; }
+
     public bool IsEntryEnabled(ShareAction action) =>
         !DisabledEntries.Contains(action.RawValue());
 

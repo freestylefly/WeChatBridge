@@ -127,6 +127,36 @@
             </Border>
         </StackPanel>
 
+        <!-- 授权状态。Always visible, and never a blocker: forwarding works for every
+             installation, licensed or not. This is the standing place to see where the
+             licence stands and to reopen the page after deciding not to buy the first
+             time it appeared. -->
+        <StackPanel Margin="0,24,0,0">
+            <TextBlock Style="{StaticResource SectionLabel}" Text="{loc:Loc Key='授权状态'}" />
+            <Border Height="1" Background="{StaticResource StrokeColor}" Margin="0,8,0,10" />
+            <Border Style="{StaticResource Card}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock x:Name="LicenceStatusText" FontSize="13"
+                                   Foreground="{StaticResource InkSecondaryColor}"
+                                   TextWrapping="Wrap" />
+                        <TextBlock x:Name="MachineCodeHint" Margin="0,4,0,0" FontSize="12"
+                                   Foreground="{StaticResource InkTertiaryColor}"
+                                   TextWrapping="Wrap" Visibility="Collapsed" />
+                    </StackPanel>
+                    <Button x:Name="OpenActivationButton" Grid.Column="1" VerticalAlignment="Center"
+                            Margin="12,0,0,0" Style="{StaticResource SettingsButton}"
+                            Click="OpenActivation_Click">
+                        <Button.Content><loc:Loc Key="购买授权"/></Button.Content>
+                    </Button>
+                </Grid>
+            </Border>
+        </StackPanel>
+
         <!-- 应用行为 -->
         <StackPanel Margin="0,24,0,0">
             <TextBlock Style="{StaticResource SectionLabel}" Text="{loc:Loc Key='应用行为'}" />
