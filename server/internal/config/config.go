@@ -25,6 +25,7 @@ type Config struct {
 	Env           string // "dev" or "prod"; prod turns on stricter checks
 	HTTPAddr      string
 	PublicBaseURL string // https://api.example.com, no trailing slash
+	BasePath      string // "", or "/wechat_auth" — see below
 	LogLevel      string
 
 	DatabaseURL string
@@ -84,6 +85,7 @@ func Load() (Config, error) {
 		Env:           env("WCB_ENV", "dev"),
 		HTTPAddr:      env("WCB_HTTP_ADDR", ":8080"),
 		PublicBaseURL: strings.TrimRight(env("WCB_PUBLIC_BASE_URL", "http://localhost:8080"), "/"),
+		BasePath:      basePath(env("WCB_BASE_PATH", "")),
 		LogLevel:      env("WCB_LOG_LEVEL", "info"),
 
 		DatabaseURL: required("WCB_DATABASE_URL"),
@@ -147,6 +149,32 @@ func (c Config) validate() error {
 	if c.PublicBaseURL == "" || !strings.HasPrefix(c.PublicBaseURL, "http") {
 		add("WCB_PUBLIC_BASE_URL must be an absolute http(s) URL, got %q", c.PublicBaseURL)
 	}
+	if c.BasePath != "" && !strings.HasPrefix(c.BasePath, "/") {
+		add("WCB_BASE_PATH must start with %q or be empty, got %q", "/", c.BasePath)
+	}
+	// The base path and the public URL's path have to name the same place,
+	// and the way they fail when they disagree is the worst kind: the service
+	// boots, the health check passes, the console loads, and the first scan
+	// redirects WeChat's callback to a 404 that only the customer sees. Catch
+	// the disagreement here instead.
+	//
+	// A mismatch is not automatically an error, though: a reverse proxy that
+	// strips the prefix before forwarding is the whole reason BasePath exists
+	// as a separate setting rather than being derived from PublicBaseURL, and
+	// in that deployment WCB_BASE_PATH is empty while WCB_PUBLIC_BASE_URL
+	// carries the path. So the check is that they *describe* one of the two
+	// arrangements, not that they are equal.
+	if want := publicPath(c.PublicBaseURL); c.BasePath != "" && c.BasePath != want {
+		if want == "" {
+			add("WCB_BASE_PATH is %q but WCB_PUBLIC_BASE_URL has no path (%q); "+
+				"either drop the base path or give the public URL one — a stripped "+
+				"reverse proxy wants WCB_BASE_PATH empty", c.BasePath, c.PublicBaseURL)
+		} else {
+			add("WCB_BASE_PATH is %q but WCB_PUBLIC_BASE_URL's path is %q; "+
+				"they name different places, so the callback would be sent to a 404",
+				c.BasePath, want)
+		}
+	}
 	if c.IsProd() {
 		if !strings.HasPrefix(c.PublicBaseURL, "https://") {
 			add("WCB_PUBLIC_BASE_URL must be https in production, got %q", c.PublicBaseURL)
@@ -184,6 +212,45 @@ func (c Config) BuyoutLifetime() time.Duration {
 // AdminEnabled reports whether the admin API answers at all. An empty
 // whitelist is "no console", not "console that trusts everybody".
 func (c Config) AdminEnabled() bool { return len(c.AdminOpenIDs) > 0 }
+
+// publicPath is the path component of the public URL: "/wechat_auth" for
+// https://host/wechat_auth, and "" for a bare origin.
+//
+// It reads the string rather than net/url because PublicBaseURL has already
+// been checked for an http prefix and a parse failure here would mean the URL
+// is malformed — which validate reports in its own words. Returning "" for
+// that case keeps one bad value from producing two error messages.
+func publicPath(raw string) string {
+	i := strings.Index(raw, "://")
+	if i < 0 {
+		return ""
+	}
+	rest := raw[i+3:]
+	slash := strings.IndexByte(rest, '/')
+	if slash < 0 {
+		return ""
+	}
+	return strings.TrimRight(rest[slash:], "/")
+}
+
+// basePath normalises the mount prefix to either "" or "/segment" with no
+// trailing slash, so the value can be concatenated onto a route literal
+// without producing a double slash or swallowing the one after it.
+//
+// "wechat_auth", "/wechat_auth" and "/wechat_auth/" all become
+// "/wechat_auth". A path with an interior "//" is left as it arrived rather
+// than being tidied: it is a typo, and validate names it.
+func basePath(raw string) string {
+	v := strings.TrimRight(strings.TrimSpace(raw), "/")
+	if v == "" {
+		return ""
+	}
+	if !strings.HasPrefix(v, "/") {
+		v = "/" + v
+	}
+	return v
+}
+
 // openIDList parses a comma-separated OpenID whitelist, dropping blanks so
 // that "a,,b" and "a, b" both mean {a, b} — a stray comma in a deploy
 // script must not silently shrink the whitelist.

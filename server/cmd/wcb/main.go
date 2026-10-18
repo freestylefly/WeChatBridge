@@ -122,10 +122,32 @@ func run() error {
 		httpx.Logger(logger),
 		httpx.RecoveryMiddleware(logger),
 	)
+
+	// Everything the outside world reaches is mounted under the base path, so
+	// a deployment that answers on https://host/wechat_auth/ routes there
+	// rather than at the root. The prefix is its own setting rather than
+	// derived from WCB_PUBLIC_BASE_URL because the two legitimately differ:
+	// behind a proxy that strips the prefix, the public URL carries the path
+	// and this is empty. config.validate rejects the arrangements that are not
+	// one of those two.
+	//
+	// /healthz is the exception and stays at the root. It is liveness for the
+	// process and the reverse proxy in front of it, neither of which has any
+	// reason to know the public path; a probe that 404s because a path was
+	// configured is a probe that takes the deployment down.
 	engine.GET("/healthz", handleHealthz)
 
-	authService.RegisterRoutes(engine)
-	activationService.RegisterRoutes(engine, authService.RequireAuth())
+	// gin.IRouter, not *gin.Engine: the packages below take a router to mount
+	// on and have no business knowing whether it is the engine or a group
+	// under it. The engine still implements it, so an empty base path changes
+	// nothing about what they do.
+	var api gin.IRouter = engine
+	if cfg.BasePath != "" {
+		api = engine.Group(cfg.BasePath)
+	}
+
+	authService.RegisterRoutes(api)
+	activationService.RegisterRoutes(api, authService.RequireAuth())
 
 	// An empty whitelist is "no console", not "console that trusts
 	// everybody": the routes are not mounted at all, so a deployment that
@@ -144,11 +166,13 @@ func run() error {
 		if err != nil {
 			return fmt.Errorf("admin service: %w", err)
 		}
-		adminService.RegisterRoutes(engine, authService.RequireAuth())
+		adminService.RegisterRoutes(api, authService.RequireAuth())
 		logger.Info("admin API mounted", "sellers", len(cfg.AdminOpenIDs))
 	} else {
 		logger.Warn("admin API not mounted: WCB_ADMIN_OPENIDS is empty, no console this run")
 	}
+
+	logger.Info("routes mounted", "base_path", orRoot(cfg.BasePath))
 
 	srv := &http.Server{
 		Addr: cfg.HTTPAddr,
@@ -247,6 +271,16 @@ type healthResponse struct {
 // deployment story (design §11.5, item F).
 func handleHealthz(c *gin.Context) {
 	c.JSON(http.StatusOK, healthResponse{Status: "ok"})
+}
+
+// orRoot renders an empty base path for the log line, so "routes mounted
+// base_path=/" reads as a fact about this deployment rather than looking like
+// a field that failed to populate.
+func orRoot(p string) string {
+	if p == "" {
+		return "/"
+	}
+	return p
 }
 
 // newLogger picks the handler and the level from the environment: JSON in
