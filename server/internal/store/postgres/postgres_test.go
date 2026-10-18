@@ -21,9 +21,7 @@ func TestStoreImplementsTheWholeInterface(t *testing.T) {
 	// regression show up as a named failure rather than as a build error
 	// somewhere else in the service.
 	var _ store.AuthStore = s
-	var _ store.LicenceStore = s
-	var _ store.BillingStore = s
-	var _ store.QrCache = s
+	var _ store.ActivationStore = s
 }
 
 func TestNewRejectsAnEmptyDSN(t *testing.T) {

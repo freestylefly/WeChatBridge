@@ -21,9 +21,9 @@ import (
 // One quirk of the mock is worth knowing before you write a row by hand: on
 // QueryRow it discards the error Scan returns, so a value whose type does not
 // match its destination is silently left at the zero value. The row builders
-// below therefore use the domain types (store.Plan, store.OrderStatus) rather
-// than plain strings, which is also a useful reminder that those columns are
-// enums and not free text.
+// below therefore use the domain types (store.Plan, store.ActivationStatus)
+// rather than plain strings, which is also a useful reminder that those
+// columns are enums and not free text.
 
 // newMock returns a Store wired to a mock pool.
 //
@@ -81,18 +81,91 @@ func accountRow(withFlag bool, id, openID string) *pgxmock.Rows {
 	return pgxmock.NewRows(cols).AddRow(vals...)
 }
 
-// orderRow builds a row matching orderColumns.
-func orderRow(id, status string) *pgxmock.Rows {
+// activationRequestRow builds a row matching activationRequestColumns. A
+// non-pending status carries the licence and the confirmation instant the
+// schema's CHECK requires; a nil amount is a buyer who did not say.
+func activationRequestRow(status string, amount *int64) *pgxmock.Rows {
+	var (
+		amountValue any
+		licenseID   string
+		confirmed   any = nullTimeValue()
+	)
+	if amount != nil {
+		amountValue = *amount
+	}
+	if store.ActivationStatus(status) != store.ActivationPending {
+		licenseID = "lic-1"
+		confirmed = testLater
+	}
 	return pgxmock.NewRows([]string{
-		"id", "out_trade_no", "product_id", "plan", "amount_fen", "currency",
-		"status", "account_id", "code_url", "created_at", "expires_at",
-		"paid_at", "transaction_id", "license_id", "license_key",
+		"request_id", "account_id", "install_id", "anchor_digest", "amount_fen",
+		"status", "envelope_json", "license_id", "created_at", "confirmed_at",
 	}).AddRow(
-		id, "OTN-1", "windows-subscription", store.PlanSubscription, int64(2800), "CNY",
-		store.OrderStatus(status), "acct-1", "weixin://pay", testNow, testLater,
-		nullTimeValue(), "", "", "",
+		"req-1", "acct-1", "install-1", "anchor-1", amountValue,
+		store.ActivationStatus(status), []byte(`{"licenseId":"lic-1"}`), licenseID,
+		testNow, confirmed,
 	)
 }
+
+// activationRequestViewRow is activationRequestRow plus the two account
+// columns the console's list joins in. The column list is repeated rather
+// than derived for the same reason the scanners repeat it: pgx has consumed
+// the row by the time the base builder returns.
+func activationRequestViewRow(status string, amount *int64) *pgxmock.Rows {
+	var (
+		amountValue any
+		licenseID   string
+		confirmed   any = nullTimeValue()
+	)
+	if amount != nil {
+		amountValue = *amount
+	}
+	if store.ActivationStatus(status) != store.ActivationPending {
+		licenseID = "lic-1"
+		confirmed = testLater
+	}
+	return pgxmock.NewRows([]string{
+		"request_id", "account_id", "install_id", "anchor_digest", "amount_fen",
+		"status", "envelope_json", "license_id", "created_at", "confirmed_at",
+		"nickname", "avatar_url",
+	}).AddRow(
+		"req-1", "acct-1", "install-1", "anchor-1", amountValue,
+		store.ActivationStatus(status), []byte(`{"licenseId":"lic-1"}`), licenseID,
+		testNow, confirmed, "Nick", "https://avatar.invalid/a.png",
+	)
+}
+
+// licenceBindingRow builds a row matching licenceBindingColumns.
+func licenceBindingRow(licenseID, installID, accountID string, revoked bool) *pgxmock.Rows {
+	revokedValue := nullTimeValue()
+	if revoked {
+		revokedValue = pgtype.Timestamptz{Time: testLater, Valid: true}
+	}
+	return pgxmock.NewRows([]string{
+		"license_id", "install_id", "account_id", "request_id", "issued_at", "revoked_at",
+	}).AddRow(licenseID, installID, accountID, "req-1", testNow, revokedValue)
+}
+
+// licenceBindingViewRow is licenceBindingRow plus the two account columns the
+// ledger's join brings along. As with the request view, the column list is
+// repeated rather than derived: pgx has consumed the row by the time the base
+// builder returns.
+func licenceBindingViewRow(licenseID, installID, accountID string, revoked bool) *pgxmock.Rows {
+	revokedValue := nullTimeValue()
+	if revoked {
+		revokedValue = pgtype.Timestamptz{Time: testLater, Valid: true}
+	}
+	return pgxmock.NewRows([]string{
+		"license_id", "install_id", "account_id", "request_id", "issued_at", "revoked_at",
+		"nickname", "open_id",
+	}).AddRow(licenseID, installID, accountID, "req-1", testNow, revokedValue, "Nick", "open-1")
+}
+
+// fenPtr is how a test says "the buyer said an amount". A nil *int64 is the
+// buyer who did not, and the two must stay distinguishable: the schema's
+// column is nullable and the scanner keeps it a pointer for exactly that
+// reason.
+func fenPtr(v int64) *int64 { return &v }
 
 // noRows is the driver's "there was nothing there", which this package turns
 // into store.ErrNotFound.

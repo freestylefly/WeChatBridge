@@ -38,6 +38,26 @@
 - 绝不在两台机器上同时推同一分支——non-fast-forward 冲突 + 可能的 force 诱惑。
 - 一分支一机器是分配文档的既定前提；要加人/换人，先在此登记。
 
+### 4.1 隔离格局：worktree（2026-10-18 20:43 起生效）
+
+**演进过程**：最初三会话共享同一工作区（20:35 起 `Activation/` 未提交文件即为佐证，任一会话 checkout 会切走所有人脚下）→ 20:42 机器 C 建立独立 worktree，隔离完成。
+
+**当前格局（2026-10-18 20:45 核实）：**
+
+| 工作树 | 分支 | 归属 |
+|---|---|---|
+| `D:/WeChatBridge`（主工作区） | `feat/server-convergence` | 机器 A |
+| `D:/WeChatBridge-C` | `feat/client-license-gate` | 机器 C |
+| （未建） | `feat/admin-console` | 机器 B，派活时 `git worktree add D:/WeChatBridge-B feat/admin-console` |
+
+**worktree 下的规则（与 §4 基础规则叠加）：**
+
+1. **各工作树 HEAD 独立，checkout 不再互踢**——这是 worktree 隔离的核心收益。但 `.git` 全局状态仍共享：`git worktree list`、reflog、gc、stash 是全仓的。**stash 禁用**（全仓可见，最容易误伤）。
+2. **一个分支同时只能被一个工作树 checkout**——`git worktree add` 遇到「already used by worktree at」就是撞了并发窗口，等对方切走或换个新分支，不要强推。
+3. **每个工作树各自与 fork 同步**——主工作区 `--ff-only` 前先 fetch；C 树的提交只有从 C 树 push 才作数（各工作树 push 自己分支即可，本地分支引用共享，任一棵推上都行）。
+4. **§4 的代码域隔离、精确 add、push 纪律全部继续有效**——worktree 只解决「切分支互踢」，不解决「提交了别人的文件」（见 ob-vault 2026-10-08 教训：精确 `git add <自己目录>`）。
+5. 新建工作树在此登记（目录/分支/归属），撤走用 `git worktree remove`（勿直接删目录，会留僵尸记录）。
+
 ## 5. 阻塞上报
 
 被卡住时（等外部输入、等契约、决策未定），在看板「阻塞项」区登记三要素：**卡在什么 / 需要谁提供什么 / 已尝试什么**。例：

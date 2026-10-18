@@ -4,17 +4,16 @@
 // transaction boundaries are. Four operations must be atomic and the rest are
 // single statements:
 //
-//	BurnRedeemCode       the flip and its two payloads are one fact
-//	RotateRefresh        the old token is consumed and its replacement exists
-//	MarkPaid             WeChat retries the callback; one licence, not several
-//	CompleteAuthSession  the ticket is used, the account exists, the anonymous
-//	                     history has moved — or none of it happened
+//	ConfirmActivationRequest  the flip and the binding it installs are one fact
+//	ReissueLicence            the retire and the re-bind are one fact
+//	RotateRefresh             the old token is consumed and its replacement exists
+//	CompleteAuthSession       the ticket is spent and the account is resolved
 //
 // Everything else is written as a single conditional statement whose row count
-// is the answer. See doc.go's notes on error mapping for why the row count is
+// is the answer. See errors.go's notes on error mapping for why the row count is
 // read rather than the row.
 //
-// Nothing in this package logs, and nothing puts a token, a redeem code or a
+// Nothing in this package logs, and nothing puts a token, a licence or a
 // secret into an error: every error path either returns a sentinel from the
 // store package or wraps the driver's error with operation context that names
 // a table, never a value.

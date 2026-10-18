@@ -530,13 +530,14 @@ func TestCallbackExchangesTheCodeAndIssuesOurOwnTokens(t *testing.T) {
 	}
 }
 
-func TestCallbackMigratesTheAnonymousHistory(t *testing.T) {
+func TestCallbackCarriesTheInstallIDIntoSignIn(t *testing.T) {
 	t.Parallel()
 
-	// §5: the person who paid before signing in must not find their data
-	// missing afterwards. CompleteAuthSession owns that migration inside its
-	// own transaction, so this asserts the caller actually invoked it with the
-	// install id rather than doing a partial job of its own.
+	// The install_records table is gone with the payment rewrite, but the
+	// install id still has to reach the sign-in: it is what ties a machine
+	// to the person who bought for it. This asserts the caller actually
+	// invoked CompleteAuthSession with it rather than doing a partial job
+	// of its own.
 	h := newHarness(t)
 	created, _ := h.svc.CreateSession(context.Background(), "install-abc", "device-1")
 
@@ -544,12 +545,12 @@ func TestCallbackMigratesTheAnonymousHistory(t *testing.T) {
 		t.Fatalf("HandleCallback: %v", err)
 	}
 
-	migrated, ok := h.store.migrationFor(created.Ticket)
+	carried, ok := h.store.migrationFor(created.Ticket)
 	if !ok {
-		t.Fatal("CompleteAuthSession was never called, so the history migration did not happen")
+		t.Fatal("CompleteAuthSession was never called, so the install id was not carried")
 	}
-	if migrated != "install-abc" {
-		t.Errorf("migrated install id = %q, want install-abc", migrated)
+	if carried != "install-abc" {
+		t.Errorf("carried install id = %q, want install-abc", carried)
 	}
 }
 
@@ -1067,13 +1068,11 @@ func TestChainForRefreshFindsTheFamily(t *testing.T) {
 	}
 }
 
-func TestAccountAndQuotaAreReadThrough(t *testing.T) {
+func TestAccountIsReadThrough(t *testing.T) {
 	t.Parallel()
 
 	h := newHarness(t)
-	account := h.store.seedAccount("acct-quota")
-	reset := h.clock.Add(24 * time.Hour)
-	h.store.seedQuota(account.ID, 12, 500, reset)
+	account := h.store.seedAccount("acct-read")
 
 	got, err := h.svc.Account(context.Background(), account.ID)
 	if err != nil {
@@ -1081,14 +1080,6 @@ func TestAccountAndQuotaAreReadThrough(t *testing.T) {
 	}
 	if got.ID != account.ID {
 		t.Errorf("id = %q", got.ID)
-	}
-
-	quota, err := h.svc.Quota(context.Background(), account.ID)
-	if err != nil {
-		t.Fatalf("Quota: %v", err)
-	}
-	if quota.Used != 12 || quota.Limit != 500 {
-		t.Errorf("quota = %d/%d", quota.Used, quota.Limit)
 	}
 
 	if _, err := h.svc.Account(context.Background(), "no-such-account"); !errors.Is(err, store.ErrNotFound) {

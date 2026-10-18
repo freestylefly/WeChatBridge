@@ -710,19 +710,6 @@ func (s *Service) Account(ctx context.Context, accountID string) (store.Account,
 	return account, nil
 }
 
-// Quota reads the metering window for one account.
-//
-// This is a read. Consuming is not here: a quota is debited where the work is
-// actually paid for, at the gateway, before the call goes out — not here,
-// where it would be one more thing a caller could forget.
-func (s *Service) Quota(ctx context.Context, accountID string) (store.Quota, error) {
-	quota, err := s.store.GetQuota(ctx, accountID)
-	if err != nil {
-		return store.Quota{}, err
-	}
-	return quota, nil
-}
-
 // ---------------------------------------------------------------------------
 // Typed failures the HTTP layer maps
 // ---------------------------------------------------------------------------

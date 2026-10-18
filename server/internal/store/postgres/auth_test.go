@@ -18,10 +18,9 @@ func TestCompleteAuthSessionIsOneTransaction(t *testing.T) {
 	s, mock := newMock(t)
 
 	// The order of these expectations is the transaction: the ticket is locked,
-	// the account is resolved, the ticket is marked, the anonymous history
-	// moves, and only then does the commit happen. A regression that drops the
-	// history migration, or moves it after the commit, fails this test rather
-	// than a customer's afternoon.
+	// the account is resolved, the ticket is marked, and only then does the
+	// commit happen. A regression that drops the account resolution, or moves
+	// it after the commit, fails this test rather than a customer's afternoon.
 	mock.ExpectBegin()
 	mock.ExpectQuery(regexp.QuoteMeta("FROM auth_sessions")).
 		WithArgs(anyArgs(1)...).
@@ -33,9 +32,6 @@ func TestCompleteAuthSessionIsOneTransaction(t *testing.T) {
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE auth_sessions SET state = 'authorized'")).
 		WithArgs(anyArgs(2)...).
 		WillReturnResult(pgxmock.NewResult("UPDATE", 1))
-	mock.ExpectExec(regexp.QuoteMeta("UPDATE install_records SET account_id")).
-		WithArgs(anyArgs(2)...).
-		WillReturnResult(pgxmock.NewResult("UPDATE", 12))
 	mock.ExpectCommit()
 
 	acct, err := s.CompleteAuthSession(ctx, "ticket-1", "open-1", "union-1", "Nick", "avatar", "install-1")
@@ -93,7 +89,8 @@ func TestCompleteAuthSessionUsesTheSessionsInstallID(t *testing.T) {
 
 	// The ticket remembers which anonymous identity started the sign-in. A
 	// caller that supplies no install id must not be allowed to sweep up
-	// somebody else's history, so the session's own value is used.
+	// somebody else's machine, so the session's own value is used — it rides
+	// into the account upsert rather than a table that no longer exists.
 	mock.ExpectBegin()
 	mock.ExpectQuery(regexp.QuoteMeta("FROM auth_sessions")).
 		WithArgs(anyArgs(1)...).
@@ -105,9 +102,6 @@ func TestCompleteAuthSessionUsesTheSessionsInstallID(t *testing.T) {
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE auth_sessions SET state = 'authorized'")).
 		WithArgs("ticket-1", "acct-1").
 		WillReturnResult(pgxmock.NewResult("UPDATE", 1))
-	mock.ExpectExec(regexp.QuoteMeta("UPDATE install_records SET account_id")).
-		WithArgs("install-from-session", "acct-1").
-		WillReturnResult(pgxmock.NewResult("UPDATE", 3))
 	mock.ExpectCommit()
 
 	if _, err := s.CompleteAuthSession(ctx, "ticket-1", "open-1", "", "Nick", "avatar", ""); err != nil {
@@ -203,40 +197,37 @@ func TestAuthStateTreatsUnknownAsExpired(t *testing.T) {
 	}
 }
 
-// refreshRows builds the rotateLockSQL projection.
-func refreshRows(consumed, revoked bool, expires time.Time) *pgxmock.Rows {
-	var consumedAt, revokedAt pgtype.Timestamptz
-	if consumed {
-		consumedAt = pgtype.Timestamptz{Time: testNow, Valid: true}
-	}
+// sessionRows builds the accounts projection the locked rotation read
+// returns: id, chain_id, refresh_token_hash, prev_refresh_token_hash,
+// refresh_expires_at, session_revoked_at. current is the live hash and
+// previous the generation before it — the pair is what reuse detection
+// reads. The old sessions/refresh_tokens join is gone: the chain is six
+// columns on the accounts row.
+func sessionRows(current, previous string, revoked bool, expires time.Time) *pgxmock.Rows {
+	var revokedAt pgtype.Timestamptz
 	if revoked {
 		revokedAt = pgtype.Timestamptz{Time: testNow, Valid: true}
 	}
 	return pgxmock.NewRows([]string{
-		"id", "session_id", "account_id", "chain_id", "device_id", "expires_at",
-		"consumed_at", "access_token_hash", "access_expires_at", "revoked_at", "created_at",
-	}).AddRow(
-		"rt-1", "sess-1", "acct-1", "chain-1", "device-1", expires,
-		consumedAt, "access-old", testLater, revokedAt, testNow,
-	)
+		"id", "chain_id", "refresh_token_hash", "prev_refresh_token_hash",
+		"refresh_expires_at", "session_revoked_at",
+	}).AddRow("acct-1", "chain-1", current, previous, expires, revokedAt)
 }
 
 func TestRotateRefreshRotates(t *testing.T) {
 	ctx := context.Background()
 	s, mock := newMock(t)
 
+	// The whole exchange is one transaction over one locked row: the row is
+	// read under the lock and replaced in place. The access token's hash is
+	// not among the columns — access tokens are self-contained, so the store
+	// has never had a reason to keep one.
 	mock.ExpectBegin()
-	mock.ExpectQuery(regexp.QuoteMeta("FOR UPDATE OF r, s")).
+	mock.ExpectQuery(regexp.QuoteMeta("FOR UPDATE")).
 		WithArgs(anyArgs(1)...).
-		WillReturnRows(refreshRows(false, false, testLater))
-	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO refresh_tokens")).
-		WithArgs(anyArgs(7)...).
-		WillReturnRows(pgxmock.NewRows([]string{"id"}).AddRow("rt-2"))
-	mock.ExpectExec(regexp.QuoteMeta("consumed_at IS NULL")).
-		WithArgs(anyArgs(3)...).
-		WillReturnResult(pgxmock.NewResult("UPDATE", 1))
-	mock.ExpectExec(regexp.QuoteMeta("UPDATE sessions SET access_token_hash")).
-		WithArgs(anyArgs(3)...).
+		WillReturnRows(sessionRows("old-hash", "", false, testLater))
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE accounts")).
+		WithArgs(anyArgs(4)...).
 		WillReturnResult(pgxmock.NewResult("UPDATE", 1))
 	mock.ExpectCommit()
 
@@ -247,8 +238,8 @@ func TestRotateRefreshRotates(t *testing.T) {
 	if outcome != store.RefreshRotated {
 		t.Fatalf("want rotated, got %q", outcome)
 	}
-	if sess.RefreshTokenHash != "new-hash" || sess.AccessTokenHash != "new-access" {
-		t.Fatalf("the new pair was not returned: %+v", sess)
+	if sess.RefreshTokenHash != "new-hash" {
+		t.Fatalf("the new refresh token was not returned: %+v", sess)
 	}
 	if sess.ChainID != "chain-1" {
 		t.Fatalf("the chain must survive rotation, got %q", sess.ChainID)
@@ -259,13 +250,15 @@ func TestRotateRefreshDetectsReuse(t *testing.T) {
 	ctx := context.Background()
 	s, mock := newMock(t)
 
-	// The token was already spent. This is the signal that the chain is being
-	// replayed, and the caller's response is to kill the family — which is
-	// exactly why it cannot be folded into a generic conflict.
+	// The token was already spent: it is the generation this chain replaced,
+	// so the live hash is one step ahead of the presented one. This is the
+	// signal that the chain is being replayed, and the caller's response is
+	// to kill the family — which is exactly why it cannot be folded into a
+	// generic conflict.
 	mock.ExpectBegin()
-	mock.ExpectQuery(regexp.QuoteMeta("FOR UPDATE OF r, s")).
+	mock.ExpectQuery(regexp.QuoteMeta("FOR UPDATE")).
 		WithArgs(anyArgs(1)...).
-		WillReturnRows(refreshRows(true, false, testLater))
+		WillReturnRows(sessionRows("newer-hash", "old-hash", false, testLater))
 	mock.ExpectRollback()
 
 	_, outcome, err := s.RotateRefresh(ctx, "old-hash", "new-hash", "new-access", testLater)
@@ -287,9 +280,9 @@ func TestRotateRefreshOnARevokedChain(t *testing.T) {
 	ctx := context.Background()
 	s, mock := newMock(t)
 	mock.ExpectBegin()
-	mock.ExpectQuery(regexp.QuoteMeta("FOR UPDATE OF r, s")).
+	mock.ExpectQuery(regexp.QuoteMeta("FOR UPDATE")).
 		WithArgs(anyArgs(1)...).
-		WillReturnRows(refreshRows(false, true, testLater))
+		WillReturnRows(sessionRows("old-hash", "", true, testLater))
 	mock.ExpectRollback()
 
 	_, _, err := s.RotateRefresh(ctx, "old-hash", "new-hash", "new-access", testLater)
@@ -306,9 +299,9 @@ func TestRotateRefreshOnAnExpiredToken(t *testing.T) {
 	// and nothing is written. The transaction still commits — it read rows and
 	// wrote none, and a rollback would be a lie about what happened.
 	mock.ExpectBegin()
-	mock.ExpectQuery(regexp.QuoteMeta("FOR UPDATE OF r, s")).
+	mock.ExpectQuery(regexp.QuoteMeta("FOR UPDATE")).
 		WithArgs(anyArgs(1)...).
-		WillReturnRows(refreshRows(false, false, testExpired))
+		WillReturnRows(sessionRows("old-hash", "", false, testExpired))
 	mock.ExpectCommit()
 
 	_, outcome, err := s.RotateRefresh(ctx, "old-hash", "new-hash", "new-access", testLater)
@@ -324,7 +317,7 @@ func TestRotateRefreshOnAnUnknownToken(t *testing.T) {
 	ctx := context.Background()
 	s, mock := newMock(t)
 	mock.ExpectBegin()
-	mock.ExpectQuery(regexp.QuoteMeta("FOR UPDATE OF r, s")).
+	mock.ExpectQuery(regexp.QuoteMeta("FOR UPDATE")).
 		WithArgs(anyArgs(1)...).
 		WillReturnError(noRows)
 	mock.ExpectRollback()
@@ -335,88 +328,15 @@ func TestRotateRefreshOnAnUnknownToken(t *testing.T) {
 	}
 }
 
-func TestConsumeQuotaCannotOversell(t *testing.T) {
-	ctx := context.Background()
-
-	t.Run("a refused spend updates nothing", func(t *testing.T) {
-		s, mock := newMock(t)
-		// The WHERE clause rejected the row: the RETURNING produces no row at
-		// all. This is the whole reason the limit is inside the statement.
-		mock.ExpectQuery(regexp.QuoteMeta("quota_limit")).
-			WithArgs(anyArgs(3)...).
-			WillReturnError(noRows)
-
-		_, err := s.ConsumeQuota(ctx, "acct-1", 4)
-		if !errors.Is(err, store.ErrConflict) {
-			t.Fatalf("want store.ErrConflict, got %v", err)
-		}
-	})
-
-	t.Run("an accepted spend returns the new window", func(t *testing.T) {
-		s, mock := newMock(t)
-		mock.ExpectQuery(regexp.QuoteMeta("RETURNING")).
-			WithArgs(anyArgs(3)...).
-			WillReturnRows(pgxmock.NewRows([]string{
-				"account_id", "used", "quota_limit", "reset_at",
-			}).AddRow("acct-1", int64(42), int64(100), testLater))
-
-		q, err := s.ConsumeQuota(ctx, "acct-1", 4)
-		if err != nil {
-			t.Fatalf("ConsumeQuota: %v", err)
-		}
-		if q.Used != 42 || q.Limit != 100 {
-			t.Fatalf("the window was not returned as it now stands: %+v", q)
-		}
-	})
-
-	t.Run("a non-positive spend is refused before it reaches the database", func(t *testing.T) {
-		// A negative spend would move the counter backwards, which is either a
-		// caller bug or an attempt at free use. Both are cheaper to reject
-		// here than to catch in a report.
-		s, mock := newMock(t)
-		if _, err := s.ConsumeQuota(ctx, "acct-1", 0); err == nil {
-			t.Fatal("expected a rejection for zero units")
-		}
-		if _, err := s.ConsumeQuota(ctx, "acct-1", -5); err == nil {
-			t.Fatal("expected a rejection for negative units")
-		}
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Fatalf("a query was issued: %v", err)
-		}
-	})
-}
-
-func TestGetQuotaZeroesAnElapsedWindow(t *testing.T) {
-	ctx := context.Background()
-	s, mock := newMock(t)
-	mock.ExpectQuery(regexp.QuoteMeta("FROM quotas")).
-		WithArgs(anyArgs(1)...).
-		WillReturnRows(pgxmock.NewRows([]string{
-			"account_id", "used", "quota_limit", "reset_at",
-		}).AddRow("acct-1", int64(100), int64(100), testExpired))
-
-	q, err := s.GetQuota(ctx, "acct-1")
-	if err != nil {
-		t.Fatalf("GetQuota: %v", err)
-	}
-	// Showing 100/100 for a window that ended last month sends the customer to
-	// support for a limit that has already reset.
-	if q.Used != 0 {
-		t.Fatalf("an elapsed window must read as unused, got %d", q.Used)
-	}
-}
-
 func TestRevokeChainCoversTheFamily(t *testing.T) {
 	ctx := context.Background()
 	s, mock := newMock(t)
-	mock.ExpectBegin()
-	mock.ExpectExec(regexp.QuoteMeta("UPDATE sessions SET revoked_at")).
+	// One session per account, so the family is one row: a single conditional
+	// UPDATE, not the two-table dance it replaces. A second call revokes
+	// nothing, which is the idempotent answer.
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE accounts SET session_revoked_at")).
 		WithArgs(anyArgs(2)...).
-		WillReturnResult(pgxmock.NewResult("UPDATE", 2))
-	mock.ExpectExec(regexp.QuoteMeta("UPDATE refresh_tokens SET revoked_at")).
-		WithArgs(anyArgs(2)...).
-		WillReturnResult(pgxmock.NewResult("UPDATE", 5))
-	mock.ExpectCommit()
+		WillReturnResult(pgxmock.NewResult("UPDATE", 1))
 
 	if err := s.RevokeChain(ctx, "chain-1", testNow); err != nil {
 		t.Fatalf("RevokeChain: %v", err)

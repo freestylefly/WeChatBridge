@@ -45,8 +45,6 @@ type fakeStore struct {
 	// currentRefresh is the only hash RotateRefresh will accept for a session.
 	currentRefresh map[string]string
 
-	quotas map[string]store.Quota
-
 	// Counters and fault injection, for tests that need to see which branch
 	// ran.
 	rotateCalls   int
@@ -69,7 +67,6 @@ func newFakeStore() *fakeStore {
 		byOpenID:       make(map[string]string),
 		refreshIndex:   make(map[string]string),
 		currentRefresh: make(map[string]string),
-		quotas:         make(map[string]store.Quota),
 		migrations:     make(map[string]string),
 	}
 }
@@ -260,28 +257,6 @@ func (f *fakeStore) RevokeChain(_ context.Context, chainID string, at time.Time)
 	return nil
 }
 
-func (f *fakeStore) GetQuota(_ context.Context, accountID store.ID) (store.Quota, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	q, ok := f.quotas[accountID]
-	if !ok {
-		return store.Quota{}, store.ErrNotFound
-	}
-	return q, nil
-}
-
-func (f *fakeStore) ConsumeQuota(_ context.Context, accountID store.ID, units int64) (store.Quota, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	q, ok := f.quotas[accountID]
-	if !ok {
-		return store.Quota{}, store.ErrNotFound
-	}
-	q.Used += units
-	f.quotas[accountID] = q
-	return q, nil
-}
-
 // ---------------------------------------------------------------------------
 // Test-side controls
 // ---------------------------------------------------------------------------
@@ -301,12 +276,6 @@ func (f *fakeStore) seedAccount(id store.ID) store.Account {
 	f.accounts[id] = a
 	f.byOpenID[a.OpenID] = id
 	return a
-}
-
-func (f *fakeStore) seedQuota(accountID store.ID, used, limit int64, resetAt time.Time) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.quotas[accountID] = store.Quota{AccountID: accountID, Used: used, Limit: limit, ResetAt: resetAt}
 }
 
 func (f *fakeStore) setRotateErr(err error) {

@@ -114,8 +114,6 @@ func TestEveryResponseIsCamelCase(t *testing.T) {
 
 	access := poll["accessToken"].(string)
 	refresh := poll["refreshToken"].(string)
-	accountID := poll["account"].(map[string]any)["id"].(string)
-	h.store.seedQuota(accountID, 3, 100, h.clock.Add(24*time.Hour))
 
 	_, refreshed := doJSON(t, engine, http.MethodPost, "/v1/auth/refresh",
 		map[string]any{"refreshToken": refresh}, nil)
@@ -126,13 +124,6 @@ func TestEveryResponseIsCamelCase(t *testing.T) {
 	}
 
 	bearer := map[string]string{"Authorization": "Bearer " + access}
-	_, quota := doJSON(t, engine, http.MethodGet, "/v1/quota", nil, bearer)
-	for _, key := range []string{"used", "limit", "resetAt"} {
-		if _, ok := quota[key]; !ok {
-			t.Errorf("quota is missing %q; got keys %v", key, keysOf(quota))
-		}
-	}
-
 	_, acct := doJSON(t, engine, http.MethodGet, "/v1/account", nil, bearer)
 	for _, key := range []string{"id", "nickname", "avatarUrl", "plan", "createdAt", "lastLoginAt", "wechatBound"} {
 		if _, ok := acct[key]; !ok {
@@ -146,7 +137,6 @@ func TestEveryResponseIsCamelCase(t *testing.T) {
 	assertAllLowerCamel(t, "", created)
 	assertAllLowerCamel(t, "", poll)
 	assertAllLowerCamel(t, "", refreshed)
-	assertAllLowerCamel(t, "", quota)
 }
 
 func TestEveryTimestampIsTheClientsFormat(t *testing.T) {
@@ -497,11 +487,11 @@ func TestRefreshingAnExpiredTokenAnswersTheExpiredStateWord(t *testing.T) {
 // Bearer auth
 // ---------------------------------------------------------------------------
 
-func TestAccountAndQuotaRequireABearerToken(t *testing.T) {
+func TestAccountRequiresABearerToken(t *testing.T) {
 	t.Parallel()
 
 	_, engine := newTestServer(t)
-	for _, path := range []string{"/v1/account", "/v1/quota"} {
+	for _, path := range []string{"/v1/account"} {
 		rec, _ := doJSON(t, engine, http.MethodGet, path, nil, nil)
 		if rec.Code != http.StatusUnauthorized {
 			t.Errorf("GET %s with no token = %d, want 401", path, rec.Code)

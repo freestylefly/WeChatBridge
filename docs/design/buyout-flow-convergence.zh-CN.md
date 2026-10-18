@@ -348,7 +348,7 @@ POST /v1/admin/reissue   { installId }   → { licenseId }   // 换机重签：�
 POST /v1/admin/revoke    { licenseId }   → {}
 ```
 
-**不得更改的既有契约**：license envelope 的 canonical 格式（`TestSharedCanonicalVector` 在 Go/C# 双侧钉死）、auth 包全部端点、`httpx` 错误码体系。错误响应统一 `{ code, message, requestId }`，新增错误码在契约文档登记。
+**不得更改的既有契约**：license envelope 的 canonical 格式（`TestSharedCanonicalVector` 在 Go/C# 双侧钉死）、auth 包全部端点、`httpx` 错误码体系。错误响应统一为 `httpx.Fail` 的既有信封 `{ "error": { "code", "message", "request_id" } }`（带 `X-Request-Id` 响应头），成功响应为裸 payload（`httpx.OK` 即 `c.JSON(payload)`，无包装层）；新增错误码在契约文档登记。可运行契约见 `server/mock/`（零依赖 Node mock，分支 2/3 第一天即可对着开发，真实 handler 落地后删除）。
 
 ### 11.4 并行规则与合并顺序
 
@@ -382,3 +382,65 @@ POST /v1/admin/revoke    { licenseId }   → {}
 | 3 台不同机器 | 各自 `clone` + 各自分支，中央仓库（Gitee）同步 | 物理隔离，只能如此 |
 | 1 台强机多目录并行 | `git worktree`（共享一个 `.git`，三个目录同时 checkout） | 免反复推拉；三个 IDE 窗口各开各的 |
 | 2 台机器 | 分支 1 独占一台；另一台跑 2 个 worktree（后台 + 客户端顺序或交替） | 后台与客户端无编译依赖，worktree 切换零成本 |
+
+### 11.7 契约缺陷与变更登记册（2026-10-18 建立，机器 C 首批上报）
+
+> 依据 §11.3「契约冻结点」与同步协议 §5：**发现契约问题先登记本册，禁止各自私改**。每条记录：上报 → 验证 → 定级 → 修复归属。本册由机器 A 维护，三分支共同追加只读。
+
+#### C-1 许可证信封时间戳：Go int64 vs C# DateTimeOffset（活跃 bug，已验证属实）
+
+- **上报**：机器 C（commit `52841b7`，原话「RedeemService.Accept 对着真服务端会抛 JsonException」）。
+- **验证（机器 A，2026-10-18 20:45）**：属实。Go 侧 `license.go:91-93` 写 `iat/nbf/exp` 为 JSON 数字；C# 侧 `LicenseEnvelope.IssuedAt` 是 `DateTimeOffset`，而两处老链路反序列化（`LicenseStore.cs:88` JsonOptions、`RedeemService.cs:42` `_json`）**均未注册时间戳转换器**——System.Text.Json 拒绝把 JSON number 读成 DateTimeOffset。
+- **影响面**：`LicenseStore.Load` 表现为「已激活许可证读取即丢失」（catch 后返回 null）；`RedeemService.Accept` 直接抛异常。即**存量兑换链路对真实签发票据完全不可用**——此前未暴露只因从未对真密钥端到端跑过。
+- **修复归属**：C 分支。C 已在 `ActivationContract.cs` 写好 `TimestampConverter`（number 与 RFC 3339 双模），新链路无此问题；**老链路需把同一转换器注册进上述两处 options**（约 5 行，属 C 的 `windows/` 域）。Go 侧不动（int64 unix 秒是正确的 canonical 形式）。
+- **定级**：🔴 活跃（真密钥联调必炸）。
+
+#### C-2 签名字母表：Go StdEncoding vs C# Base64Url（契约违背 + 潜在脆弱，C 的定级已验证后修正）
+
+- **上报**：机器 C，原判断「64 字节随机签名约 12% 概率含 +/ 且必然以 = 结尾，验签会随机失败」。
+- **验证（机器 A，2026-10-18 20:45）——定级修正为「非活跃 bug，但契约违背属实」**：`Base64Url.TryDecode`（`Base64Url.cs:39-40`）先把 `-_` 换回 `+/` 再补 padding，而标准 base64 经该替换是恒等、已 padded 串长度 %4==0 不再补——`Convert.FromBase64String` 本就接受标准 base64。**故 Go 用 StdEncoding 写的 sig，当前 C# 恰好能解，「12% 随机失败」不成立。**
+- 但根因真实且必须修：`Base64Url.cs:5-7` 类注释明文契约「base64url 无 padding，用于 ids、digests、**signatures and public keys**」，而 Go `license.go:220`（写）、`:285`（读）均用 StdEncoding——**Go 违反自己参与制定的契约**，当前靠 C# 的宽容度「巧合工作」。另有对向缺口：Go `Verify` 的 StdEncoding.DecodeString 不认无 padding 的 base64url，将来若任一侧收紧即双向爆炸。
+- **修复归属**：A 分支（Go 域）。方案：`license.go:220` 签发改 `base64.RawURLEncoding`；`:285` 验签改双兼容（先 RawURLEncoding，失败再 StdEncoding，兜住任何已按旧格式签发的票）；`crypto.go:12-13` 的 base64Encode/Decode 同步评估。**改动前更新本册并通知 C**（C# 侧 TryDecode 两种都吃，理论上零影响，但需 C 确认其单测 fixture 不受牵动）。
+- **定级**：🟡 潜在（契约违背，当前不炸；修约 10 行 + 单测）。
+
+#### M-1 admin 鉴权契约变更：X-Admin-Password → Bearer 扫码令牌（未走文档流程，本册补登记）
+
+- **事实**：20:41 提交 `a8610e2`（作者 zhuimeng2025）直接修改 `server/mock/server.js` 的 admin 鉴权并 push fork/server-convergence，commit message 引用「设计文档 §11.7」——但该提交时刻 §11.7 尚不存在（本节即为它补的文档位）。
+- **内容**：admin 端点从 `X-Admin-Password: <单密码>` 改为 `Authorization: Bearer <扫码登录 access token>`。
+- **影响**：D5（admin 鉴权模型）实质被此提交拍定为「复用微信账号体系」——管理员须先扫码登录，后台不再有独立密码。好处：少一套凭证、会话可过期；代价：卖家换微信号即失去 admin 身份，需预留改绑路径。
+- **待办**：此变更合理但属于产品决策，**需用户确认**；确认后 D5 标记「已定（Bearer）」，分支 2 的 admin-console 登录页按 Bearer 实现（B-② 任务描述需同步）。
+- **定级**：🟡 待确认（变更本身与 mock 一致，缺的是决策记录）。
+- **后续（2026-10-18 23:05）**：用户已确认；mock 的 adminOK 早已按 Bearer 占位；A-⑥ 落地时真实 handler 按 Bearer + `WCB_ADMIN_OPENIDS` 白名单实现（非白名单 403），D5 自此标记「已定（Bearer）」。分支 2 的 B-② 需按扫码登录改写（其看板仍写着 admin 密码）。
+
+#### R-2 登记状态三态透传 + revoked 不出票（对方上报，主线裁决后采纳）
+
+- **上报**：另一方（git 身份 zhuimeng2025，其 A-⑤ 提交 `885ab40` / `3a9ab08` 一带）。
+- **内容**：登记状态查询透传 pending/confirmed/rejected 三态，不把中间态压成二值；已作废绑定不再出票。
+- **验证（机器 A，2026-10-18 22:40，主线裁决后）**：与我方 4 表模型兼容。我方 revoke 作用于 `licence_bindings`（`RevokeBinding` + `LiveBindingByInstallID` 判活），licence 端点经 live binding 比对 `license_id`，作废后返回 `ErrLicenceDead`（409），不存在「作废了还能取票」的路径。**口径采纳**。
+- **修复归属**：已随 A-⑤ 移植落入我方 `server/internal/activation`（`ErrLicenceDead` sentinel + Licence 端点 live 检查，18 测试含 revoked 不出票例）。
+
+#### R-1 upsert 幻写 requestId（对方上报；我方原线不适用，移植已含其修复）
+
+- **上报**：另一方。其 `CreateActivationRequest` 曾直接回显调用方传入的 requestId；pgxmock 的 QueryRow 会丢弃 Scan 错误，单测照绿，而生产在 upsert 路径下返回的可能并非库行 id（买家拿到一个从未落库的 request_id）。
+- **对方修复**：`RETURNING` 承重——id 只能来自库行，不可回显。
+- **验证（机器 A，2026-10-18 22:40）**：**我方线在该问题上报时刻为「插入即单播」**——`request_id` 由 `newRequestID()` 生成后直插，无 upsert、无回显路径，故 R-1 描述的场景在我方原设计下不存在。但 A-⑤ 移植 upsert 时已连同其修复一并采纳：`RETURNING` + `pgx.ErrNoRows` 回落读对方行，修复实质已入线。
+- **定级**：🟢 对方活跃 → 我方随移植修复（原线不适用）。
+
+#### 移植记录：A-⑤（主线裁决产物，2026-10-18）
+
+- **背景**：两台机器曾平行推进本分支并分叉，用户裁决以 4 表为主线，对方 4 个提交（`3a9ab08`/`885ab40`/`2a51cf9`/`b133ce4`）被 force-with-lease 覆盖，SHA 已记入看板可取。本条登记移植本身，作为分叉处置的文档闭环。
+- **原样搬**：activation HTTP 包（Service/Register/Licence 三端点）、契约字段 tag、handler 映射（ErrNotConfirmed/ErrLicenceDead → 409）。
+- **适配（我方 4 表模型的必然差异，非私改契约）**：① **reissue 无 pending 请求时新插一行已确认请求**（复制旧行 anchor/amount，9 参）——双表模型下 binding 的 request_id 必须链到一行，否则买家的 poller 永远学不会 reissue（「a licence nobody can poll for is a licence nobody collects」）；对方 5 表模型 bindings 并入 requests，无此问题。② licence 判活走 `LiveBindingByInstallID`（binding 表）而非请求行状态。③ 迁移新增部分唯一索引 `activation_requests_live_install_idx ON activation_requests (install_id) WHERE status = 'pending'`，与 upsert 的 `ON CONFLICT (install_id) WHERE status='pending'` 精确对齐。
+- **出口**：`go build/vet/test ./...` 9 包全绿（-count=1 全新），activation 包 18 测试，store 侧 create 三例 + reissue 持久化例。
+
+#### I-1 真实 admin handler 相对 mock 的两处严格化（实现记录，非缺陷）
+
+- **背景**：A-⑥ 落地 admin handler 时对照 `server/mock/server.js` 逐行为核对，两处刻意比 mock 严格，在此登记供分支 2 对照。
+- **① reissue 对未知机器**：mock 对从未登记过的 installId 也铸新票返 200；真实 handler 返 404。依据：A-④ 定稿的 store 契约明文「ErrNotFound means there is nothing to reissue: no live binding and no request of any kind for that machine」——没有购买记录的机器无可签之票，凭空铸一张等于给从未购买的人发票。
+- **② `?status=` 未知值**：mock 宽容过滤（未知值当空列表）；真实 handler 返 400。依据：卖家把 "comfirmed" 打错时，「没有待确认」是本 API 唯一不能给的错答案——空列表会被读成"今天没人买"。
+- **影响**：分支 2 的 console（B-⑤）若按 mock 的 always-200 实现，对无记录机器重签会见到 404。这是正确行为，console 应显示「该机器没有购买记录」而非静默成功。
+- **定级**：🟢 实现记录（mock 在真实 handler 全量落地后删除，分歧自然消解）。
+
+#### 流程补记
+
+本册建立本身即验证了同步协议 §5 的价值：C 发现缺陷后**守规矩未私改**、按 message 上报；A 的验证修正了其中一条的定级（C-2 从「发行炸弹」降为「契约违背」）——这正是「先登记、后修复」要达成的效果：缺陷不丢，定级不失真。

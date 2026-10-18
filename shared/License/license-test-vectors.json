@@ -1,0 +1,654 @@
+{
+  "spec": "wechatbridge.license.canonical.v1",
+  "generatedBy": "server/cmd/license-vectors (go run ./cmd/license-vectors)",
+  "howToUse": [
+    "canonicalText is the exact byte sequence the signature covers. Diff your own canonical builder against it first; every other failure is downstream of it.",
+    "canonicalBytesHex is the same bytes hex-encoded, for clients that would rather compare bytes than strings.",
+    "canonicalSha256Hex is what gets fed to ECDSA. Sign or verify THAT, never the JSON text.",
+    "envelopeJSON is the licence exactly as a verifier receives it, signature included.",
+    "Every vector is consumed the same way: canonicalise `claims`, diff against `canonicalText`, verify `envelopeJSON`. No per-case special casing, including the tampered ones — `mutate` records how a case was built, it is not an instruction.",
+    "Read canonicalText first. Every other disagreement is downstream of it.",
+    "PublicKeySpkiDerBase64 under testKey is exactly the string the client embeds as its compile-time constant: base64 of a SubjectPublicKeyInfo DER, which is what .NET's ImportSubjectPublicKeyInfo expects.",
+    "Each vector's expect.verify is what the reference implementation returns. 'fail' vectors carry the reason string verbatim.",
+    "verifySubject / verifyNowUnix / verifySkewSeconds are the inputs Verify was called with. A negative case means nothing without them — 'expired' is only expired relative to a clock.",
+    "Regenerating rewrites every signature (ECDSA picks a random k each time) and leaves canonicalText untouched. That asymmetry is deliberate: the canonical form is the contract, the signature is an instance of it."
+  ],
+  "algorithm": {
+    "curve": "P-256 (prime256v1 / secp256r1)",
+    "digest": "SHA-256 over the canonical bytes",
+    "signatureFormat": "IeeeP1363 fixed-field: r||s, 64 bytes, big-endian, then base64 std encoding",
+    "publicKeyFormat": "SubjectPublicKeyInfo (SPKI) DER, then base64 std encoding",
+    "warning": "`openssl dgst -sign` emits a DER signature, not IeeeP1363. Handing one to a fixed-field verifier throws a CryptographicException that points at nothing useful. See the der-signature vector."
+  },
+  "constants": {
+    "domainSeparator": "wechatbridge.license.v1",
+    "absent": "-",
+    "canonicalLineCount": 8,
+    "signatureLength": 64,
+    "lineOrder": [
+      "\u003cdomain separator\u003e",
+      "v",
+      "sub",
+      "plan",
+      "iat",
+      "nbf",
+      "exp",
+      "ent"
+    ]
+  },
+  "testKey": {
+    "note": "TEST KEY ONLY. Its private half is published here deliberately so the vectors are reproducible by anyone. It signs nothing that matters.",
+    "privateKeyPem": "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIHx0lA9dO/bEV2SN2E6oOgBuVcQfHW+WBmYKC7AS+7vYoAoGCCqGSM49\nAwEHoUQDQgAEJQIGWuHgDEI7QLKq0TsTQGbPV+1ptD4+OPTyrygF5o0KX+16G4fY\nNCyNQR7OZBR+WcL1sVeP+qK4DbEo1yLPdg==\n-----END EC PRIVATE KEY-----\n",
+    "publicKeySpkiDerBase64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEJQIGWuHgDEI7QLKq0TsTQGbPV+1ptD4+OPTyrygF5o0KX+16G4fYNCyNQR7OZBR+WcL1sVeP+qK4DbEo1yLPdg==",
+    "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEJQIGWuHgDEI7QLKq0TsTQGbPV+1p\ntD4+OPTyrygF5o0KX+16G4fYNCyNQR7OZBR+WcL1sVeP+qK4DbEo1yLPdg==\n-----END PUBLIC KEY-----\n"
+  },
+  "vectors": [
+    {
+      "name": "buyout-perpetual",
+      "why": "The product as it ships: a perpetual licence with no validity window and one entitlement. If this case disagrees, every paid user is broken.",
+      "claims": {
+        "v": 1,
+        "sub": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+        "plan": "buyout",
+        "iat": 1767225600,
+        "nbf": null,
+        "exp": null,
+        "ent": [
+          "pro"
+        ],
+        "sig": "It+oumr0esqxshs0DbaMY5sQeV5NPOTr4MLydTf9aGvo1exIV+dQiWo9r/oZzFdvNlJe4nQM4fMjy3qzOwrgXg=="
+      },
+      "canonicalText": "wechatbridge.license.v1\nv=1\nsub=kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G\nplan=buyout\niat=1767225600\nnbf=-\nexp=-\nent=PRO",
+      "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d6b523764516d325a705839764c62546e344873596331576a4536754630614133470a706c616e3d6275796f75740a6961743d313736373232353630300a6e62663d2d0a6578703d2d0a656e743d50524f",
+      "canonicalSha256Hex": "42bf1ad1d41bea6ea136f3a0a2d4a48437f0ba839ff3bc787e8efcbd9e7b0daf",
+      "envelopeJSON": {
+        "v": 1,
+        "sub": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+        "plan": "buyout",
+        "iat": 1767225600,
+        "nbf": null,
+        "exp": null,
+        "ent": [
+          "pro"
+        ],
+        "sig": "It+oumr0esqxshs0DbaMY5sQeV5NPOTr4MLydTf9aGvo1exIV+dQiWo9r/oZzFdvNlJe4nQM4fMjy3qzOwrgXg=="
+      },
+      "verifySubject": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+      "verifyNowUnix": 1767225600,
+      "verifySkewSeconds": 0,
+      "expect": {
+        "verify": "ok",
+        "reason": "",
+        "note": "nbf and exp are both absent. Both canonical lines carry the '-' sentinel so the line count stays at 8."
+      }
+    },
+    {
+      "name": "entitlement-normalisation",
+      "why": "Server code hands back entitlement lists in whatever order a map or an unordered SELECT produced. Unsorted, lowercase, padded and duplicated input must canonicalise to the same bytes as the clean form.",
+      "claims": {
+        "v": 1,
+        "sub": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+        "plan": "buyout",
+        "iat": 1767225600,
+        "nbf": null,
+        "exp": null,
+        "ent": [
+          "  pro ",
+          "pdf-deep-parse",
+          "PRO",
+          "pdf-deep-parse",
+          "obsidian-sync"
+        ],
+        "sig": "/k1dCPwZW98aa4XqKqknIVpMsMfH7HTC86tG7B8Rcp+aAVfV1PEXNxmgTPQTt7FMDHa7WxnHgDUJ+VdutTkz8A=="
+      },
+      "canonicalText": "wechatbridge.license.v1\nv=1\nsub=kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G\nplan=buyout\niat=1767225600\nnbf=-\nexp=-\nent=OBSIDIAN-SYNC,PDF-DEEP-PARSE,PRO",
+      "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d6b523764516d325a705839764c62546e344873596331576a4536754630614133470a706c616e3d6275796f75740a6961743d313736373232353630300a6e62663d2d0a6578703d2d0a656e743d4f4253494449414e2d53594e432c5044462d444545502d50415253452c50524f",
+      "canonicalSha256Hex": "df6ebeaad3c88ed6f864ef1bbd9bc0965ee05306142f6918ae10b20ce43f89d7",
+      "envelopeJSON": {
+        "v": 1,
+        "sub": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+        "plan": "buyout",
+        "iat": 1767225600,
+        "nbf": null,
+        "exp": null,
+        "ent": [
+          "  pro ",
+          "pdf-deep-parse",
+          "PRO",
+          "pdf-deep-parse",
+          "obsidian-sync"
+        ],
+        "sig": "/k1dCPwZW98aa4XqKqknIVpMsMfH7HTC86tG7B8Rcp+aAVfV1PEXNxmgTPQTt7FMDHa7WxnHgDUJ+VdutTkz8A=="
+      },
+      "verifySubject": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+      "verifyNowUnix": 1767225600,
+      "verifySkewSeconds": 0,
+      "expect": {
+        "verify": "ok",
+        "reason": "",
+        "note": "Trims, upper-cases, de-duplicates, then sorts by byte order. The input list order is irrelevant and must not survive into the signature."
+      }
+    },
+    {
+      "name": "entitlement-order-does-not-matter",
+      "why": "The same entitlement set in a different input order must produce byte-identical canonical text. Two servers that build the list differently would otherwise sign different bytes for the same licence.",
+      "claims": {
+        "v": 1,
+        "sub": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+        "plan": "buyout",
+        "iat": 1767225600,
+        "nbf": null,
+        "exp": null,
+        "ent": [
+          "pro",
+          "obsidian-sync",
+          "pdf-deep-parse"
+        ],
+        "sig": "4kutQQ8nfazA4yRtzS7UmJKrWQoO2JzYNXz7LG7MsBOyNR4PHKtDmy7U7s607Cyf6fb5VWkKqrQC40f0CpGfaw=="
+      },
+      "canonicalText": "wechatbridge.license.v1\nv=1\nsub=kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G\nplan=buyout\niat=1767225600\nnbf=-\nexp=-\nent=OBSIDIAN-SYNC,PDF-DEEP-PARSE,PRO",
+      "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d6b523764516d325a705839764c62546e344873596331576a4536754630614133470a706c616e3d6275796f75740a6961743d313736373232353630300a6e62663d2d0a6578703d2d0a656e743d4f4253494449414e2d53594e432c5044462d444545502d50415253452c50524f",
+      "canonicalSha256Hex": "df6ebeaad3c88ed6f864ef1bbd9bc0965ee05306142f6918ae10b20ce43f89d7",
+      "envelopeJSON": {
+        "v": 1,
+        "sub": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+        "plan": "buyout",
+        "iat": 1767225600,
+        "nbf": null,
+        "exp": null,
+        "ent": [
+          "pro",
+          "obsidian-sync",
+          "pdf-deep-parse"
+        ],
+        "sig": "4kutQQ8nfazA4yRtzS7UmJKrWQoO2JzYNXz7LG7MsBOyNR4PHKtDmy7U7s607Cyf6fb5VWkKqrQC40f0CpGfaw=="
+      },
+      "verifySubject": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+      "verifyNowUnix": 1767225600,
+      "verifySkewSeconds": 0,
+      "expect": {
+        "verify": "ok",
+        "reason": "",
+        "note": "Compare canonicalText here against entitlement-normalisation: the two are byte-identical, entitlement line included. That vector's input is padded, mixed-case and duplicated, this one's is a different order — normalisation absorbs all of it, so none of it survives into the signed bytes. Identical text, not merely matching lines."
+      }
+    },
+    {
+      "name": "subscription-windowed",
+      "why": "The windowed shape. Both timestamps present, so both canonical lines carry real numbers and the '-' sentinel goes unused.",
+      "claims": {
+        "v": 1,
+        "sub": "u9Kp4Zn8XvC2mLbTqR7hY0wS3dF6gH0a",
+        "plan": "subscription",
+        "iat": 1767225600,
+        "nbf": 1767225600,
+        "exp": 1798761600,
+        "ent": [
+          "pro",
+          "cloud-parse"
+        ],
+        "sig": "WRzZhyyjDZ3Q4tKbXO6Sl32dQadhIcwKFMPZGOa0s+6nVocRTeyh0y75XGX3OLDbmGs8qSib3o1OXRJwqQtN3A=="
+      },
+      "canonicalText": "wechatbridge.license.v1\nv=1\nsub=u9Kp4Zn8XvC2mLbTqR7hY0wS3dF6gH0a\nplan=subscription\niat=1767225600\nnbf=1767225600\nexp=1798761600\nent=CLOUD-PARSE,PRO",
+      "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d75394b70345a6e38587643326d4c6254715237685930775333644636674830610a706c616e3d737562736372697074696f6e0a6961743d313736373232353630300a6e62663d313736373232353630300a6578703d313739383736313630300a656e743d434c4f55442d50415253452c50524f",
+      "canonicalSha256Hex": "5e98c3946e184835556a3814133789ba63c91c0c05720abb9be7201fb3194ca9",
+      "envelopeJSON": {
+        "v": 1,
+        "sub": "u9Kp4Zn8XvC2mLbTqR7hY0wS3dF6gH0a",
+        "plan": "subscription",
+        "iat": 1767225600,
+        "nbf": 1767225600,
+        "exp": 1798761600,
+        "ent": [
+          "pro",
+          "cloud-parse"
+        ],
+        "sig": "WRzZhyyjDZ3Q4tKbXO6Sl32dQadhIcwKFMPZGOa0s+6nVocRTeyh0y75XGX3OLDbmGs8qSib3o1OXRJwqQtN3A=="
+      },
+      "verifySubject": "u9Kp4Zn8XvC2mLbTqR7hY0wS3dF6gH0a",
+      "verifyNowUnix": 1767225600,
+      "verifySkewSeconds": 300,
+      "expect": {
+        "verify": "ok",
+        "reason": "",
+        "note": "Unix seconds, no milliseconds, no timezone suffix. Skew is 300s on both edges of the window."
+      }
+    },
+    {
+      "name": "no-entitlement",
+      "why": "A licence with no entitlement is rejected. The ent line still occupies its slot with '-', so the line count is unchanged.",
+      "claims": {
+        "v": 1,
+        "sub": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+        "plan": "buyout",
+        "iat": 1767225600,
+        "nbf": null,
+        "exp": null,
+        "ent": [],
+        "sig": "vj9ql+qIRTAodkb9od0Y49qH0rU5UxezhKP69RL/NI3DkbgqVYqHtlaOL+FqSk2B26COxMJeUP/GRI56Bjbm2A=="
+      },
+      "canonicalText": "wechatbridge.license.v1\nv=1\nsub=kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G\nplan=buyout\niat=1767225600\nnbf=-\nexp=-\nent=-",
+      "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d6b523764516d325a705839764c62546e344873596331576a4536754630614133470a706c616e3d6275796f75740a6961743d313736373232353630300a6e62663d2d0a6578703d2d0a656e743d2d",
+      "canonicalSha256Hex": "b576ed552745ac9b7bac781024cb060deb7293f9bb987c6d42c413fa676ba302",
+      "envelopeJSON": {
+        "v": 1,
+        "sub": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+        "plan": "buyout",
+        "iat": 1767225600,
+        "nbf": null,
+        "exp": null,
+        "ent": [],
+        "sig": "vj9ql+qIRTAodkb9od0Y49qH0rU5UxezhKP69RL/NI3DkbgqVYqHtlaOL+FqSk2B26COxMJeUP/GRI56Bjbm2A=="
+      },
+      "verifySubject": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+      "verifyNowUnix": 1767225600,
+      "verifySkewSeconds": 0,
+      "expect": {
+        "verify": "fail",
+        "reason": "license: licence carries no entitlement",
+        "note": "Signature is valid over this payload; the rejection is a policy check, not a crypto failure. A client that verifies the signature first and then checks entitlements will report this differently — that is fine."
+      }
+    },
+    {
+      "name": "entitlement-blank-strings-only",
+      "why": "Whitespace-only entitlement strings normalise to the same absent form as an empty list.",
+      "claims": {
+        "v": 1,
+        "sub": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+        "plan": "buyout",
+        "iat": 1767225600,
+        "nbf": null,
+        "exp": null,
+        "ent": [
+          "",
+          "   ",
+          "\t"
+        ],
+        "sig": "P4BSGN+R5yJsGi/oaSV3l23CHxMqpxOpZU1UWVFYQv/qcrgG+9DSbKIvenRAwMSWvI2xhX+35+S0UU6t4jObSg=="
+      },
+      "canonicalText": "wechatbridge.license.v1\nv=1\nsub=kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G\nplan=buyout\niat=1767225600\nnbf=-\nexp=-\nent=-",
+      "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d6b523764516d325a705839764c62546e344873596331576a4536754630614133470a706c616e3d6275796f75740a6961743d313736373232353630300a6e62663d2d0a6578703d2d0a656e743d2d",
+      "canonicalSha256Hex": "b576ed552745ac9b7bac781024cb060deb7293f9bb987c6d42c413fa676ba302",
+      "envelopeJSON": {
+        "v": 1,
+        "sub": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+        "plan": "buyout",
+        "iat": 1767225600,
+        "nbf": null,
+        "exp": null,
+        "ent": [
+          "",
+          "   ",
+          "\t"
+        ],
+        "sig": "P4BSGN+R5yJsGi/oaSV3l23CHxMqpxOpZU1UWVFYQv/qcrgG+9DSbKIvenRAwMSWvI2xhX+35+S0UU6t4jObSg=="
+      },
+      "verifySubject": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+      "verifyNowUnix": 1767225600,
+      "verifySkewSeconds": 0,
+      "expect": {
+        "verify": "fail",
+        "reason": "license: licence carries no entitlement",
+        "note": "canonicalText should be byte-identical to no-entitlement."
+      }
+    },
+    {
+      "name": "tampered-plan",
+      "why": "Someone edits the licence file and upgrades their own plan. The signature covers plan, so this must fail.",
+      "mutate": "set plan=\"subscription\"",
+      "claims": {
+        "v": 1,
+        "sub": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+        "plan": "subscription",
+        "iat": 1767225600,
+        "nbf": null,
+        "exp": null,
+        "ent": [
+          "pro"
+        ],
+        "sig": "XUUBtyGghqavl3tNCxD4/ynrUM79XpQjymrToETvzeAOm7xJlEM02viageZ1Hr1K/P/2CBVVEfvlqUoAi+6wjg=="
+      },
+      "canonicalText": "wechatbridge.license.v1\nv=1\nsub=kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G\nplan=subscription\niat=1767225600\nnbf=-\nexp=-\nent=PRO",
+      "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d6b523764516d325a705839764c62546e344873596331576a4536754630614133470a706c616e3d737562736372697074696f6e0a6961743d313736373232353630300a6e62663d2d0a6578703d2d0a656e743d50524f",
+      "canonicalSha256Hex": "2b9a4bffdeb194c12f294555e74f6fbf572ab7f7d4b93a92423c6954d7a59fda",
+      "envelopeJSON": {
+        "v": 1,
+        "sub": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+        "plan": "subscription",
+        "iat": 1767225600,
+        "nbf": null,
+        "exp": null,
+        "ent": [
+          "pro"
+        ],
+        "sig": "XUUBtyGghqavl3tNCxD4/ynrUM79XpQjymrToETvzeAOm7xJlEM02viageZ1Hr1K/P/2CBVVEfvlqUoAi+6wjg=="
+      },
+      "verifySubject": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+      "verifyNowUnix": 1767225600,
+      "verifySkewSeconds": 0,
+      "expect": {
+        "verify": "fail",
+        "reason": "license: signature does not verify",
+        "note": "Mutate the envelope after signing. canonicalText is the mutated text, so a client that rebuilds canonical form from claims will see the same disagreement here."
+      }
+    },
+    {
+      "name": "tampered-entitlement-added",
+      "why": "The classic upgrade attack: keep a valid signature and append an entitlement to the list.",
+      "mutate": "add entitlement=\"cloud-parse\"",
+      "claims": {
+        "v": 1,
+        "sub": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+        "plan": "buyout",
+        "iat": 1767225600,
+        "nbf": null,
+        "exp": null,
+        "ent": [
+          "pro",
+          "cloud-parse"
+        ],
+        "sig": "LIxm/dfG+UVq1FePDtDYBwRrYWK+/Aeh88HNxGZcqx+jVclImbj80zCCxUpW4nyS1ZfrVlLYus648jsG5E8uSw=="
+      },
+      "canonicalText": "wechatbridge.license.v1\nv=1\nsub=kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G\nplan=buyout\niat=1767225600\nnbf=-\nexp=-\nent=CLOUD-PARSE,PRO",
+      "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d6b523764516d325a705839764c62546e344873596331576a4536754630614133470a706c616e3d6275796f75740a6961743d313736373232353630300a6e62663d2d0a6578703d2d0a656e743d434c4f55442d50415253452c50524f",
+      "canonicalSha256Hex": "b9b68ab40913fc94232349dcaa0d683a52be11b87159be896d8aefab9afbd6fd",
+      "envelopeJSON": {
+        "v": 1,
+        "sub": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+        "plan": "buyout",
+        "iat": 1767225600,
+        "nbf": null,
+        "exp": null,
+        "ent": [
+          "pro",
+          "cloud-parse"
+        ],
+        "sig": "LIxm/dfG+UVq1FePDtDYBwRrYWK+/Aeh88HNxGZcqx+jVclImbj80zCCxUpW4nyS1ZfrVlLYus648jsG5E8uSw=="
+      },
+      "verifySubject": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+      "verifyNowUnix": 1767225600,
+      "verifySkewSeconds": 0,
+      "expect": {
+        "verify": "fail",
+        "reason": "license: signature does not verify",
+        "note": "The ent line is part of the signed payload. Adding to it after signing is exactly what the signature is there to catch."
+      }
+    },
+    {
+      "name": "tampered-subject",
+      "why": "The licence is lifted onto another machine. The subject no longer matches the local installId.",
+      "mutate": "set sub=\"tR2pWq9LmX4kYbN7vHc0sJdE3uF8gH1a\"",
+      "claims": {
+        "v": 1,
+        "sub": "tR2pWq9LmX4kYbN7vHc0sJdE3uF8gH1a",
+        "plan": "buyout",
+        "iat": 1767225600,
+        "nbf": null,
+        "exp": null,
+        "ent": [
+          "pro"
+        ],
+        "sig": "W5jin2qfyvELH8seXx6WtLzy1UotJhPBLiLiJnMf7FyUvUqJD4907jyCvmxmwNRg0SUveYZpxQ6ijXPf5CfmKA=="
+      },
+      "canonicalText": "wechatbridge.license.v1\nv=1\nsub=tR2pWq9LmX4kYbN7vHc0sJdE3uF8gH1a\nplan=buyout\niat=1767225600\nnbf=-\nexp=-\nent=PRO",
+      "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d745232705771394c6d58346b59624e3776486330734a644533754638674831610a706c616e3d6275796f75740a6961743d313736373232353630300a6e62663d2d0a6578703d2d0a656e743d50524f",
+      "canonicalSha256Hex": "dc48cf9a19a813a54b1e3cf99a92963102cb9a9ea3543d609bfec5ab10981dd9",
+      "envelopeJSON": {
+        "v": 1,
+        "sub": "tR2pWq9LmX4kYbN7vHc0sJdE3uF8gH1a",
+        "plan": "buyout",
+        "iat": 1767225600,
+        "nbf": null,
+        "exp": null,
+        "ent": [
+          "pro"
+        ],
+        "sig": "W5jin2qfyvELH8seXx6WtLzy1UotJhPBLiLiJnMf7FyUvUqJD4907jyCvmxmwNRg0SUveYZpxQ6ijXPf5CfmKA=="
+      },
+      "verifySubject": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+      "verifyNowUnix": 1767225600,
+      "verifySkewSeconds": 0,
+      "expect": {
+        "verify": "fail",
+        "reason": "license: licence belongs to another machine",
+        "note": "Fails at the signature as well as at the binding check. The subject is signed, so this cannot be made to pass by editing alone."
+      }
+    },
+    {
+      "name": "der-signature",
+      "why": "The single most likely server-side mistake, pinned as a case: openssl emits a DER ECDSA signature and a fixed-field verifier needs 64 raw bytes. The failure looks like nothing at all unless you catch it here.",
+      "mutate": "signature=der",
+      "claims": {
+        "v": 1,
+        "sub": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+        "plan": "buyout",
+        "iat": 1767225600,
+        "nbf": null,
+        "exp": null,
+        "ent": [
+          "pro"
+        ],
+        "sig": "MEQCIWm8TOJorllmoWcHVMz8CumoOOUmQ0pWTlNEppTjVZ65AiG13UoBizAakthQbZv/wGjSg6/0Qhxn/T5SYMp1qNRM/Q=="
+      },
+      "canonicalText": "wechatbridge.license.v1\nv=1\nsub=kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G\nplan=buyout\niat=1767225600\nnbf=-\nexp=-\nent=PRO",
+      "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d6b523764516d325a705839764c62546e344873596331576a4536754630614133470a706c616e3d6275796f75740a6961743d313736373232353630300a6e62663d2d0a6578703d2d0a656e743d50524f",
+      "canonicalSha256Hex": "42bf1ad1d41bea6ea136f3a0a2d4a48437f0ba839ff3bc787e8efcbd9e7b0daf",
+      "envelopeJSON": {
+        "v": 1,
+        "sub": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+        "plan": "buyout",
+        "iat": 1767225600,
+        "nbf": null,
+        "exp": null,
+        "ent": [
+          "pro"
+        ],
+        "sig": "MEQCIWm8TOJorllmoWcHVMz8CumoOOUmQ0pWTlNEppTjVZ65AiG13UoBizAakthQbZv/wGjSg6/0Qhxn/T5SYMp1qNRM/Q=="
+      },
+      "verifySubject": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+      "verifyNowUnix": 1767225600,
+      "verifySkewSeconds": 0,
+      "expect": {
+        "verify": "fail",
+        "reason": "license: signature is 70 bytes, want 64 (IeeeP1363; a DER signature is the usual cause)",
+        "note": "The reason string names the length and says a DER signature is the usual cause. If your client throws an opaque crypto exception instead, it has not reproduced this check."
+      }
+    },
+    {
+      "name": "signature-not-base64",
+      "why": "A signature that is not base64 at all — a hand-edited file, a truncated copy.",
+      "mutate": "set sig=\"not valid base64!!\"",
+      "claims": {
+        "v": 1,
+        "sub": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+        "plan": "buyout",
+        "iat": 1767225600,
+        "nbf": null,
+        "exp": null,
+        "ent": [
+          "pro"
+        ],
+        "sig": "not valid base64!!"
+      },
+      "canonicalText": "wechatbridge.license.v1\nv=1\nsub=kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G\nplan=buyout\niat=1767225600\nnbf=-\nexp=-\nent=PRO",
+      "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d6b523764516d325a705839764c62546e344873596331576a4536754630614133470a706c616e3d6275796f75740a6961743d313736373232353630300a6e62663d2d0a6578703d2d0a656e743d50524f",
+      "canonicalSha256Hex": "42bf1ad1d41bea6ea136f3a0a2d4a48437f0ba839ff3bc787e8efcbd9e7b0daf",
+      "envelopeJSON": {
+        "v": 1,
+        "sub": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+        "plan": "buyout",
+        "iat": 1767225600,
+        "nbf": null,
+        "exp": null,
+        "ent": [
+          "pro"
+        ],
+        "sig": "not valid base64!!"
+      },
+      "verifySubject": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+      "verifyNowUnix": 1767225600,
+      "verifySkewSeconds": 0,
+      "expect": {
+        "verify": "fail",
+        "reason": "license: signature is not base64: illegal base64 data at input byte 3",
+        "note": "Decoding happens before length is checked, so this fails earlier than der-signature does."
+      }
+    },
+    {
+      "name": "expired",
+      "why": "A windowed licence checked after it lapsed.",
+      "claims": {
+        "v": 1,
+        "sub": "u9Kp4Zn8XvC2mLbTqR7hY0wS3dF6gH0a",
+        "plan": "subscription",
+        "iat": 1767225600,
+        "nbf": 1767225600,
+        "exp": 1798761600,
+        "ent": [
+          "pro"
+        ],
+        "sig": "iaxECAnuJYR+ErBK9Tpd9ZzI0+PA3hc+EpgimN6zWj7Tup88ScZtrVZfqcCzaDzoHlWoXDcj9/+M7PbrRpVdIQ=="
+      },
+      "canonicalText": "wechatbridge.license.v1\nv=1\nsub=u9Kp4Zn8XvC2mLbTqR7hY0wS3dF6gH0a\nplan=subscription\niat=1767225600\nnbf=1767225600\nexp=1798761600\nent=PRO",
+      "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d75394b70345a6e38587643326d4c6254715237685930775333644636674830610a706c616e3d737562736372697074696f6e0a6961743d313736373232353630300a6e62663d313736373232353630300a6578703d313739383736313630300a656e743d50524f",
+      "canonicalSha256Hex": "1ab01277c11fc52a8a1fe9897b5d7c94290f2bd18b016d91633a90babc60e9a8",
+      "envelopeJSON": {
+        "v": 1,
+        "sub": "u9Kp4Zn8XvC2mLbTqR7hY0wS3dF6gH0a",
+        "plan": "subscription",
+        "iat": 1767225600,
+        "nbf": 1767225600,
+        "exp": 1798761600,
+        "ent": [
+          "pro"
+        ],
+        "sig": "iaxECAnuJYR+ErBK9Tpd9ZzI0+PA3hc+EpgimN6zWj7Tup88ScZtrVZfqcCzaDzoHlWoXDcj9/+M7PbrRpVdIQ=="
+      },
+      "verifySubject": "u9Kp4Zn8XvC2mLbTqR7hY0wS3dF6gH0a",
+      "verifyNowUnix": 1798765200,
+      "verifySkewSeconds": 300,
+      "expect": {
+        "verify": "fail",
+        "reason": "license: licence has expired",
+        "note": "Expiry is inclusive at the boundary: now-skew \u003e= exp rejects."
+      }
+    },
+    {
+      "name": "not-yet-valid",
+      "why": "A windowed licence checked before its not-before.",
+      "claims": {
+        "v": 1,
+        "sub": "u9Kp4Zn8XvC2mLbTqR7hY0wS3dF6gH0a",
+        "plan": "subscription",
+        "iat": 1767225600,
+        "nbf": 1767225600,
+        "exp": 1798761600,
+        "ent": [
+          "pro"
+        ],
+        "sig": "huueWKik0FrlmeKDXOSb4X6U2zKDAL7diQD2WHjayUfgXGtasVHMnS+7q93Iyz3oMZ975HAtZchZaMWUQHuicQ=="
+      },
+      "canonicalText": "wechatbridge.license.v1\nv=1\nsub=u9Kp4Zn8XvC2mLbTqR7hY0wS3dF6gH0a\nplan=subscription\niat=1767225600\nnbf=1767225600\nexp=1798761600\nent=PRO",
+      "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d75394b70345a6e38587643326d4c6254715237685930775333644636674830610a706c616e3d737562736372697074696f6e0a6961743d313736373232353630300a6e62663d313736373232353630300a6578703d313739383736313630300a656e743d50524f",
+      "canonicalSha256Hex": "1ab01277c11fc52a8a1fe9897b5d7c94290f2bd18b016d91633a90babc60e9a8",
+      "envelopeJSON": {
+        "v": 1,
+        "sub": "u9Kp4Zn8XvC2mLbTqR7hY0wS3dF6gH0a",
+        "plan": "subscription",
+        "iat": 1767225600,
+        "nbf": 1767225600,
+        "exp": 1798761600,
+        "ent": [
+          "pro"
+        ],
+        "sig": "huueWKik0FrlmeKDXOSb4X6U2zKDAL7diQD2WHjayUfgXGtasVHMnS+7q93Iyz3oMZ975HAtZchZaMWUQHuicQ=="
+      },
+      "verifySubject": "u9Kp4Zn8XvC2mLbTqR7hY0wS3dF6gH0a",
+      "verifyNowUnix": 1767222000,
+      "verifySkewSeconds": 300,
+      "expect": {
+        "verify": "fail",
+        "reason": "license: licence is not valid yet",
+        "note": "Not-before is exclusive: now+skew \u003c nbf rejects."
+      }
+    },
+    {
+      "name": "wrong-local-subject",
+      "why": "A structurally perfect licence presented to the wrong machine. Signature verifies; the binding check is what refuses it.",
+      "claims": {
+        "v": 1,
+        "sub": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+        "plan": "buyout",
+        "iat": 1767225600,
+        "nbf": null,
+        "exp": null,
+        "ent": [
+          "pro"
+        ],
+        "sig": "xpoAcxtor3zJXQGrk1E+Sw2VhmAD741vjGrd/YoapIfz6JwA3U/6z3t/S51boiE6roQvb9bNZ/DgBMSflU4Y0w=="
+      },
+      "canonicalText": "wechatbridge.license.v1\nv=1\nsub=kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G\nplan=buyout\niat=1767225600\nnbf=-\nexp=-\nent=PRO",
+      "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d6b523764516d325a705839764c62546e344873596331576a4536754630614133470a706c616e3d6275796f75740a6961743d313736373232353630300a6e62663d2d0a6578703d2d0a656e743d50524f",
+      "canonicalSha256Hex": "42bf1ad1d41bea6ea136f3a0a2d4a48437f0ba839ff3bc787e8efcbd9e7b0daf",
+      "envelopeJSON": {
+        "v": 1,
+        "sub": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+        "plan": "buyout",
+        "iat": 1767225600,
+        "nbf": null,
+        "exp": null,
+        "ent": [
+          "pro"
+        ],
+        "sig": "xpoAcxtor3zJXQGrk1E+Sw2VhmAD741vjGrd/YoapIfz6JwA3U/6z3t/S51boiE6roQvb9bNZ/DgBMSflU4Y0w=="
+      },
+      "verifySubject": "someOtherMachineInstallId",
+      "verifyNowUnix": 1767225600,
+      "verifySkewSeconds": 0,
+      "expect": {
+        "verify": "fail",
+        "reason": "license: licence belongs to another machine",
+        "note": "No mutation: the payload and signature are intact. Only the local subject differs, which is what the second defence layer is for."
+      }
+    },
+    {
+      "name": "unsupported-version",
+      "why": "A future format version must be refused rather than parsed on a guess.",
+      "mutate": "set v=2",
+      "claims": {
+        "v": 2,
+        "sub": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+        "plan": "buyout",
+        "iat": 1767225600,
+        "nbf": null,
+        "exp": null,
+        "ent": [
+          "pro"
+        ],
+        "sig": "Y6lb40SCdDZUDKo+Q+hij22X4NYoItJN6z6pjFPYXivOJDNVf35JoS44QyYMsfZJZ2LJ+TFDXmEDZUHICBEZlQ=="
+      },
+      "canonicalText": "wechatbridge.license.v1\nv=2\nsub=kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G\nplan=buyout\niat=1767225600\nnbf=-\nexp=-\nent=PRO",
+      "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d320a7375623d6b523764516d325a705839764c62546e344873596331576a4536754630614133470a706c616e3d6275796f75740a6961743d313736373232353630300a6e62663d2d0a6578703d2d0a656e743d50524f",
+      "canonicalSha256Hex": "3e9a9181170f4d6ca56279bb20732cd36e61f658b1441f6dc7b174acd3e68e3a",
+      "envelopeJSON": {
+        "v": 2,
+        "sub": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+        "plan": "buyout",
+        "iat": 1767225600,
+        "nbf": null,
+        "exp": null,
+        "ent": [
+          "pro"
+        ],
+        "sig": "Y6lb40SCdDZUDKo+Q+hij22X4NYoItJN6z6pjFPYXivOJDNVf35JoS44QyYMsfZJZ2LJ+TFDXmEDZUHICBEZlQ=="
+      },
+      "verifySubject": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
+      "verifyNowUnix": 1767225600,
+      "verifySkewSeconds": 0,
+      "expect": {
+        "verify": "fail",
+        "reason": "license: format v2 is not supported by this client",
+        "note": "Signed at v1, then the version is bumped to v2. The issuer refuses to produce this at all — Issue rejects an unknown version — so the only way to build the case is to sign first and mutate after. That is also the shape of the attack it pins: a file edited on disk, not one the server produced."
+      }
+    }
+  ]
+}
