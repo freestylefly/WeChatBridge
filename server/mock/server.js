@@ -15,7 +15,8 @@
 //   mock  — signatures are placeholders (the licence envelope will NOT verify
 //           against the client's embedded public key), the QR PNG is a
 //           QR-shaped placeholder (valid PNG, not scannable), any non-empty
-//           bearer token / admin password is accepted
+//           bearer token is accepted (buyer and admin alike — admin identity
+//           is an OpenID allowlist on the real server, see design doc §11.7)
 //
 // Usage: node server/mock/server.js [--port 8901]
 // No dependencies. Node 18+.
@@ -464,11 +465,16 @@ async function activationLicence(req, res) {
 }
 
 // ---------------------------------------------------------------------------
-// Admin (new contract — §11.3).
+// Admin (new contract — §11.3, auth header per §11.7).
+//
+// D5 的单密码方案已作废（设计文档 §11.7，2026-10-18）：管理后台与买家端共用
+// 微信开放平台扫码登录，admin 端点与 auth 包一样接受 Bearer 访问令牌。
+// 真实服务端在此之后还要按 OpenID 白名单判定管理员身份；mock 与旧版同口径
+// 占位——任何非空 Bearer 均接受。
 // ---------------------------------------------------------------------------
 
 function adminOK(req) {
-  return Boolean(req.headers["x-admin-password"]);
+  return /^bearer\s+.+$/i.test(req.headers.authorization ?? "");
 }
 
 async function adminRequests(req, res, url) {
