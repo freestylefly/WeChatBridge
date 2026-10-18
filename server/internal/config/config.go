@@ -50,6 +50,11 @@ type Config struct {
 	// "unauthorized" is safer than one that answers at all.
 	AdminOpenIDs []string
 
+	// TrustedProxies are the peers whose X-Forwarded-For is believed when
+	// logging a client IP. Empty means none: the remote address is used as
+	// it arrives. See TrustedProxyList for why that is the default.
+	TrustedProxies []string
+
 	// Lifetimes, in days. Zero for the buy-out plan is not "unconfigured" — a
 	// buy-out licence is perpetual by definition and has no expiry field.
 	BuyoutLicenseDays int
@@ -98,7 +103,8 @@ func Load() (Config, error) {
 		LicensePrivateKeyPath: required("WCB_LICENSE_PRIVATE_KEY_PATH"),
 		TokenSigningSecret:    required("WCB_TOKEN_SIGNING_SECRET"),
 
-		AdminOpenIDs: openIDList("WCB_ADMIN_OPENIDS"),
+		AdminOpenIDs:   TrustedProxyList("WCB_ADMIN_OPENIDS"),
+		TrustedProxies: TrustedProxyList("WCB_TRUSTED_PROXIES"),
 	}
 
 	var err error
@@ -251,10 +257,22 @@ func basePath(raw string) string {
 	return v
 }
 
-// openIDList parses a comma-separated OpenID whitelist, dropping blanks so
-// that "a,,b" and "a, b" both mean {a, b} — a stray comma in a deploy
-// script must not silently shrink the whitelist.
-func openIDList(name string) []string {
+// TrustedProxyList is the comma-separated set of peers whose forwarding
+// headers are believed when the request log records a client IP.
+//
+// The default is empty, which means believing none of them: the log then
+// shows the address the connection actually came from — the reverse proxy,
+// when there is one. That is the right answer to have by default, because
+// X-Forwarded-For is a client-writable header and gin trusts every source
+// unless told otherwise. A deployment that names its proxy here gets the real
+// client address in the logs instead; a deployment that forgets loses only
+// the precision, not the trust.
+//
+// Named for what it parses rather than for the one setting that first used
+// it: the same comma-separated-blanks-tolerated shape serves the OpenID
+// whitelist, and a function called openIDList returning proxy addresses would
+// be a small lie in every future caller.
+func TrustedProxyList(name string) []string {
 	var out []string
 	for _, part := range strings.Split(env(name, ""), ",") {
 		if v := strings.TrimSpace(part); v != "" {

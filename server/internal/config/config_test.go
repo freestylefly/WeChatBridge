@@ -161,3 +161,39 @@ func TestBasePathMustBeAbsolute(t *testing.T) {
 		t.Fatalf("validate accepted a relative base path: %v", err)
 	}
 }
+
+// TestTrustedProxyList covers the parsing, which is shared with the OpenID
+// whitelist: blanks are dropped so "a,,b" and "a, b" mean the same set, and
+// an unset variable means an empty list rather than a one-element list
+// holding "".
+//
+// The empty case is the security-relevant one. An empty trusted-proxy list is
+// what makes gin believe no forwarding header, so a parser that returned
+// [""] here would silently trust everything instead.
+func TestTrustedProxyList(t *testing.T) {
+	cases := []struct {
+		env  string
+		want []string
+	}{
+		{"", nil},
+		{"   ", nil},
+		{",,", nil},
+		{"10.1.0.7", []string{"10.1.0.7"}},
+		{"10.1.0.7,10.1.0.8", []string{"10.1.0.7", "10.1.0.8"}},
+		{" 10.1.0.7 , 10.1.0.8 ", []string{"10.1.0.7", "10.1.0.8"}},
+		{"10.1.0.7,,10.1.0.8", []string{"10.1.0.7", "10.1.0.8"}},
+	}
+
+	for _, tc := range cases {
+		t.Setenv("WCB_TRUSTED_PROXIES", tc.env)
+		got := TrustedProxyList("WCB_TRUSTED_PROXIES")
+		if len(got) != len(tc.want) {
+			t.Fatalf("TrustedProxyList(%q) = %v, want %v", tc.env, got, tc.want)
+		}
+		for i := range got {
+			if got[i] != tc.want[i] {
+				t.Fatalf("TrustedProxyList(%q) = %v, want %v", tc.env, got, tc.want)
+			}
+		}
+	}
+}
