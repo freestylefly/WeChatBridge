@@ -13,13 +13,23 @@
 
 | # | 步骤 | 状态 | commit |
 |---|---|---|---|
-| S0 | 提交任务 15（门禁接入） | ⏳ | — |
+| S0 | 提交任务 15（门禁接入） | ✅ | `2d994b0` |
 | S1 | `PollSchedule` 单测 | ⬜ | — |
 | S2 | `ActivationContract` / `TimestampConverter` 单测 | ⬜ | — |
 | S3 | `AccountService` 单测 | ⬜ | — |
 | S4 | `ActivationService` 单测 | ⬜ | — |
 | S5 | `HttpActivationTransport` handler 注入 | ⬜ | — |
 | S6 | mock 全流程 + 出口复核 | 🔴 | — |
+
+清单里只剩 🔴 时，计划任务会**自己停用**（`Disable-ScheduledTask`）——没有可执行的步骤
+就不该每天唤醒机器。要恢复：
+
+```powershell
+Enable-ScheduledTask -TaskName WeChatBridge-Resume-LicenseGate
+```
+
+用停用而不是删除，是为了让触发器、参数、设置留在原地；恢复只需一行，不必重写最容易
+写错的那部分。
 
 ## 每一步的硬要求
 
