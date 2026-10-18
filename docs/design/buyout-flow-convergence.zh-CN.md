@@ -348,7 +348,7 @@ POST /v1/admin/reissue   { installId }   → { licenseId }   // 换机重签：�
 POST /v1/admin/revoke    { licenseId }   → {}
 ```
 
-**不得更改的既有契约**：license envelope 的 canonical 格式（`TestSharedCanonicalVector` 在 Go/C# 双侧钉死）、auth 包全部端点、`httpx` 错误码体系。错误响应统一 `{ code, message, requestId }`，新增错误码在契约文档登记。
+**不得更改的既有契约**：license envelope 的 canonical 格式（`TestSharedCanonicalVector` 在 Go/C# 双侧钉死）、auth 包全部端点、`httpx` 错误码体系。错误响应统一为 `httpx.Fail` 的既有信封 `{ "error": { "code", "message", "request_id" } }`（带 `X-Request-Id` 响应头），成功响应为裸 payload（`httpx.OK` 即 `c.JSON(payload)`，无包装层）；新增错误码在契约文档登记。可运行契约见 `server/mock/`（零依赖 Node mock，分支 2/3 第一天即可对着开发，真实 handler 落地后删除）。
 
 ### 11.4 并行规则与合并顺序
 
