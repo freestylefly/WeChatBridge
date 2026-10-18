@@ -1,4 +1,5 @@
 using System.Text.Json;
+using WeChatBridge.Windows.Core.Activation;
 using WeChatBridge.Windows.Core.Licensing;
 
 namespace WeChatBridge.Windows.Core.Redeem;
@@ -39,10 +40,25 @@ public sealed class RedeemService : IDisposable
     private readonly TimeSpan _clockSkewTolerance;
     private readonly Func<DateTimeOffset> _clock;
     private readonly Action<string>? _log;
-    private readonly JsonSerializerOptions _json = new()
+    private readonly JsonSerializerOptions _json = CreateJson();
+
+    /// <summary>
+    /// C-1 (契约登记册 §11.7): both the response envelope and the licence token
+    /// inside it can carry timestamps the Go side wrote as unix seconds
+    /// (<c>license.go:91-93</c>), and the default reader refuses a JSON number for a
+    /// <see cref="System.DateTimeOffset"/> — which surfaced as
+    /// <see cref="RedeemFailure.MalformedResponse"/> on a perfectly good licence, or a
+    /// throw out of <see cref="Accept"/>. The converter reads both dialects.
+    /// </summary>
+    private static JsonSerializerOptions CreateJson()
     {
-        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-    };
+        var options = new JsonSerializerOptions
+        {
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        };
+        options.Converters.Add(new TimestampConverter());
+        return options;
+    }
 
     public RedeemService(
         LicenseStore licenses,

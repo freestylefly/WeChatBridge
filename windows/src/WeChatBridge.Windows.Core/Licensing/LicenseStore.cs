@@ -1,4 +1,5 @@
 using System.Text.Json;
+using WeChatBridge.Windows.Core.Activation;
 
 namespace WeChatBridge.Windows.Core.Licensing;
 
@@ -84,10 +85,24 @@ public sealed class LicenseStore
     /// Field names are pinned on the type; the only thing left to configure here is
     /// relaxed escaping, so a subject or plan containing non-ASCII survives a
     /// round trip instead of arriving as escape soup.
+    /// <para>
+    /// C-1 (契约登记册 §11.7): the Go issuer writes <c>iat</c>/<c>nbf</c>/<c>exp</c> as
+    /// unix seconds (<c>license.go:91-93</c>), and the default reader refuses a JSON
+    /// number for a <see cref="DateTimeOffset"/> — which made every real envelope read
+    /// back as "no licence at all". The converter reads both dialects; the write path
+    /// is RFC 3339 either way, so files this build wrote stay readable.
+    /// </para>
     /// </summary>
-    private static JsonSerializerOptions JsonOptions { get; } = new()
+    private static JsonSerializerOptions JsonOptions { get; } = Create();
+
+    private static JsonSerializerOptions Create()
     {
-        WriteIndented = true,
-        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-    };
+        var options = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        };
+        options.Converters.Add(new TimestampConverter());
+        return options;
+    }
 }
