@@ -6,13 +6,13 @@
 
 | # | 任务 | 状态 | commit | 备注 |
 |---|---|---|---|---|
-| B-① | 目录 + baseURL 配置（`admin-console/` 纯静态） | ✅ | 见下 | `js/config.js`（UMD，Node 可读同一份）；零构建零依赖，file:// 直接打开 |
-| B-② | 登录页 | ✅ | 见下 | **微信开放平台扫码登录**（§11.7 契约变更，D5 单密码作废）；令牌只存 sessionStorage，到期自动续期 + 401 重试一次 |
-| B-③ | 待确认列表（`GET /v1/admin/requests`） | ✅ | 见下 | 登记时间 / 机器码（可复制）/ 硬件锚摘要 / 昵称 / 金额；10s 自动刷新 |
-| B-④ | 确认签发（`POST /v1/admin/confirm`） | ✅ | 见下 | 弹窗展示目标事实防误点；重复确认幂等（同一许可证号） |
-| B-⑤ | 重签 / 作废（`/reissue` `/revoke`） | ✅ | 见下 | 行内按钮 + 「手动操作」区（列表之外的机器码 / 许可证号） |
-| B-⑥ | 台账页（对账视图） | ✅ | 见下 | confirmed 列表 + 本机操作日志补 `licenseId` 列（契约缺口与候选增量见 §11.7） |
-| B-⑦ | 出口 = 对着 mock 全流程可走 | ✅ | 见下 | `test/smoke.mjs` 21/21 + `test/browser.mjs` 17/17；截图 `test/shot-*.png` |
+| B-① | 目录 + baseURL 配置（`admin-console/` 纯静态） | ✅ | 3efc06c | `js/config.js`（UMD，Node 可读同一份）；零构建零依赖，file:// 直接打开 |
+| B-② | 登录页 | ✅ | 3efc06c | **微信开放平台扫码登录**（§11.7 契约变更，D5 单密码作废）；令牌只存 sessionStorage，到期自动续期 + 401 重试一次 |
+| B-③ | 待确认列表（`GET /v1/admin/requests`） | ✅ | 3efc06c | 登记时间 / 机器码（可复制）/ 硬件锚摘要 / 昵称 / 金额；10s 自动刷新 |
+| B-④ | 确认签发（`POST /v1/admin/confirm`） | ✅ | 3efc06c | 弹窗展示目标事实防误点；重复确认幂等（同一许可证号） |
+| B-⑤ | 重签 / 作废（`/reissue` `/revoke`） | ✅ | 3efc06c | 行内按钮 + 「手动操作」区（列表之外的机器码 / 许可证号） |
+| B-⑥ | 台账页（对账视图） | ✅ | 3efc06c | confirmed 列表 + 本机操作日志补 `licenseId` 列（契约缺口与候选增量见 §11.7） |
+| B-⑦ | 出口 = 对着 mock 全流程可走 | ✅ | 2183045 | `test/smoke.mjs` 21/21 + `test/browser.mjs` 17/17；截图 `test/shot-*.png` |
 
 ## 出口标准
 
