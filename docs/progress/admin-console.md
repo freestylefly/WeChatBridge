@@ -12,7 +12,7 @@
 | B-④ | 确认签发（`POST /v1/admin/confirm`） | ✅ | 3efc06c | 弹窗展示目标事实防误点；重复确认幂等（同一许可证号） |
 | B-⑤ | 重签 / 作废（`/reissue` `/revoke`） | ✅ | 3efc06c | 行内按钮 + 「手动操作」区（列表之外的机器码 / 许可证号） |
 | B-⑥ | 台账页（对账视图） | ✅ | 3efc06c | confirmed 列表 + 本机操作日志补 `licenseId` 列（契约缺口与候选增量见 §11.7） |
-| B-⑦ | 出口 = 对着 mock 全流程可走 | ✅ | 2183045 | `test/smoke.mjs` 21/21 + `test/browser.mjs` 17/17；截图 `test/shot-*.png` |
+| B-⑦ | 出口 = 对着 mock 全流程可走 | ✅ | 6c0b355 | `test/smoke.mjs` 21/21 + `test/browser.mjs` 17/17；截图 `test/shot-*.png` |
 
 ## 出口标准
 
