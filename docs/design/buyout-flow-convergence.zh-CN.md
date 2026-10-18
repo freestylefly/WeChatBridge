@@ -382,3 +382,30 @@ POST /v1/admin/revoke    { licenseId }   → {}
 | 3 台不同机器 | 各自 `clone` + 各自分支，中央仓库（Gitee）同步 | 物理隔离，只能如此 |
 | 1 台强机多目录并行 | `git worktree`（共享一个 `.git`，三个目录同时 checkout） | 免反复推拉；三个 IDE 窗口各开各的 |
 | 2 台机器 | 分支 1 独占一台；另一台跑 2 个 worktree（后台 + 客户端顺序或交替） | 后台与客户端无编译依赖，worktree 切换零成本 |
+
+### 11.7 实现备注：admin 鉴权改为微信扫码登录（2026-10-18，用户拍板，机器 B 记录）
+
+**决策变更**：D5「admin 单密码 + IP 白名单」**作废**。本产品整体对接微信开放平台网站应用，管理后台与买家端共用平台本身的扫码登录，不再引入「用户 + 密码」这套自有凭证。
+
+**契约变更**（§11.3 管理后台小节，按 §11.4 规则 1 文档先行，机器 A 跟进实现）：
+
+| 项 | 原（D5） | 现（本次变更） |
+| --- | --- | --- |
+| admin 端点鉴权头 | `X-Admin-Password: <单密码>` | `Authorization: Bearer <accessToken>`（与 auth 包一致） |
+| 凭证来源 | 卖家记忆中的静态密码 | 卖家本人微信扫码（复用冻结的 auth 端点：`POST /v1/auth/session` → QR → 轮询 → 双令牌） |
+| 管理员判定 | 密码比对 | 服务端按 OpenID 白名单判定（配置项建议 `WCB_ADMIN_OPENIDS`，逗号分隔；白名单外 403） |
+| mock 行为 | 任何非空 `X-Admin-Password` 均接受 | 任何非空 Bearer 令牌均接受（与旧 mock 同口径占位） |
+| 401 文案 | 「缺少访问令牌。」 | 不变（本就沿用 auth 包文案） |
+
+**对机器 A 的实现要求**（分支 1，任务 6 内完成）：① `internal/admin` handler 从 `X-Admin-Password` 常量比较改为解析 Bearer → 查账号 → OpenID 白名单校验；② `internal/config` 的 `AdminPassword`/`AdminEnabled()` 替换为 `AdminOpenIDs`/`AdminEnabled()`（dev 下白名单为空 = 禁用 admin API 的语义保留）；③ `server/mock/server.js` 的 `adminOK` 同步改为 Bearer 判定（本次已由分支 1 先行落地，作为可运行契约）；④ 买家端与管理端共用扫码登录意味着**卖家微信即管理员身份**，无需第二套账号体系。
+
+**对机器 B 的边界**：`admin-console/` 只消费契约——登录走 auth 端点、管理操作带 Bearer；不私改端点形状。台账页需要的 `licenseId` 冻结列表不返回（见下）， interim 用本地操作日志，候选契约增量已登记供 A 评估。
+
+**已知候选契约增量**（不阻塞本分支，按规则 1 走文档先行后由 A 实现）：
+
+| # | 增量 | 动机 | A 侧现状 |
+| --- | --- | --- | --- |
+| 1 | `GET /v1/admin/requests` item 增加 `licenseId`（confirmed 行） | 台账页直接展示许可证号，作废按钮不必依赖本机日志 | store 已有数据，属 handler 投影 |
+| 2 | 新增 `GET /v1/admin/bindings`（台账端点） | 已签发台账（license_id ↔ installId ↔ openid ↔ 确认时间 ↔ 作废态）的一等来源 | `store.ListBindings`/`LicenceBindingView` 已具备 |
+
+**mock 与真实服务端的已知差异**（仅 mock 占位导致，console 行为以契作为准）：真实 `store.ReissueLicence` 在重签时会一并确认该 install_id 的待处理登记（买家轮询当即看到 confirmed），mock 不翻转登记态。
