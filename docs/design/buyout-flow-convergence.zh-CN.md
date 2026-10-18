@@ -387,13 +387,15 @@ POST /v1/admin/revoke    { licenseId }   → {}
 
 > 依据 §11.3「契约冻结点」与同步协议 §5：**发现契约问题先登记本册，禁止各自私改**。每条记录：上报 → 验证 → 定级 → 修复归属。本册由机器 A 维护，三分支共同追加只读。
 
-#### C-1 许可证信封时间戳：Go int64 vs C# DateTimeOffset（活跃 bug，已验证属实）
+#### C-1 许可证信封时间戳：Go int64 vs C# DateTimeOffset（✅ 已修复 2026-10-19）
 
 - **上报**：机器 C（commit `52841b7`，原话「RedeemService.Accept 对着真服务端会抛 JsonException」）。
 - **验证（机器 A，2026-10-18 20:45）**：属实。Go 侧 `license.go:91-93` 写 `iat/nbf/exp` 为 JSON 数字；C# 侧 `LicenseEnvelope.IssuedAt` 是 `DateTimeOffset`，而两处老链路反序列化（`LicenseStore.cs:88` JsonOptions、`RedeemService.cs:42` `_json`）**均未注册时间戳转换器**——System.Text.Json 拒绝把 JSON number 读成 DateTimeOffset。
-- **影响面**：`LicenseStore.Load` 表现为「已激活许可证读取即丢失」（catch 后返回 null）；`RedeemService.Accept` 直接抛异常。即**存量兑换链路对真实签发票据完全不可用**——此前未暴露只因从未对真密钥端到端跑过。
+- **影响面**：`LicenseStore.Load` 表现为「已激活许可证读取即丢失」（catch 后返回 null）；`RedeemService.Accept` 直接抛异常。即**存量兑换链路对真实签发票据完全不可用**——此前未暴露只因从未对真密钥联调跑过。
 - **修复归属**：C 分支。C 已在 `ActivationContract.cs` 写好 `TimestampConverter`（number 与 RFC 3339 双模），新链路无此问题；**老链路需把同一转换器注册进上述两处 options**（约 5 行，属 C 的 `windows/` 域）。Go 侧不动（int64 unix 秒是正确的 canonical 形式）。
-- **定级**：🔴 活跃（真密钥联调必炸）。
+- **修复（`b822761`，2026-10-19，C 分支，已随该分支合入 `main`）**：按归属方案落地，两处 options 各注册一次转换器。附回归测试 `UnixTimestampContractTests.cs`，夹具为**手写的 Go 方义字面量**、不由被测代码生成；并做过「临时注掉转换器确认如期变红」的负向验证。
+- **定级**：🔴 活跃（真密钥联调必炸）→ ✅ 已修复。
+- **遗留**：`RedeemService` 随兑换码退役整体删除（`86abca3 [A-③]`），该分支已不复存在，条目保留仅为记录成因与排查路径。
 
 #### C-2 签名字母表：Go StdEncoding vs C# Base64Url（契约违背 + 潜在脆弱，C 的定级已验证后修正）
 
@@ -411,6 +413,8 @@ POST /v1/admin/revoke    { licenseId }   → {}
 - **待办**：此变更合理但属于产品决策，**需用户确认**；确认后 D5 标记「已定（Bearer）」，分支 2 的 admin-console 登录页按 Bearer 实现（B-② 任务描述需同步）。
 - **定级**：🟡 待确认（变更本身与 mock 一致，缺的是决策记录）。
 - **后续（2026-10-18 23:05）**：用户已确认；mock 的 adminOK 早已按 Bearer 占位；A-⑥ 落地时真实 handler 按 Bearer + `WCB_ADMIN_OPENIDS` 白名单实现（非白名单 403），D5 自此标记「已定（Bearer）」。分支 2 的 B-② 需按扫码登录改写（其看板仍写着 admin 密码）。
+- **收尾（2026-10-19）**：B-② 已按扫码登录改写完毕——`feat/admin-console` 的登录页改为微信开放平台扫码，令牌只存 sessionStorage 并自动续期（`3efc06c` 及其后两次修复），该分支已合入 `main`。**本条待办结清。**
+- **前端侧的配套约束（非缺陷，写下来免得日后踩）**：白名单为空时 `admin` 路由**整个不挂载**，卖家拿到的是 **404 而不是 403**；白名单存在但不在名单内才是 403。**前端绝不能把 403 当成 token 过期去刷 refresh**，那是把「你不是卖家」误读成「登录失效」，会让卖家反复重登仍进不去。
 
 #### R-2 登记状态三态透传 + revoked 不出票（对方上报，主线裁决后采纳）
 

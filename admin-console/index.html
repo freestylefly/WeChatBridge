@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>卖家管理后台 · 买断授权</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ===================================================================
+     登录视图：微信开放平台扫码登录（设计文档 §11.7，D5 单密码已作废）
+     =================================================================== -->
+<section id="view-login" class="view">
+  <div class="login-card">
+    <h1>卖家管理后台</h1>
+    <p class="login-sub">请使用卖家本人微信扫码登录（微信开放平台网站应用）</p>
+
+    <div id="login-qr-wrap" class="qr-wrap">
+      <img id="login-qr" alt="登录二维码" hidden>
+      <div id="login-qr-placeholder" class="qr-placeholder">二维码加载中…</div>
+    </div>
+
+    <p id="login-status" class="login-status" role="status">正在获取登录二维码…</p>
+    <p id="login-countdown" class="login-countdown" hidden></p>
+
+    <div class="login-actions">
+      <button id="login-refresh" type="button" class="btn" hidden>刷新二维码</button>
+      <a id="login-authorize" class="btn btn-link" hidden target="_blank" rel="noopener">在微信中打开</a>
+    </div>
+
+    <p class="login-hint">
+      控制台身份标识：<code id="login-install-id">—</code><br>
+      手机已在微信内？点上方链接直接授权；否则请用微信「扫一扫」扫描左侧二维码。
+    </p>
+  </div>
+</section>
+
+<!-- ===================================================================
+     应用视图
+     =================================================================== -->
+<section id="view-app" class="view" hidden>
+
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="brand">卖家管理后台</span>
+      <nav class="tabs" role="tablist">
+        <button id="tab-pending" class="tab is-active" role="tab" aria-selected="true" type="button">
+          待确认 <span id="pending-count" class="badge">0</span>
+        </button>
+        <button id="tab-ledger" class="tab" role="tab" aria-selected="false" type="button">已签发台账</button>
+        <button id="tab-settings" class="tab" role="tab" aria-selected="false" type="button">设置</button>
+      </nav>
+    </div>
+    <div class="topbar-right">
+      <span id="current-account" class="current-account" title="当前登录的卖家微信"></span>
+      <button id="btn-logout" type="button" class="btn btn-quiet">退出登录</button>
+    </div>
+  </header>
+
+  <p class="server-line">服务端：<code id="current-server">—</code></p>
+
+  <!-- ---------------- 待确认 ---------------- -->
+  <div id="panel-pending" class="panel" role="tabpanel">
+    <div class="toolbar">
+      <label class="check">
+        <input type="checkbox" id="auto-refresh" checked> 自动刷新（10 秒）
+      </label>
+      <button id="btn-refresh" type="button" class="btn">刷新</button>
+      <span class="toolbar-spacer"></span>
+      <span class="toolbar-note">收款核对以微信零账为准，后台只展示登记事实</span>
+    </div>
+
+    <table class="grid" id="pending-table">
+      <thead>
+        <tr>
+          <th>登记时间</th><th>机器码 installId</th><th>硬件锚摘要</th>
+          <th>微信昵称</th><th class="col-amount">期望金额</th><th class="col-ops">操作</th>
+        </tr>
+      </thead>
+      <tbody id="pending-body">
+        <tr class="row-empty"><td colspan="6">加载中…</td></tr>
+      </tbody>
+    </table>
+
+    <details class="manual-ops">
+      <summary>手动操作（登记列表之外的机器码 / 许可证号）</summary>
+      <div class="manual-ops-body">
+        <div class="manual-op">
+          <label for="manual-reissue-install">换机重签 · 机器码</label>
+          <input id="manual-reissue-install" type="text" placeholder="installId" spellcheck="false">
+          <button id="btn-manual-reissue" type="button" class="btn">重签</button>
+        </div>
+        <div class="manual-op">
+          <label for="manual-revoke-license">作废 · 许可证号</label>
+          <input id="manual-revoke-license" type="text" placeholder="licenseId" spellcheck="false">
+          <button id="btn-manual-revoke" type="button" class="btn btn-danger">作废</button>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <!-- ---------------- 已签发台账 ---------------- -->
+  <div id="panel-ledger" class="panel" role="tabpanel" hidden>
+    <p class="panel-note">
+      许可证号一列来自本机操作日志（冻结契约的登记列表不返回 licenseId，
+      候选契约增量见设计文档 §11.7）。显示「—」表示该签发不是本机完成的，
+      作废请用手动操作区输入许可证号。
+    </p>
+    <table class="grid" id="ledger-table">
+      <thead>
+        <tr>
+          <th>确认时间</th><th>机器码 installId</th><th>许可证号</th>
+          <th>微信昵称</th><th class="col-amount">金额</th><th class="col-ops">操作</th>
+        </tr>
+      </thead>
+      <tbody id="ledger-body">
+        <tr class="row-empty"><td colspan="6">加载中…</td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="log-title">本地操作日志</h3>
+    <ul id="action-log" class="action-log"></ul>
+  </div>
+
+  <!-- ---------------- 设置 ---------------- -->
+  <div id="panel-settings" class="panel" role="tabpanel" hidden>
+    <div class="settings-block">
+      <h3>服务端地址</h3>
+      <p class="panel-note">
+        默认值在 <code>js/config.js</code>（合并后改那一行即可切真服务端）。
+        下面的覆盖只写本浏览器 localStorage，供开发期在 mock / 真服务端之间切换。
+      </p>
+      <div class="settings-row">
+        <input id="settings-baseurl" type="text" spellcheck="false" placeholder="http://127.0.0.1:8901">
+        <button id="btn-save-baseurl" type="button" class="btn">保存并重载</button>
+        <button id="btn-reset-baseurl" type="button" class="btn btn-quiet">恢复默认</button>
+        <button id="btn-test-conn" type="button" class="btn btn-quiet">测试连接</button>
+      </div>
+      <p id="settings-conn-result" class="settings-result" hidden></p>
+    </div>
+
+    <div class="settings-block">
+      <h3>关于鉴权</h3>
+      <p class="panel-note">
+        登录走微信开放平台网站应用扫码（<code>POST /v1/auth/session</code> → 二维码 → 轮询 → 双令牌），
+        管理操作携带 <code>Authorization: Bearer</code>。访问令牌只存 sessionStorage，
+        关闭标签页即失效；卖家微信的管理员身份由服务端 OpenID 白名单判定。
+      </p>
+    </div>
+  </div>
+
+  <!-- 操作确认弹窗 -->
+  <div id="modal-mask" class="modal-mask" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <h3 id="modal-title"></h3>
+      <div id="modal-body" class="modal-body"></div>
+      <div class="modal-actions">
+        <button id="modal-cancel" type="button" class="btn btn-quiet">取消</button>
+        <button id="modal-ok" type="button" class="btn btn-danger">确认执行</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 三态反馈：成功 / 失败 / 网络错误 -->
+  <!--
+    toast-root 放在两个视图之外（见文件末尾）。放在 #view-app 里时，登录阶段
+    整个 section 是 hidden 的，取二维码失败、网络不通这些恰恰发生在登录阶段的
+    提示一条也弹不出来，卖家只剩状态栏那半句话。
+  -->
+</section>
+
+<!-- 三态反馈容器：登录与应用两个视图共用，故置于视图之外。 -->
+<div id="toast-root" class="toast-root" aria-live="polite"></div>
+
+<noscript>本页面需要启用 JavaScript。</noscript>
+
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
