@@ -39,15 +39,35 @@ public sealed record ActivationOutcome(
     bool CanRetry,
     string Detail,
     LicenseEnvelope? License = null,
-    DateTimeOffset? IssuedAt = null)
+    DateTimeOffset? IssuedAt = null,
+    string? RequestId = null)
 {
     public bool Succeeded => Failure == ActivationFailure.None;
+
+    /// <summary>
+    /// Whether the seller has confirmed. Only a status poll can set it, and it is the
+    /// cue to go and collect the licence — which is a separate call, and one the
+    /// service can still refuse while the signature is being produced.
+    /// </summary>
+    public bool Confirmed { get; init; }
+
+    /// <summary>
+    /// Whether a registration is actually on the server's ledger.
+    /// <para>
+    /// Distinct from <see cref="Succeeded"/>: a successful registration and a
+    /// successful licence are both <see cref="ActivationFailure.None"/>, but only one
+    /// of them has a request id to poll. A caller that treats "no error" as
+    /// "registered" would start polling for an order that does not exist, and the
+    /// user would sit there watching a spinner for an hour.
+    /// </para>
+    /// </summary>
+    public bool IsRegistered => RequestId is not null;
 
     public static ActivationOutcome Success(LicenseEnvelope license, DateTimeOffset? issuedAt, string detail) =>
         new(ActivationFailure.None, false, detail, license, issuedAt);
 
-    public static ActivationOutcome Failed(ActivationFailure failure, bool canRetry, string detail) =>
-        new(failure, canRetry, detail);
+    public static ActivationOutcome Failed(ActivationFailure failure, bool canRetry, string detail, string? requestId = null) =>
+        new(failure, canRetry, detail, RequestId: requestId);
 }
 
 /// <summary>
@@ -135,7 +155,7 @@ public sealed class ActivationService
             var requestId = document.RootElement.GetProperty("requestId").GetString() ?? "";
             var status = document.RootElement.TryGetProperty("status", out var s) ? s.GetString() ?? "" : ActivationState.Pending;
             _log?.Invoke($"activation: registered {requestId} for install {installId}");
-            return ActivationOutcome.Failed(ActivationFailure.None, true, $"已登记，等待卖家确认（单号 {requestId}）。");
+            return ActivationOutcome.Failed(ActivationFailure.None, true, $"已登记，等待卖家确认（单号 {requestId}）。", requestId);
         }
         catch (JsonException)
         {
@@ -174,7 +194,7 @@ public sealed class ActivationService
                 : null;
 
             if (string.Equals(status, ActivationState.Confirmed, StringComparison.Ordinal))
-                return ActivationOutcome.Failed(ActivationFailure.None, true, "卖家已确认，正在取许可证…");
+                return ActivationOutcome.Failed(ActivationFailure.None, true, "卖家已确认，正在取许可证…") with { Confirmed = true };
             if (string.Equals(status, ActivationState.Rejected, StringComparison.Ordinal))
                 return ActivationOutcome.Failed(ActivationFailure.Rejected, false,
                     "卖家拒绝了本次登记。如已付款，请联系客服。");

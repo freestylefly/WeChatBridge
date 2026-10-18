@@ -256,7 +256,7 @@ public sealed class AccountService : IDisposable
     public async Task<LoginOutcome> WaitForScanAsync(
         SessionTicket ticket,
         TimeSpan budget,
-        Func<SessionPoll, Task>? onPoll = null,
+        Action<SessionPoll>? onPoll = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(ticket);
@@ -284,7 +284,7 @@ public sealed class AccountService : IDisposable
             }
 
             if (onPoll is not null)
-                await onPoll(poll).ConfigureAwait(false);
+                onPoll(poll);
 
             if (poll.IsAuthorized)
             {
