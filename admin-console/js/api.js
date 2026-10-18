@@ -141,9 +141,12 @@
       return this.http.json("POST", "/v1/auth/refresh", { refreshToken: refreshToken });
     }
 
-    revoke() {
+    // revoke 必须带 refreshToken，否则服务端认不出要作废哪条会话链。
+    // 服务端对空凭证照样回 204（handler 把它当成「没有链可作废」），
+    // 前端因此看不出自己登出失败了——令牌还在服务端活着。
+    revoke(refreshToken) {
       // 204 无 body；json() 对空 body 返回 {}，ok 即可。
-      return this.http.json("DELETE", "/v1/auth/session");
+      return this.http.json("DELETE", "/v1/auth/session", refreshToken ? { refreshToken: refreshToken } : undefined);
     }
   }
 
@@ -153,6 +156,10 @@
   // 即卖家本人微信扫码拿到的令牌。旧 D5 的 X-Admin-Password 已作废。
   // 令牌由调用方经 setTokens 注入；到期前自动续，401 自动续后重试一次，
   // 两层都失败才把错误抛给卖家——那意味着真的要重新扫码了。
+  //
+  // 光有 Bearer 不够：服务端还要求签入账号在 WCB_ADMIN_OPENIDS 白名单里，
+  // 不在名单上是 403 而不是 401——凭证本身有效，只是背后的身份不是卖家。
+  // 所以 403 不能当作「令牌过期」处理，续期多少次都不会让它变成 200。
   class AdminClient {
     constructor(http) {
       this.http = http;

@@ -343,6 +343,15 @@
         $("login-countdown").hidden = true;
         return;
       }
+      // rejected 是终态：这一张码不会再变成 authorized。不停轮询的话，
+      // 服务端每次都答 rejected，而状态栏一直停在「等待微信扫码…」——
+      // 卖家看到的是一个永远不会到来的登录。
+      if (res.status === "rejected") {
+        stopLoginPolling();
+        setLoginStatus("本次授权被拒绝，请刷新二维码重试", { refresh: true });
+        $("login-countdown").hidden = true;
+        return;
+      }
       // pending：网络抖动不放弃，卖家二维码还有效
       loginTimer = setTimeout(pollLogin, 2000);
     } catch (err) {
@@ -785,7 +794,9 @@
 
   $("btn-logout").addEventListener("click", async function () {
     stopAutoRefresh();
-    try { await api.auth.revoke(); } catch (_) { /* 服务端不在也要能退出 */ }
+    // 带上 refreshToken：服务端要靠它定位会话链，不带就静默跳过作废。
+    var t = loadTokens();
+    try { await api.auth.revoke(t && t.refreshToken); } catch (_) { /* 服务端不在也要能退出 */ }
     clearTokens();
     api.setTokens(null);
     showLogin();
