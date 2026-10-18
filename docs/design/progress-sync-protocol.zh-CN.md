@@ -60,19 +60,31 @@
 
 ## 7. 用户视角：一条命令看总览
 
-在三台机器中任意一台（已 clone 本仓库的）执行：
+在三台机器中任意一台（已 clone 本仓库的）执行。
+
+**分支名带 `feat/` 前缀，远端是 `fork` 不是 `origin`**——三条并行分支都只存在于
+用户 fork 上，`origin` 指上游 freestyleFly，`origin/feat/client-license-gate` 这类
+引用不存在，会直接报 `unknown revision`：
 
 ```bash
-git fetch --all --quiet && for b in server-convergence admin-console client-license-gate; do \
-  echo "=== $b ==="; git log --oneline -3 origin/$b; done
+git fetch fork --quiet && for b in feat/server-convergence feat/admin-console feat/client-license-gate; do \
+  echo "=== $b ==="; git log --oneline -3 "fork/$b"; done
 ```
 
 看板总览（看阻塞与出口状态，比 log 更直观）：
 
 ```bash
 for b in server-convergence admin-console client-license-gate; do \
-  echo "=== $b ==="; cat docs/progress/$b.md; done
+  echo "=== $b ==="; git show "fork/feat/$b:docs/progress/$b.md"; done
 ```
+
+这里分支名与文件名**故意不一样**：`git show` 要的是分支路径 `feat/<b>`，对象路径却是
+`docs/progress/<b>.md`，不带前缀。
+
+看板要从 `fork/` 读，不要 `cat docs/progress/<b>.md`。本地那份是基线 commit 带下来的
+快照，只有自己那一份是新的，另外两份停在空白状态——机器 A 的任务表在本地看是空的，
+远端已有 10 行内容。照原命令读会得出「别人还没开工」的错误结论，而这正是本协议要
+消除的盲区。
 
 ## 8. 网络注意事项（本机已验证）
 
