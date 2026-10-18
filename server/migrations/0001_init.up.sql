@@ -1,13 +1,26 @@
 -- 0001_init.up.sql — the whole persistence layer, first cut.
 --
+-- SQLite dialect. This file was rewritten in place by the PostgreSQL→SQLite
+-- migration (docs/design/sqlite-migration.zh-CN.md); no deployment of the
+-- previous shape ever existed, so there is no data to carry forward and no
+-- second migration to write.
+--
 -- House rules this file obeys, because breaking any of them is a bug that
 -- shows up as money or as a security hole rather than as a stack trace:
 --
---   * Every instant is `timestamptz` and every instant is stored in UTC. The
---     connection sets `timezone=UTC` (see internal/store/postgres), so the
---     server, the database and the `yyyy-MM-ddTHH:mm:ssZ` the client parses
---     all agree. A licence that expires "yesterday" because one process was
---     configured in Asia/Shanghai is not a bug anyone wants to explain.
+--   * Every instant is `TIMESTAMP` and every instant is stored in UTC. The
+--     declared type is load-bearing, not cosmetic: the driver only parses
+--     TEXT into a time.Time when the column is declared TIMESTAMP (or
+--     DATE/DATETIME), and SQLite has no native temporal type — the value is
+--     text either way. Writing the same column as TEXT would make every
+--     scan fail with "unsupported Scan".
+--
+--   * Every timestamp the application binds is a time.Time, never a string
+--     (see R-new in the design doc: two different literal formats in one
+--     column silently break lexicographic order). DEFAULT CURRENT_TIMESTAMP
+--     is UTC and second-granular, so it sorts before any sub-second value
+--     written in the same second by the driver — which is also its correct
+--     temporal position. Never write a third format by hand.
 --
 --   * Nothing that must happen exactly once is implemented as
 --     "SELECT then INSERT". Every such rule is a conditional UPDATE that
@@ -18,24 +31,19 @@
 --     The plaintext refresh token never reaches this database, so a dump of
 --     it does not become a session; the licence envelope is stored as the
 --     bytes that were returned the first time, because ECDSA picks a random
---     k and a re-sign would fork on the difference.
---
---   * Case-insensitive lookups are done with an index on `lower(col)` rather
---     than the `citext` extension, deliberately: CREATE EXTENSION needs a
---     superuser on most managed PostgreSQL, and a migration that fails at
---     deploy time is worse than an extra index.
+--     k and a re-sign would fork on the difference. BLOB, not TEXT: the
+--     bytes must round-trip byte for byte.
 --
 --   * CHECK constraints encode the invariants that are expensive to get wrong
 --     under concurrency. Each one says in a comment why it exists, because a
 --     constraint nobody understands is a constraint somebody eventually
 --     removes.
 --
--- This file was rewritten in place by the buy-out convergence
--- (docs/design/buyout-flow-convergence.zh-CN.md): the payment tables —
--- orders, redeem_codes, redemption_requests, qr_payloads, quotas, sessions,
--- refresh_tokens, install_records — are gone, and the token chain moved onto
--- the accounts row. No deployment of the previous shape ever existed (the
--- service had no entrypoint), so there is no data to carry forward.
+--   * `PRAGMA foreign_keys=ON` is per-connection, not per-database, and it
+--     defaults OFF. Without it every ON DELETE action below is silently
+--     inert. The store's DSN sets it and start-up asserts it reads back 1;
+--     running this file through a sqlite3 shell by hand will not enforce the
+--     foreign keys unless you set the pragma first.
 --
 -- No BEGIN/COMMIT here: internal/migrate wraps each file in its own
 -- transaction together with the bookkeeping row, so a crash mid-migration
@@ -45,16 +53,16 @@
 -- accounts — one row per WeChat identity, and its one live token session.
 -- ---------------------------------------------------------------------------
 CREATE TABLE accounts (
-    id            text        PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    id            text        PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
     open_id       text        NOT NULL,
     union_id      text,
     nickname      text        NOT NULL DEFAULT '',
     avatar_url    text        NOT NULL DEFAULT '',
     plan          text        NOT NULL DEFAULT 'free',
     install_id    text,
-    wechat_bound  boolean     NOT NULL DEFAULT false,
-    created_at    timestamptz NOT NULL DEFAULT now(),
-    last_login_at timestamptz NOT NULL DEFAULT now(),
+    wechat_bound  BOOLEAN     NOT NULL DEFAULT false,
+    created_at    TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_login_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     -- The token chain. One live session per account: the refresh token's
     -- hash, the hash it replaced (whose reappearance is the reuse signal),
@@ -63,9 +71,18 @@ CREATE TABLE accounts (
     -- machine-change path — see store.Session.
     refresh_token_hash      text,
     prev_refresh_token_hash text,
-    refresh_expires_at      timestamptz,
+    refresh_expires_at      TIMESTAMP,
     chain_id                text,
-    session_revoked_at      timestamptz,
+    session_revoked_at      TIMESTAMP,
+
+    -- The insert marker replaces PostgreSQL's `(xmax = 0) AS created`.
+    -- SQLite has no system column that says "this row came from the INSERT
+    -- branch", so the sign-in upsert writes a fresh random nonce here on
+    -- INSERT and the DO UPDATE branch never touches it: comparing the stored
+    -- value against the nonce the caller generated answers "was this row
+    -- new" with zero extra queries. The value itself is meaningless and is
+    -- never read — only compared. See internal/store/sqlite/auth.go.
+    insert_marker text        NOT NULL DEFAULT '',
 
     CONSTRAINT accounts_plan_check
         CHECK (plan IN ('free', 'buyout', 'subscription'))
@@ -110,8 +127,8 @@ CREATE TABLE auth_sessions (
     install_id    text        NOT NULL,
     authorize_url text        NOT NULL DEFAULT '',
     account_id    text        REFERENCES accounts (id) ON DELETE SET NULL,
-    expires_at    timestamptz NOT NULL,
-    created_at    timestamptz NOT NULL DEFAULT now(),
+    expires_at    TIMESTAMP   NOT NULL,
+    created_at    TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT auth_sessions_state_check
         CHECK (state IN ('pending', 'authorized', 'expired', 'rejected')),
@@ -146,16 +163,15 @@ CREATE TABLE activation_requests (
     anchor_digest text        NOT NULL DEFAULT '',
     -- Advisory: what the buyer says they were asked to pay. NULL means the
     -- buyer did not say, which is a normal answer and not a missing field.
-    amount_fen    bigint,
+    amount_fen    INTEGER,
     status        text        NOT NULL DEFAULT 'pending',
-    -- bytea, not jsonb, and that is the whole point: jsonb reorders keys,
-    -- drops duplicates and normalises numbers, so storing the envelope as
-    -- jsonb would make "the bytes we returned the first time" a different
-    -- value every time it was read back. The signature is the product.
-    envelope_json bytea,
+    -- BLOB, not TEXT, and that is the whole point: the bytes that were
+    -- returned the first time must come back byte for byte. The signature is
+    -- the product; a text round-trip that re-encodes anything is a fork.
+    envelope_json BLOB,
     license_id    text        NOT NULL DEFAULT '',
-    created_at    timestamptz NOT NULL DEFAULT now(),
-    confirmed_at  timestamptz,
+    created_at    TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    confirmed_at  TIMESTAMP,
 
     CONSTRAINT activation_requests_status_check
         CHECK (status IN ('pending', 'confirmed', 'rejected')),
@@ -201,8 +217,8 @@ CREATE TABLE licence_bindings (
     install_id  text        NOT NULL,
     account_id  text        NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
     request_id  text,
-    issued_at   timestamptz NOT NULL DEFAULT now(),
-    revoked_at  timestamptz,
+    issued_at   TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    revoked_at  TIMESTAMP,
 
     -- A revocation dated before the licence existed is a bug in whatever
     -- wrote it, not something to store.
