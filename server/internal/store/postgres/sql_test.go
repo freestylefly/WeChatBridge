@@ -61,6 +61,22 @@ func TestCriticalSQL(t *testing.T) {
 			must: []string{"revoked_at IS NULL", "RETURNING account_id"},
 		},
 		{
+			name: "a reissued licence is filed as a confirmed request of its own",
+			sql:  reissueInsertRequestSQL,
+			// The row is what the buyer's poller reads after a reissue: a
+			// licence with no row is a licence nobody can collect.
+			must: []string{"'confirmed'", "license_id", "envelope_json", "confirmed_at"},
+		},
+		{
+			name: "registration is idempotent per machine, per account",
+			sql:  createActivationRequestSQL,
+			// The partial index is the machine's live registration; the
+			// predicate is what stops a stranger's machine code being
+			// adopted; RETURNING is what stops the caller's echoed id.
+			must: []string{"ON CONFLICT (install_id) WHERE status = 'pending'",
+				"WHERE activation_requests.account_id = $2", "RETURNING"},
+		},
+		{
 			name: "revoking only touches a binding that is still live",
 			sql:  revokeBindingSQL,
 			must: []string{"revoked_at IS NULL"},
@@ -102,29 +118,31 @@ func TestCriticalSQL(t *testing.T) {
 // concatenation, and no test would otherwise notice.
 func TestNoStringBuiltSQL(t *testing.T) {
 	queries := map[string]string{
-		"upsertAccountSQL":              upsertAccountSQL,
-		"createAuthSessionSQL":          createAuthSessionSQL,
-		"getAuthSessionSQL":             getAuthSessionSQL,
-		"lockAuthSessionSQL":            lockAuthSessionSQL,
-		"markAuthSessionAuthorizedSQL":  markAuthSessionAuthorizedSQL,
-		"getAccountSQL":                 getAccountSQL,
-		"createSessionSQL":              createSessionSQL,
-		"sessionMatchSQL":               sessionMatchSQL,
-		"rotateReplaceSQL":              rotateReplaceSQL,
-		"revokeChainSQL":                revokeChainSQL,
-		"createActivationRequestSQL":    createActivationRequestSQL,
-		"latestActivationRequestSQL":    latestActivationRequestSQL,
-		"getActivationRequestSQL":       getActivationRequestSQL,
-		"listActivationRequestsSQL":     listActivationRequestsSQL,
-		"confirmLockSQL":                confirmLockSQL,
-		"confirmInsertBindingSQL":       confirmInsertBindingSQL,
-		"confirmFlipSQL":                confirmFlipSQL,
-		"reissueRetireSQL":              reissueRetireSQL,
-		"reissuePendingSQL":             reissuePendingSQL,
-		"revokeBindingSQL":              revokeBindingSQL,
-		"bindingExistsSQL":              bindingExistsSQL,
-		"liveBindingSQL":                liveBindingSQL,
-		"listBindingsSQL":               listBindingsSQL,
+		"upsertAccountSQL":             upsertAccountSQL,
+		"createAuthSessionSQL":         createAuthSessionSQL,
+		"getAuthSessionSQL":            getAuthSessionSQL,
+		"lockAuthSessionSQL":           lockAuthSessionSQL,
+		"markAuthSessionAuthorizedSQL": markAuthSessionAuthorizedSQL,
+		"getAccountSQL":                getAccountSQL,
+		"createSessionSQL":             createSessionSQL,
+		"sessionMatchSQL":              sessionMatchSQL,
+		"rotateReplaceSQL":             rotateReplaceSQL,
+		"revokeChainSQL":               revokeChainSQL,
+		"createActivationRequestSQL":   createActivationRequestSQL,
+		"latestActivationRequestSQL":   latestActivationRequestSQL,
+		"getActivationRequestSQL":      getActivationRequestSQL,
+		"requestByInstallIDSQL":        requestByInstallIDSQL,
+		"listActivationRequestsSQL":    listActivationRequestsSQL,
+		"confirmLockSQL":               confirmLockSQL,
+		"confirmInsertBindingSQL":      confirmInsertBindingSQL,
+		"confirmFlipSQL":               confirmFlipSQL,
+		"reissueRetireSQL":             reissueRetireSQL,
+		"reissueLatestSQL":             reissueLatestSQL,
+		"reissueInsertRequestSQL":      reissueInsertRequestSQL,
+		"revokeBindingSQL":             revokeBindingSQL,
+		"bindingExistsSQL":             bindingExistsSQL,
+		"liveBindingSQL":               liveBindingSQL,
+		"listBindingsSQL":              listBindingsSQL,
 	}
 	for name, q := range queries {
 		for _, forbidden := range []string{"%s", "%v", "Sprintf"} {

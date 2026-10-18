@@ -232,9 +232,9 @@ type LicenceBinding struct {
 	AccountID ID
 	// RequestID links back to the activation request that produced this
 	// licence, which is how a re-delivery finds the original envelope bytes.
-	RequestID  string
-	IssuedAt   time.Time
-	RevokedAt  *time.Time
+	RequestID string
+	IssuedAt  time.Time
+	RevokedAt *time.Time
 }
 
 // LicenceBindingView is the ledger projection: the binding plus who it belongs
@@ -249,11 +249,24 @@ type LicenceBindingView struct {
 // seller's three answers, and the bindings that record them.
 type ActivationStore interface {
 	// Buyer side.
-	CreateActivationRequest(ctx context.Context, r ActivationRequest) error
+	// CreateActivationRequest registers a machine's intent to buy. It is an
+	// upsert keyed on the machine while a request for it is live: the same
+	// account tapping "buy" twice refreshes the row and keeps its request
+	// id, so the seller's console never sees a second line for one machine.
+	// The account predicate is what makes that safe — a machine whose live
+	// request belongs to somebody else keeps its row and its owner, and the
+	// caller is handed that row so it can say so plainly rather than adopt
+	// a purchase between accounts.
+	CreateActivationRequest(ctx context.Context, r ActivationRequest) (ActivationRequest, error)
 	// LatestActivationRequest is the buyer's own view: the most recent request
 	// they made, which is the one their poller is waiting on.
 	LatestActivationRequest(ctx context.Context, accountID ID) (ActivationRequest, error)
 	GetActivationRequest(ctx context.Context, requestID string) (ActivationRequest, error)
+	// GetRequestByInstallID is the machine's view: the most recent request
+	// for an install id, whoever filed it. It exists for the upsert's
+	// fallback path — the account predicate refused, and the caller needs
+	// the row it refused to touch.
+	GetRequestByInstallID(ctx context.Context, installID string) (ActivationRequest, error)
 
 	// Seller side.
 	// ListActivationRequests returns the console's table. An empty status
@@ -267,11 +280,14 @@ type ActivationStore interface {
 
 	// Licence bindings.
 	// ReissueLicence revokes the account's live binding — if any — and
-	// installs a new one for installID in the same transaction. If a pending
-	// request exists for that install id it is confirmed with the new
-	// licence, which is how the buyer's poller learns about a reissue at all.
+	// installs a new one for installID in the same transaction. The reissue
+	// always leaves a confirmed request row carrying the new licence's
+	// envelope: the pending request for that machine if there is one,
+	// otherwise a fresh row that copies the machine's earlier registration.
+	// That row is how the buyer's poller learns about a reissue at all —
+	// a licence nobody can poll for is a licence nobody collects.
 	// ErrNotFound means there is nothing to reissue: no live binding and no
-	// pending request for that machine.
+	// request of any kind for that machine.
 	ReissueLicence(ctx context.Context, installID, licenseID string, envelopeJSON []byte, at time.Time) (ActivationRequest, error)
 	// RevokeBinding marks a licence revoked. The row stays: the honest answer
 	// to "is this licence still valid" is a date, not a deletion.

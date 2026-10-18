@@ -411,6 +411,27 @@ POST /v1/admin/revoke    { licenseId }   → {}
 - **待办**：此变更合理但属于产品决策，**需用户确认**；确认后 D5 标记「已定（Bearer）」，分支 2 的 admin-console 登录页按 Bearer 实现（B-② 任务描述需同步）。
 - **定级**：🟡 待确认（变更本身与 mock 一致，缺的是决策记录）。
 
+#### R-2 登记状态三态透传 + revoked 不出票（对方上报，主线裁决后采纳）
+
+- **上报**：另一方（git 身份 zhuimeng2025，其 A-⑤ 提交 `885ab40` / `3a9ab08` 一带）。
+- **内容**：登记状态查询透传 pending/confirmed/rejected 三态，不把中间态压成二值；已作废绑定不再出票。
+- **验证（机器 A，2026-10-18 22:40，主线裁决后）**：与我方 4 表模型兼容。我方 revoke 作用于 `licence_bindings`（`RevokeBinding` + `LiveBindingByInstallID` 判活），licence 端点经 live binding 比对 `license_id`，作废后返回 `ErrLicenceDead`（409），不存在「作废了还能取票」的路径。**口径采纳**。
+- **修复归属**：已随 A-⑤ 移植落入我方 `server/internal/activation`（`ErrLicenceDead` sentinel + Licence 端点 live 检查，18 测试含 revoked 不出票例）。
+
+#### R-1 upsert 幻写 requestId（对方上报；我方原线不适用，移植已含其修复）
+
+- **上报**：另一方。其 `CreateActivationRequest` 曾直接回显调用方传入的 requestId；pgxmock 的 QueryRow 会丢弃 Scan 错误，单测照绿，而生产在 upsert 路径下返回的可能并非库行 id（买家拿到一个从未落库的 request_id）。
+- **对方修复**：`RETURNING` 承重——id 只能来自库行，不可回显。
+- **验证（机器 A，2026-10-18 22:40）**：**我方线在该问题上报时刻为「插入即单播」**——`request_id` 由 `newRequestID()` 生成后直插，无 upsert、无回显路径，故 R-1 描述的场景在我方原设计下不存在。但 A-⑤ 移植 upsert 时已连同其修复一并采纳：`RETURNING` + `pgx.ErrNoRows` 回落读对方行，修复实质已入线。
+- **定级**：🟢 对方活跃 → 我方随移植修复（原线不适用）。
+
+#### 移植记录：A-⑤（主线裁决产物，2026-10-18）
+
+- **背景**：两台机器曾平行推进本分支并分叉，用户裁决以 4 表为主线，对方 4 个提交（`3a9ab08`/`885ab40`/`2a51cf9`/`b133ce4`）被 force-with-lease 覆盖，SHA 已记入看板可取。本条登记移植本身，作为分叉处置的文档闭环。
+- **原样搬**：activation HTTP 包（Service/Register/Licence 三端点）、契约字段 tag、handler 映射（ErrNotConfirmed/ErrLicenceDead → 409）。
+- **适配（我方 4 表模型的必然差异，非私改契约）**：① **reissue 无 pending 请求时新插一行已确认请求**（复制旧行 anchor/amount，9 参）——双表模型下 binding 的 request_id 必须链到一行，否则买家的 poller 永远学不会 reissue（「a licence nobody can poll for is a licence nobody collects」）；对方 5 表模型 bindings 并入 requests，无此问题。② licence 判活走 `LiveBindingByInstallID`（binding 表）而非请求行状态。③ 迁移新增部分唯一索引 `activation_requests_live_install_idx ON activation_requests (install_id) WHERE status = 'pending'`，与 upsert 的 `ON CONFLICT (install_id) WHERE status='pending'` 精确对齐。
+- **出口**：`go build/vet/test ./...` 9 包全绿（-count=1 全新），activation 包 18 测试，store 侧 create 三例 + reissue 持久化例。
+
 #### 流程补记
 
 本册建立本身即验证了同步协议 §5 的价值：C 发现缺陷后**守规矩未私改**、按 message 上报；A 的验证修正了其中一条的定级（C-2 从「发行炸弹」降为「契约违背」）——这正是「先登记、后修复」要达成的效果：缺陷不丢，定级不失真。

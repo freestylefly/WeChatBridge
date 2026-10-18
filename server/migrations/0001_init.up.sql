@@ -178,6 +178,16 @@ CREATE INDEX activation_requests_account_idx
 CREATE INDEX activation_requests_status_idx
     ON activation_requests (status, created_at DESC);
 
+-- One live registration per machine. This is the registration idempotency in
+-- schema form: a second "buy" tap for a machine that already has a pending
+-- request cannot queue a second line on the seller's console, and the upsert
+-- in activation.go keys on exactly this predicate. Partial because a machine
+-- that was confirmed, rejected or reissued is free to register again — the
+-- next purchase is a new row, not a conflict.
+CREATE UNIQUE INDEX activation_requests_live_install_idx
+    ON activation_requests (install_id)
+    WHERE status = 'pending';
+
 -- ---------------------------------------------------------------------------
 -- licence_bindings — which machines a licence is pinned to.
 --

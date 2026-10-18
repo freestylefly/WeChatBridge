@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/pashagolub/pgxmock/v3"
@@ -21,37 +22,75 @@ import (
 func TestCreateActivationRequest(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("a registration is one insert", func(t *testing.T) {
+	t.Run("a registration is one statement, and the row comes back from the database", func(t *testing.T) {
+		// RETURNING is the whole point: the caller minted req-2, the row the
+		// database holds is req-1, and it is the database's id the customer
+		// will quote to the seller.
 		s, mock := newMock(t)
-		mock.ExpectExec(regexp.QuoteMeta("INSERT INTO activation_requests")).
+		mock.ExpectQuery(regexp.QuoteMeta("ON CONFLICT (install_id) WHERE status = 'pending'")).
 			WithArgs(anyArgs(6)...).
-			WillReturnResult(pgxmock.NewResult("INSERT", 1))
+			WillReturnRows(activationRequestRow("pending", fenPtr(19900)))
 
-		r := store.ActivationRequest{
-			RequestID:    "req-1",
+		r, err := s.CreateActivationRequest(ctx, store.ActivationRequest{
+			RequestID:    "req-2",
 			AccountID:    "acct-1",
 			InstallID:    "install-1",
 			AnchorDigest: "anchor-1",
 			AmountFen:    fenPtr(19900),
 			CreatedAt:    testNow,
-		}
-		if err := s.CreateActivationRequest(ctx, r); err != nil {
+		})
+		if err != nil {
 			t.Fatalf("CreateActivationRequest: %v", err)
+		}
+		if r.RequestID != "req-1" {
+			t.Fatalf("request id = %q, want the stored req-1, not the caller's echo", r.RequestID)
+		}
+		if r.Status != store.ActivationPending {
+			t.Fatalf("status = %q, want pending", r.Status)
 		}
 		if err := mock.ExpectationsWereMet(); err != nil {
 			t.Fatalf("%v", err)
 		}
 	})
 
-	t.Run("a retried request id reads as a conflict", func(t *testing.T) {
-		// The id is the caller's, so a retry after a lost response collides
-		// on the primary key instead of registering the purchase twice.
+	t.Run("a machine whose live request belongs to another account hands that row back", func(t *testing.T) {
+		// The upsert's account predicate refused, so RETURNING came back
+		// empty. The row is handed back untouched rather than adopted: the
+		// caller sees a stranger's account id and refuses the purchase in
+		// turn, and the first buyer's row keeps its owner and its id.
 		s, mock := newMock(t)
-		mock.ExpectExec(regexp.QuoteMeta("INSERT INTO activation_requests")).
+		mock.ExpectQuery(regexp.QuoteMeta("ON CONFLICT (install_id) WHERE status = 'pending'")).
+			WithArgs(anyArgs(6)...).
+			WillReturnError(noRows)
+		mock.ExpectQuery(regexp.QuoteMeta("WHERE install_id = $1")).
+			WithArgs("install-1").
+			WillReturnRows(activationRequestRow("pending", nil))
+
+		r, err := s.CreateActivationRequest(ctx, store.ActivationRequest{
+			RequestID: "req-2", AccountID: "acct-2", InstallID: "install-1", CreatedAt: testNow,
+		})
+		if err != nil {
+			t.Fatalf("CreateActivationRequest: %v", err)
+		}
+		if r.AccountID != "acct-1" || r.RequestID != "req-1" {
+			t.Fatalf("got the wrong row back: %+v", r)
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Fatalf("%v", err)
+		}
+	})
+
+	t.Run("a minted id reused across machines is a conflict", func(t *testing.T) {
+		// The partial index absorbs an install collision; what is left is a
+		// primary-key collision, which is a caller reusing a uuid.
+		s, mock := newMock(t)
+		mock.ExpectQuery(regexp.QuoteMeta("ON CONFLICT (install_id) WHERE status = 'pending'")).
 			WithArgs(anyArgs(6)...).
 			WillReturnError(uniqueErr(constraintActivationRequestPK))
 
-		err := s.CreateActivationRequest(ctx, store.ActivationRequest{RequestID: "req-1", CreatedAt: testNow})
+		_, err := s.CreateActivationRequest(ctx, store.ActivationRequest{
+			RequestID: "req-1", AccountID: "acct-1", InstallID: "install-9", CreatedAt: testNow,
+		})
 		if !errors.Is(err, store.ErrConflict) {
 			t.Fatalf("want store.ErrConflict, got %v", err)
 		}
@@ -128,6 +167,39 @@ func TestGetActivationRequest(t *testing.T) {
 			WillReturnError(noRows)
 
 		if _, err := s.GetActivationRequest(ctx, "req-x"); !errors.Is(err, store.ErrNotFound) {
+			t.Fatalf("want store.ErrNotFound, got %v", err)
+		}
+	})
+}
+
+func TestGetRequestByInstallID(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("the machine's most recent request is returned", func(t *testing.T) {
+		s, mock := newMock(t)
+		mock.ExpectQuery(regexp.QuoteMeta("WHERE install_id = $1")).
+			WithArgs("install-1").
+			WillReturnRows(activationRequestRow("pending", nil))
+
+		r, err := s.GetRequestByInstallID(ctx, "install-1")
+		if err != nil {
+			t.Fatalf("GetRequestByInstallID: %v", err)
+		}
+		if r.RequestID != "req-1" {
+			t.Fatalf("request id = %q, want req-1", r.RequestID)
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Fatalf("%v", err)
+		}
+	})
+
+	t.Run("an unknown machine is a miss", func(t *testing.T) {
+		s, mock := newMock(t)
+		mock.ExpectQuery(regexp.QuoteMeta("WHERE install_id = $1")).
+			WithArgs("install-x").
+			WillReturnError(noRows)
+
+		if _, err := s.GetRequestByInstallID(ctx, "install-x"); !errors.Is(err, store.ErrNotFound) {
 			t.Fatalf("want store.ErrNotFound, got %v", err)
 		}
 	})
@@ -316,7 +388,7 @@ func TestReissueLicenceRetiresTheOldBindingAndConfirmsThePendingRequest(t *testi
 	mock.ExpectQuery(regexp.QuoteMeta("UPDATE licence_bindings")).
 		WithArgs("install-1", pgxmock.AnyArg()).
 		WillReturnRows(pgxmock.NewRows([]string{"account_id"}).AddRow("acct-1"))
-	mock.ExpectQuery(regexp.QuoteMeta("WHERE install_id = $1 AND status = 'pending'")).
+	mock.ExpectQuery(regexp.QuoteMeta("WHERE install_id = $1")).
 		WithArgs("install-1").
 		WillReturnRows(activationRequestRow("pending", nil))
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO licence_bindings")).
@@ -339,22 +411,25 @@ func TestReissueLicenceRetiresTheOldBindingAndConfirmsThePendingRequest(t *testi
 	}
 }
 
-func TestReissueLicenceWithoutAPendingRequestIsItsOwnAnswer(t *testing.T) {
-	// A reissue after a restore: the machine holds a live binding and there
-	// is no open request to confirm, so the reissue itself is the answer.
-	// The returned request describes the new licence without a row of its
-	// own — RequestID is empty because there is no request to name, and the
-	// account is inherited from the binding that was just retired.
+func TestReissueLicenceWithoutAPendingRequestFilesItsOwnRow(t *testing.T) {
+	// A reissue after a restore: the machine holds a live binding and its
+	// only request is long confirmed. The reissue gets a row of its own —
+	// a licence with no row is a licence nobody can poll for — carrying the
+	// anchor and amount of the earlier registration so the seller's console
+	// keeps showing what was bought, and the new binding links back to it.
 	s, mock := newMock(t)
 	mock.ExpectBegin()
 	mock.ExpectQuery(regexp.QuoteMeta("UPDATE licence_bindings")).
 		WithArgs("install-1", pgxmock.AnyArg()).
 		WillReturnRows(pgxmock.NewRows([]string{"account_id"}).AddRow("acct-1"))
-	mock.ExpectQuery(regexp.QuoteMeta("WHERE install_id = $1 AND status = 'pending'")).
+	mock.ExpectQuery(regexp.QuoteMeta("WHERE install_id = $1")).
 		WithArgs("install-1").
-		WillReturnError(noRows)
+		WillReturnRows(activationRequestRow("confirmed", fenPtr(19900)))
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO licence_bindings")).
-		WithArgs("lic-new", "install-1", "acct-1", "", pgxmock.AnyArg()).
+		WithArgs("lic-new", "install-1", "acct-1", pgxmock.AnyArg(), pgxmock.AnyArg()).
+		WillReturnResult(pgxmock.NewResult("INSERT", 1))
+	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO activation_requests")).
+		WithArgs(anyArgs(9)...).
 		WillReturnResult(pgxmock.NewResult("INSERT", 1))
 	mock.ExpectCommit()
 
@@ -362,14 +437,20 @@ func TestReissueLicenceWithoutAPendingRequestIsItsOwnAnswer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReissueLicence: %v", err)
 	}
-	if r.RequestID != "" {
-		t.Fatalf("a reissue with no request must not name one: %q", r.RequestID)
-	}
 	if r.Status != store.ActivationConfirmed || r.LicenseID != "lic-new" {
 		t.Fatalf("unexpected request: %+v", r)
 	}
 	if r.AccountID != "acct-1" {
 		t.Fatalf("account = %q, want the retired binding's acct-1", r.AccountID)
+	}
+	if !strings.HasPrefix(r.RequestID, "act_") {
+		t.Fatalf("the reissue row's id = %q, want the act_ prefix the mock and the client logs use", r.RequestID)
+	}
+	if r.AnchorDigest != "anchor-1" {
+		t.Fatalf("anchor = %q, want the earlier registration's anchor-1", r.AnchorDigest)
+	}
+	if r.AmountFen == nil || *r.AmountFen != 19900 {
+		t.Fatalf("amount = %v, want the earlier registration's 19900", r.AmountFen)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("%v", err)
@@ -385,7 +466,7 @@ func TestReissueLicenceAfterARestoreUsesThePendingRequest(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta("UPDATE licence_bindings")).
 		WithArgs("install-1", pgxmock.AnyArg()).
 		WillReturnError(noRows)
-	mock.ExpectQuery(regexp.QuoteMeta("WHERE install_id = $1 AND status = 'pending'")).
+	mock.ExpectQuery(regexp.QuoteMeta("WHERE install_id = $1")).
 		WithArgs("install-1").
 		WillReturnRows(activationRequestRow("pending", nil))
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO licence_bindings")).
@@ -409,7 +490,7 @@ func TestReissueLicenceAfterARestoreUsesThePendingRequest(t *testing.T) {
 }
 
 func TestReissueLicenceForAnUnknownMachineIsAMiss(t *testing.T) {
-	// No live binding and no open request: the seller is looking at a
+	// No live binding and no request of any kind: the seller is looking at a
 	// machine code this service has never heard of. A reissue that invented
 	// a licence out of thin air would be a support call nobody can explain.
 	s, mock := newMock(t)
@@ -417,7 +498,7 @@ func TestReissueLicenceForAnUnknownMachineIsAMiss(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta("UPDATE licence_bindings")).
 		WithArgs("install-x", pgxmock.AnyArg()).
 		WillReturnError(noRows)
-	mock.ExpectQuery(regexp.QuoteMeta("WHERE install_id = $1 AND status = 'pending'")).
+	mock.ExpectQuery(regexp.QuoteMeta("WHERE install_id = $1")).
 		WithArgs("install-x").
 		WillReturnError(noRows)
 	mock.ExpectRollback()

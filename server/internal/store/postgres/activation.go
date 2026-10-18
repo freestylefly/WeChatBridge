@@ -2,6 +2,8 @@ package postgres
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"time"
 
@@ -27,10 +29,27 @@ const activationRequestColumns = `
 	request_id, account_id, install_id, anchor_digest, amount_fen,
 	status, envelope_json, license_id, created_at, confirmed_at`
 
+// createActivationRequestSQL is the idempotent registration. A machine with a
+// live request updates that row instead of queueing a second one on the
+// seller's console, but only for the same account: the account predicate is
+// what keeps a stranger's machine code from being adopted into somebody
+// else's purchase, and a refused predicate falls through to the caller's
+// fallback read rather than to an error.
+//
+// RETURNING is load-bearing, not a convenience. The UPDATE branch deliberately
+// keeps the row's original request_id — a caller that echoed back the id it
+// minted would hand the customer a 单号 the seller's console has never heard
+// of, on exactly the flow where the customer quotes that number for support.
 const createActivationRequestSQL = `
 	INSERT INTO activation_requests
 		(request_id, account_id, install_id, anchor_digest, amount_fen, status, created_at)
-	VALUES ($1, $2, $3, $4, $5, 'pending', $6)`
+	VALUES ($1, $2, $3, $4, $5, 'pending', $6)
+	ON CONFLICT (install_id) WHERE status = 'pending'
+	DO UPDATE SET
+		anchor_digest = EXCLUDED.anchor_digest,
+		amount_fen    = EXCLUDED.amount_fen
+	WHERE activation_requests.account_id = $2
+	RETURNING ` + activationRequestColumns
 
 const latestActivationRequestSQL = `
 	SELECT ` + activationRequestColumns + `
@@ -43,6 +62,16 @@ const getActivationRequestSQL = `
 	SELECT ` + activationRequestColumns + `
 	FROM activation_requests
 	WHERE request_id = $1`
+
+// requestByInstallIDSQL is the machine's view, and it is the upsert's fallback
+// path: the account predicate refused, and the caller needs the row it refused
+// to touch so it can say whose purchase is in flight.
+const requestByInstallIDSQL = `
+	SELECT ` + activationRequestColumns + `
+	FROM activation_requests
+	WHERE install_id = $1
+	ORDER BY created_at DESC
+	LIMIT 1`
 
 // listActivationRequestsSQL is the console's table, one query rather than one
 // per row: the account columns the seller reads beside each request come along
@@ -77,18 +106,31 @@ const confirmFlipSQL = `
 	SET status = 'confirmed', license_id = $2, envelope_json = $3, confirmed_at = $4
 	WHERE request_id = $1 AND status = 'pending'`
 
-// CreateActivationRequest records one purchase registration. The request id is
-// the caller's (a uuid), so a retry after a lost response collides on the
-// primary key and reads as a conflict rather than registering the purchase
-// twice.
-func (s *Store) CreateActivationRequest(ctx context.Context, r store.ActivationRequest) error {
-	_, err := s.db.Exec(ctx, createActivationRequestSQL,
+// CreateActivationRequest records one purchase registration, idempotently per
+// machine while a request for it is live.
+//
+// The returned row is the database's, never the caller's echo: on the upsert
+// path the stored request_id and created_at survive, and the refreshed fields
+// are the ones the UPDATE touched. A machine whose live request belongs to
+// another account produces no row at all — the predicate refused — and the
+// caller is handed that row back so it can refuse the purchase in turn.
+func (s *Store) CreateActivationRequest(ctx context.Context, r store.ActivationRequest) (store.ActivationRequest, error) {
+	created, err := scanActivationRequest(s.db.QueryRow(ctx, createActivationRequestSQL,
 		r.RequestID, r.AccountID, r.InstallID, r.AnchorDigest,
-		r.AmountFen, utc(r.CreatedAt))
-	if err := uniqueConflict("create activation request", constraintActivationRequestPK, err); err != nil {
-		return err
+		r.AmountFen, utc(r.CreatedAt)))
+	if err == nil {
+		return created, nil
 	}
-	return nil
+	if !errors.Is(err, pgx.ErrNoRows) {
+		// The partial unique index absorbed the install collision; what is
+		// left is a primary-key collision, which is a caller reusing a minted
+		// id across machines.
+		return store.ActivationRequest{}, uniqueConflict("create activation request", constraintActivationRequestPK, err)
+	}
+	// The account predicate refused: the machine's live request belongs to
+	// somebody else. Hand that row back rather than inventing a conflict —
+	// the caller decides what a stranger's pending purchase means.
+	return s.GetRequestByInstallID(ctx, r.InstallID)
 }
 
 // LatestActivationRequest is the buyer's own view: the most recent request
@@ -107,6 +149,17 @@ func (s *Store) GetActivationRequest(ctx context.Context, requestID string) (sto
 	r, err := scanActivationRequest(s.db.QueryRow(ctx, getActivationRequestSQL, requestID))
 	if err != nil {
 		return store.ActivationRequest{}, notFound("get activation request", err)
+	}
+	return r, nil
+}
+
+// GetRequestByInstallID reads the machine's most recent request, whoever filed
+// it. The buyer's own reads never go through here; this is the upsert's
+// fallback and the seller's lookup of a machine code.
+func (s *Store) GetRequestByInstallID(ctx context.Context, installID string) (store.ActivationRequest, error) {
+	r, err := scanActivationRequest(s.db.QueryRow(ctx, requestByInstallIDSQL, installID))
+	if err != nil {
+		return store.ActivationRequest{}, notFound("request by install id", err)
 	}
 	return r, nil
 }
@@ -197,24 +250,51 @@ const reissueRetireSQL = `
 	WHERE install_id = $1 AND revoked_at IS NULL
 	RETURNING account_id`
 
-// reissuePendingSQL finds the buyer's outstanding request for this machine.
-// Confirming it inside the reissue is how the buyer's poller learns about the
-// new licence at all.
-const reissuePendingSQL = `
+// reissueLatestSQL is the machine's most recent request, pending or not. A
+// pending one is confirmed with the new licence — that is the buyer's poller
+// learning about the reissue. A non-pending one is the earlier registration
+// the reissue row copies its anchor and amount from, so the seller's console
+// keeps showing what was bought. No row at all is only an error when the
+// machine also holds no live binding.
+const reissueLatestSQL = `
 	SELECT ` + activationRequestColumns + `
 	FROM activation_requests
-	WHERE install_id = $1 AND status = 'pending'
+	WHERE install_id = $1
 	ORDER BY created_at DESC
 	LIMIT 1`
 
+// reissueInsertRequestSQL files the reissue as a confirmed request of its own
+// when the machine has no open registration. A licence with no row is a
+// licence nobody can poll for, and a licence nobody can poll for is a licence
+// nobody collects.
+const reissueInsertRequestSQL = `
+	INSERT INTO activation_requests
+		(request_id, account_id, install_id, anchor_digest, amount_fen,
+		 status, license_id, envelope_json, created_at, confirmed_at)
+	VALUES ($1, $2, $3, $4, $5, 'confirmed', $6, $7, $8, $9)`
+
+// newRequestID mints the 单号 a seller-side reissue row is filed under. The
+// buyer never quotes this one — it exists so the poller has a row to read —
+// but it carries the same act_ prefix the mock and the client logs use, so a
+// support conversation reads the same on either side of the cutover.
+func newRequestID() (string, error) {
+	var buf [12]byte
+	if _, err := rand.Read(buf[:]); err != nil {
+		return "", err
+	}
+	return "act_" + hex.EncodeToString(buf[:]), nil
+}
+
 // ReissueLicence retires the machine's live binding — if any — and installs a
-// new one, atomically. If a pending request exists for that install id it is
-// confirmed with the new licence.
+// new one, atomically, and always leaves a confirmed request row carrying the
+// new licence's envelope: the machine's pending request confirmed if there is
+// one, otherwise a fresh row that copies the earlier registration's anchor and
+// amount.
 //
 // ErrNotFound means there is nothing to reissue: no live binding and no
-// pending request for that machine. The seller is looking at a machine code
-// this service has never heard of, and a reissue that invented a licence out
-// of thin air would be a support call nobody can explain.
+// request of any kind for that machine. The seller is looking at a machine
+// code this service has never heard of, and a reissue that invented a licence
+// out of thin air would be a support call nobody can explain.
 func (s *Store) ReissueLicence(ctx context.Context, installID, licenseID string, envelopeJSON []byte, at time.Time) (store.ActivationRequest, error) {
 	var result store.ActivationRequest
 	now := utc(at)
@@ -226,23 +306,34 @@ func (s *Store) ReissueLicence(ctx context.Context, installID, licenseID string,
 			return wrap("reissue licence: retire old binding", err)
 		}
 
-		pending, pendingErr := scanActivationRequest(tx.QueryRow(ctx, reissuePendingSQL, installID))
-		if pendingErr != nil && !errors.Is(pendingErr, pgx.ErrNoRows) {
-			return wrap("reissue licence: load pending request", pendingErr)
+		latest, latestErr := scanActivationRequest(tx.QueryRow(ctx, reissueLatestSQL, installID))
+		if latestErr != nil && !errors.Is(latestErr, pgx.ErrNoRows) {
+			return wrap("reissue licence: load machine's request", latestErr)
 		}
-		hasPending := pendingErr == nil
+		hasRequest := latestErr == nil
+		hasPending := hasRequest && latest.Status == store.ActivationPending
 
 		account := oldAccount
-		if account == "" && hasPending {
-			account = pending.AccountID
+		if account == "" && hasRequest {
+			account = latest.AccountID
 		}
 		if account == "" {
 			return store.ErrNotFound
 		}
 
-		requestID := ""
+		// The binding links back to the request that produced the licence:
+		// the pending row it confirms, or the fresh row the reissue files.
+		freshID := ""
+		if !hasPending {
+			minted, err := newRequestID()
+			if err != nil {
+				return wrap("reissue licence: mint request id", err)
+			}
+			freshID = minted
+		}
+		requestID := freshID
 		if hasPending {
-			requestID = pending.RequestID
+			requestID = latest.RequestID
 		}
 		if _, err := tx.Exec(ctx, confirmInsertBindingSQL,
 			licenseID, installID, account, requestID, now); err != nil {
@@ -250,22 +341,37 @@ func (s *Store) ReissueLicence(ctx context.Context, installID, licenseID string,
 		}
 
 		if !hasPending {
-			// No open request: the reissue itself is the answer. The returned
-			// request describes the new licence without a row of its own —
-			// RequestID is empty because there is no request to name.
+			// No open request: the reissue itself is the answer, and it gets
+			// a row of its own. The anchor and amount are the machine's
+			// earlier registration when there is one, so the console keeps
+			// showing what was bought; a machine this service has never seen
+			// a registration for still gets a row, with an empty anchor.
+			anchor, amount := "", (*int64)(nil)
+			if hasRequest {
+				anchor, amount = latest.AnchorDigest, latest.AmountFen
+			}
+			if _, err := tx.Exec(ctx, reissueInsertRequestSQL,
+				freshID, account, installID, anchor, amount,
+				licenseID, envelopeJSON, now, now); err != nil {
+				return wrap("reissue licence: file request", err)
+			}
 			confirmedAt := now
 			result = store.ActivationRequest{
+				RequestID:    freshID,
 				AccountID:    account,
 				InstallID:    installID,
+				AnchorDigest: anchor,
+				AmountFen:    amount,
 				Status:       store.ActivationConfirmed,
 				EnvelopeJSON: envelopeJSON,
 				LicenseID:    licenseID,
+				CreatedAt:    now,
 				ConfirmedAt:  &confirmedAt,
 			}
 			return nil
 		}
 
-		tag, err := tx.Exec(ctx, confirmFlipSQL, pending.RequestID, licenseID, envelopeJSON, now)
+		tag, err := tx.Exec(ctx, confirmFlipSQL, latest.RequestID, licenseID, envelopeJSON, now)
 		if err != nil {
 			return wrap("reissue licence: confirm pending", err)
 		}
@@ -273,12 +379,12 @@ func (s *Store) ReissueLicence(ctx context.Context, installID, licenseID string,
 			return err
 		}
 
-		pending.Status = store.ActivationConfirmed
-		pending.LicenseID = licenseID
-		pending.EnvelopeJSON = envelopeJSON
+		latest.Status = store.ActivationConfirmed
+		latest.LicenseID = licenseID
+		latest.EnvelopeJSON = envelopeJSON
 		confirmedAt := now
-		pending.ConfirmedAt = &confirmedAt
-		result = pending
+		latest.ConfirmedAt = &confirmedAt
+		result = latest
 		return nil
 	})
 	if err != nil {
