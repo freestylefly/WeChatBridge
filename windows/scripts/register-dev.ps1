@@ -2,7 +2,12 @@
 param(
     [Parameter(Mandatory = $true)]
     [string]$InstallRoot,
-    [string]$CertificateThumbprint
+    [string]$CertificateThumbprint,
+    # Which of the two products is being registered. Only Subscription carries
+    # the internetClient capability; Perpetual's manifest deliberately does not,
+    # because its binaries contain no network code path to begin with.
+    [ValidateSet('Perpetual', 'Subscription')]
+    [string]$Edition = 'Perpetual'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -51,7 +56,26 @@ $certificate = Get-ChildItem Cert:\CurrentUser\My\$CertificateThumbprint -ErrorA
 if (-not $certificate) { throw "Development certificate not found: $CertificateThumbprint" }
 
 $packScript = Join-Path $PSScriptRoot 'pack-msix.ps1'
-& $packScript -Publisher 'CN=WeChatBridge Windows Dev' -OutputPath $packagePath -ExternalContentDirectory $installRoot
+
+# pack-msix.ps1 takes no Version default on purpose: a default is one more
+# place a stale number can survive, and an Appx Identity/Version that disagrees
+# with the binaries underneath produces a share target that fails at run time.
+# So read this edition's version out of the build properties — the same file the
+# compiler read it from, so the two cannot drift.
+#
+# -Encoding UTF8 is required, not decorative: Directory.Build.props carries
+# Chinese and has a BOM, and Windows PowerShell 5.1 decodes a file without one
+# as the system ANSI code page (GBK on a Chinese Windows), which corrupts the
+# XML outright and surfaces as "the props file is damaged".
+[xml]$buildProps = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\Directory.Build.props') -Raw -Encoding UTF8
+$version = ($buildProps.Project.PropertyGroup |
+    Where-Object { $_.WeChatBridgeEdition -eq $Edition } |
+    ForEach-Object { $_.Version } |
+    Where-Object { $_ } |
+    Select-Object -First 1)
+if (-not $version) { throw "Directory.Build.props has no PropertyGroup for WeChatBridgeEdition='$Edition'." }
+$apxVersion = [version]$version
+& $packScript -Publisher 'CN=WeChatBridge Windows Dev' -Edition $Edition -Version "$apxVersion.0" -OutputPath $packagePath -ExternalContentDirectory $installRoot
 $signTool = Get-Command signtool.exe -ErrorAction SilentlyContinue
 if (-not $signTool) {
     $signTool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue |

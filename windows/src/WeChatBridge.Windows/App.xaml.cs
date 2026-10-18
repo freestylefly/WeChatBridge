@@ -2,7 +2,9 @@ using System.IO;
 using System.Threading;
 using System.Windows;
 using WeChatBridge.Windows.Core;
+using WeChatBridge.Windows.Core.Redeem;
 using WeChatBridge.Windows.Onboarding;
+using WeChatBridge.Windows.Redeem;
 using WeChatBridge.Windows.Services;
 
 namespace WeChatBridge.Windows;
@@ -123,6 +125,24 @@ public partial class App : Application
             // it — the Entries page carries the share-registration action instead.
             if (!AppLayout.Current.IsPortable && new OnboardingStateStore().NeedsOnboarding())
                 new OnboardingWindow(model) { Owner = window }.Show();
+
+            // The licence layer is resolved once, here, rather than lazily by whichever
+            // pane happens to ask first: a purchased licence should already be in force
+            // before anything reads it, and a resolution that fails belongs in the log
+            // next to startup rather than surfacing later as a pane that quietly shows
+            // the wrong thing.
+            var licensing = LicensingBootstrap.Current;
+            LogStartup($"licensing: edition={licensing.EditionName} pro={licensing.IsPro} " +
+                $"activation={licensing.Resolution.Activation} detail={licensing.Resolution.Detail}");
+            // An unresolved redemption is reported and left alone. Nothing retries it:
+            // a request the user never asked for is the one thing the buy-out edition's
+            // promise rules out, so the pending record waits for them to open the window
+            // and press the button (design doc 3.2).
+            if (new PendingRedemptionStore(AppLayout.Current.Config).Load() is { } pending)
+                LogStartup($"redeem: an earlier attempt (request {pending.RequestId}) has no answer; open the redemption window to continue it");
+
+            if (e.Args.Any(a => string.Equals(a, "--redeem", StringComparison.OrdinalIgnoreCase)))
+                ShowRedeemWindow(window);
         }
         // MainWindow's inbox load rides the Loaded event — a hidden window
         // never raises it, so a background launch must load explicitly or it
@@ -139,6 +159,58 @@ public partial class App : Application
             window.RefreshBatches();
         });
         _ = WaitForChangesAsync(_shutdown.Token);
+    }
+
+    /// <summary>
+    /// Writes a startup or redemption line to the Inbox log, and nowhere else.
+    /// <para>
+    /// The guard is not defensive noise: this method is handed to
+    /// <see cref="RedeemController.Create"/> as a delegate, and a delegate that throws
+    /// because a nullable field happens to be null would turn "could not write the log"
+    /// into "the redemption window broke".
+    /// </para>
+    /// </summary>
+    private void LogStartup(string message)
+    {
+        if (_paths is not null)
+            InboxLogger.Write(_paths, message);
+    }
+
+    /// <summary>
+    /// Opens the buy-out edition's redemption dialog, modally.
+    /// <para>
+    /// This is the only way into the network in this product, and it is deliberately
+    /// a command the user types rather than something the app volunteers: the
+    /// buy-out edition's published promise is that it does not go online on its own,
+    /// and a network request nobody asked for is the promise broken whether or not the
+    /// bytes were harmless.
+    /// </para>
+    /// </summary>
+    private void ShowRedeemWindow(Window owner)
+    {
+        var licensing = LicensingBootstrap.Current;
+        var controller = RedeemController.Create(licensing, LogStartup);
+        try
+        {
+            // Two builds that cannot honour a redemption, and both say so in the window
+            // rather than failing at the button. A portable stick is the buy-out
+            // product's free tier and is issued no licences; a machine that is already
+            // Pro has nothing left to buy.
+            if (licensing.IsPortable)
+                controller.MarkUnavailable("便携版是买断版的免费档，不签发许可证。请在安装版上兑换。");
+            else if (licensing.IsPro)
+                controller.MarkUnavailable("这台机器已经是买断版 Pro，不需要再兑换。");
+            else if (controller.HasUnresolvedPending)
+                controller.SetStatus(L10n.Text("上一次兑换没有得到结果。重新粘贴同一个兑换码再点「兑换」，系统会用同一个请求编号问一次服务端，不会重复发证。"));
+
+            new RedeemWindow(controller) { Owner = owner }.ShowDialog();
+        }
+        finally
+        {
+            // Drops the connection pool. It does not seal the channel: closing the
+            // window is not the same as having redeemed anything.
+            controller.Dispose();
+        }
     }
 
     /// <summary>

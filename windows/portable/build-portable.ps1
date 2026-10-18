@@ -34,8 +34,9 @@
   Test-SharePackage.ps1 needs a real Windows SDK for the mt step.
 
 .PARAMETER Version
-  Must match windows/Directory.Build.props; the same drift guard as
-  build-installer.ps1.
+  Optional cross-check only; the value comes from
+  windows/Directory.Build.props for the Perpetual edition. Passing it asserts
+  that the caller and the props file still agree.
 
 .PARAMETER SigningThumbprint
   Certificate in Cert:\CurrentUser\My. Defaults to the newest
@@ -55,9 +56,17 @@
   ./windows/portable/build-portable.ps1
   ./windows/portable/build-portable.ps1 -SigningThumbprint ABC123... -OutputDirectory D:\stick
 #>
+# NOTE: there is deliberately no -Edition parameter here, and $Edition below is
+# hardcoded rather than exposed. The portable build IS the free tier of the
+# buy-out product (design doc §7.1), not a build of Subscription: it is a
+# zero-network build, its licence travels with the stick while the account does
+# not, and a Subscription payload on a USB stick would ship an MSIX that
+# declares internetClient next to binaries and a vault written to removable
+# media. build-installer.ps1 and build-bundle.ps1 both take -Edition; please do
+# not add one here "for symmetry" — make it an explicit, deliberate change.
 [CmdletBinding()]
 param(
-    [string]$Version = '1.0.8',
+    [string]$Version,
     [string]$OutputDirectory = (Join-Path $PSScriptRoot '..\artifacts\portable'),
     [string]$SigningThumbprint,
     [switch]$SkipPublish,
@@ -65,7 +74,8 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 
-if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Version must have three numeric components.' }
+$Edition = 'Perpetual'
+if ($Version -and $Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Version must have three numeric components.' }
 $repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
 # The portable root IS the directory holding the executable: AppLayout resolves
@@ -75,12 +85,25 @@ $payload = Join-Path $OutputDirectory '微信流'
 $msix = Join-Path $payload 'WeChatBridge.ShareTarget.msix'
 $AppLayoutMarker = 'portable.flag'
 
-# Same guard as build-installer.ps1: five call sites used to carry this value
-# independently and drifted without anyone noticing.
-[xml]$props = Get-Content -LiteralPath (Join-Path $repositoryRoot 'windows\Directory.Build.props') -Raw
-$productVersion = $props.Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
-if ($Version -ne $productVersion) {
-    throw "Version $Version does not match windows\Directory.Build.props ($productVersion)."
+# Same lookup as build-installer.ps1: five call sites used to carry this value
+# independently and drifted without anyone noticing. The edition is matched
+# exactly; both editions have a <Version> now, and taking the first one found
+# would mean Perpetual every time without complaining. The comparison is a
+# string comparison because PowerShell's XML adapter unwraps an attribute-less
+# child element to a string.
+# -Encoding UTF8 is mandatory: Directory.Build.props carries Chinese display
+# names and PowerShell 5.1 decodes it as ANSI/GBK otherwise.
+[xml]$props = Get-Content -LiteralPath (Join-Path $repositoryRoot 'windows\Directory.Build.props') -Raw -Encoding UTF8
+$editionGroups = @($props.Project.PropertyGroup | Where-Object { $_.WeChatBridgeEdition -eq $Edition })
+$productVersion = $editionGroups | ForEach-Object { $_.Version } | Where-Object { $_ } | Select-Object -First 1
+if (-not $productVersion) { throw "Directory.Build.props defines no <Version> for edition '$Edition'." }
+$EditionToken = [string]($editionGroups | ForEach-Object { $_.EditionToken } | Where-Object { $_ } | Select-Object -First 1)
+if (-not $EditionToken) { throw "Directory.Build.props defines no <EditionToken> for edition '$Edition'." }
+if (-not $Version) {
+    $Version = [string]$productVersion
+}
+elseif ($Version -ne $productVersion) {
+    throw "Version $Version does not match windows\Directory.Build.props for edition '$Edition' ($productVersion)."
 }
 
 if (-not $SigningThumbprint) {
@@ -104,9 +127,9 @@ $helperManifestPath = Join-Path $env:TEMP "WeChatBridge-share-target-$Version.ma
 $helperManifest.Save($helperManifestPath)
 
 if (-not $SkipPublish) {
-    & dotnet publish (Join-Path $repositoryRoot 'windows\src\WeChatBridge.Windows\WeChatBridge.Windows.csproj') -c Release -r win-x64 --self-contained true "-p:Version=$Version" -o $payload --nologo
+    & dotnet publish (Join-Path $repositoryRoot 'windows\src\WeChatBridge.Windows\WeChatBridge.Windows.csproj') -c Release -r win-x64 --self-contained true "-p:Version=$Version" "-p:WeChatBridgeEdition=$Edition" -o $payload --nologo
     if ($LASTEXITCODE -ne 0) { throw 'Main publish failed.' }
-    & dotnet publish (Join-Path $repositoryRoot 'windows\src\WeChatBridge.ShareTarget\WeChatBridge.ShareTarget.csproj') -c Release -r win-x64 --self-contained true "-p:Version=$Version" "-p:ApplicationManifest=$helperManifestPath" -o (Join-Path $payload 'share-target') --nologo
+    & dotnet publish (Join-Path $repositoryRoot 'windows\src\WeChatBridge.ShareTarget\WeChatBridge.ShareTarget.csproj') -c Release -r win-x64 --self-contained true "-p:Version=$Version" "-p:WeChatBridgeEdition=$Edition" "-p:ApplicationManifest=$helperManifestPath" -o (Join-Path $payload 'share-target') --nologo
     if ($LASTEXITCODE -ne 0) { throw 'ShareTarget publish failed.' }
 }
 
@@ -146,7 +169,7 @@ Export-Certificate -Cert $issuer -FilePath (Join-Path $certDirectory 'WeChatBrid
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Register-ShareTarget.ps1'), (Join-Path $PSScriptRoot 'Unregister-ShareTarget.ps1') -Destination $payload -Force
 Copy-Item -LiteralPath (Join-Path $repositoryRoot 'LICENSE') -Destination (Join-Path $OutputDirectory 'LICENSE.txt') -Force
 
-& (Join-Path $repositoryRoot 'windows\scripts\pack-msix.ps1') -Publisher $certificate.Subject -Version "$Version.0" -OutputPath $msix -ExternalContentDirectory $payload
+& (Join-Path $repositoryRoot 'windows\scripts\pack-msix.ps1') -Publisher $certificate.Subject -Edition $Edition -Version "$Version.0" -OutputPath $msix -ExternalContentDirectory $payload
 & (Join-Path $repositoryRoot 'windows\scripts\Test-SharePackage.ps1') -InstallRoot $payload
 
 foreach ($file in @(
@@ -180,13 +203,14 @@ $hashes = Get-ChildItem $OutputDirectory -Recurse -File |
     ForEach-Object { (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash + '  ' + $_.FullName.Substring($OutputDirectory.Length + 1) }
 $hashes | Set-Content -LiteralPath (Join-Path $OutputDirectory 'SHA256SUMS.txt') -Encoding ascii
 
+Write-Output "Edition: $Edition ($EditionToken)"
 Write-Output "Portable payload: $payload"
 if ($SkipZip) { exit 0 }
 
-$zip = Join-Path ([IO.Path]::GetDirectoryName($OutputDirectory)) "WeChatBridge-$Version-Windows-Portable.zip"
+$zip = Join-Path ([IO.Path]::GetDirectoryName($OutputDirectory)) "WeChatBridge-$EditionToken-$Version-Windows-Portable.zip"
 if (Test-Path $zip) { Remove-Item -LiteralPath $zip -Force }
 # Stage just what ships, so the ZIP has no build-only leftovers.
-$staging = Join-Path $env:TEMP "WeChatBridge-portable-$Version"
+$staging = Join-Path $env:TEMP "WeChatBridge-portable-$EditionToken-$Version"
 if (Test-Path $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
 New-Item -ItemType Directory -Path $staging -Force | Out-Null
 Copy-Item -LiteralPath $payload -Destination (Join-Path $staging '微信流') -Recurse

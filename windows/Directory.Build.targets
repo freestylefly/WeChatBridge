@@ -1,0 +1,130 @@
+<Project>
+  <!-- ===================================================================
+       Edition isolation (design doc §7.3 / §18.1).
+
+       Perpetual is the buy-out product and promises, in public, that it does
+       not go online. That promise is only worth something if it is structural
+       rather than a switch somebody can flip: if the networking code sits in
+       the buy-out binary behind a disabled branch, "does not go online" is
+       just a flag. So the subscription-only sources are not compiled into
+       Perpetual at all. There is no IL, no metadata, and no string to find
+       later.
+       =================================================================== -->
+
+  <!-- Remove, not a conditional Include.
+       SDK-style projects glob their sources into @(Compile) from the implicit
+       SDK imports. Directory.Build.targets is imported after the project body
+       but before Sdk.targets, which is the one place where Remove can still
+       act on those defaults: the same expressions in .props are evaluated
+       before the glob exists and would silently match nothing. -->
+  <ItemGroup Condition="'$(WeChatBridgeEdition)' != 'Subscription'">
+    <Compile Remove="Cloud\**\*.cs" />
+    <Compile Remove="CloudQr\**\*.cs" />
+    <Compile Remove="Billing\**\*.cs" />
+    <Page Remove="CloudQr\**\*.xaml" />
+    <Page Remove="Billing\**\*.xaml" />
+    <Resource Remove="CloudQr\**\*" />
+    <Resource Remove="Billing\**\*" />
+  </ItemGroup>
+
+  <!-- Redeem/ and Licensing/ are deliberately absent from that list. The
+       redeem client is the one thing the buy-out product is allowed to reach
+       the network for (§7.2 option B), and it lives in Redeem/. Its one
+       request is the exception the published privacy wording names; excluding
+       the directory would make the wording false. -->
+
+  <!-- ===================================================================
+       Make the edition an input to CoreCompile.
+
+       WeChatBridgeEdition is a property, and MSBuild decides CoreCompile is
+       up to date from timestamps of files, not from properties. So building
+       Subscription straight after Perpetual, with no source edited in between,
+       leaves the previous edition's assembly sitting in bin\ wearing the new
+       edition's name in the build log. Verified here: after switching to
+       Subscription, ShareTarget.dll still carried 1.0.8 while Core.dll had
+       been rebuilt as 0.1.0, so one output folder held both editions.
+
+       That is worse than a stale-file nuisance. The version split is the only
+       thing that tells support which product a customer is running, and the
+       Compile Remove above is the only thing keeping network code out of the
+       buy-out binary. Both of those are silently wrong when the compiler is
+       allowed to skip work it should have done.
+
+       @(CustomAdditionalCompileInputs) is the SDK's own extension point for
+       this: it is listed in CoreCompile's Inputs, so putting the stamp file
+       there re-runs CoreCompile when the stamp is newer than the output. Not
+       $(CoreCompileTimeInputs), which reads like the right answer and is
+       dead: the property appears nowhere in the .NET 10 SDK, so setting it
+       changes nothing at all and the guard reads as working while it does not.
+
+       WriteOnlyWhenDifferent is what keeps this incremental rather than
+       brutal: the stamp holds the edition name and is rewritten only when that
+       name changes, so a rebuild of the same edition stays a no-op and only a
+       switch of edition costs a compile.
+       =================================================================== -->
+  <Target Name="WcbEditionStampIsACompileInput" BeforeTargets="CoreCompile">
+    <PropertyGroup>
+      <_WcbEditionStampFile>$(IntermediateOutputPath)WeChatBridgeEdition.txt</_WcbEditionStampFile>
+    </PropertyGroup>
+    <ItemGroup>
+      <CustomAdditionalCompileInputs Include="$(_WcbEditionStampFile)" />
+    </ItemGroup>
+    <WriteLinesToFile File="$(_WcbEditionStampFile)"
+                      Lines="$(WeChatBridgeEdition)"
+                      Overwrite="true"
+                      WriteOnlyWhenDifferent="true" />
+  </Target>
+
+  <!-- ===================================================================
+       Guard against an Include reaching past the Remove above.
+
+       The Remove cannot see a file that comes back in through an explicit
+       or linked <Compile Include>: someone pulling a subscription source in
+       from outside the project is the failure mode the glob will not report,
+       and it would otherwise surface only as a network call in the field.
+
+       This reads @(Compile) and tests each item's own path, rather than
+       globbing the excluded directories off disk and subtracting @(Compile).
+       Globbing cannot see an Include spelled ..\..\shared-src\Cloud\Foo.cs:
+       MSBuild does not expand ** across a `..` segment, and a linked source
+       is precisely the case this target exists for. Both of the earlier
+       formulation's defects were confirmed against this tree before it was
+       replaced — the ** glob returned nothing for a linked file, and the
+       Exclude that was supposed to subtract @(Compile) subtracted nothing,
+       so a single on-disk Cloud/ file made the target report every source in
+       the project. A check that cries wolf the moment the feature it guards
+       starts being written is not a check.
+
+       A path segment, not a substring: the separators on both sides keep
+       WeChatBridge.Windows.Core.Cloud\Foo.cs and Cloudy\Foo.cs out. Matched
+       case-insensitively, because the Remove globs above are, and Windows
+       paths are not case-sensitive — a directory spelled billing must not slip
+       past the exclusion it was given.
+
+       Rooted identities are skipped: an absolute Include reaches the same
+       directory by a name this test has no business interpreting.
+
+       Residual false positive, accepted deliberately: a checkout living under
+       a directory literally named Cloud, CloudQr or Billing fails the build
+       with WCB0002. It is loud and it names the offending items, so the fix
+       is obvious, and failing closed is the right way round for a check whose
+       entire value is that nothing ships unexamined.
+
+       Written with string Contains rather than a regex because MSBuild's
+       condition parser does not survive the character class: `[\\/]` comes
+       back from Regex::IsMatch with the escape mangled and matches nothing,
+       silently turning the whole guard off. Verified before relying on it.
+       =================================================================== -->
+  <Target Name="WcbAssertNoSubscriptionSources"
+          BeforeTargets="CoreCompile"
+          Condition="'$(WeChatBridgeEdition)' != 'Subscription'">
+    <ItemGroup>
+      <_WcbLeakedSource
+          Include="@(Compile)"
+          Condition="!$([System.IO.Path]::IsPathRooted('%(Compile.Identity)')) and ($([System.String]::Copy('\%(Compile.Identity)').Replace('/','\').ToUpperInvariant().Contains('\CLOUD\')) or $([System.String]::Copy('\%(Compile.Identity)').Replace('/','\').ToUpperInvariant().Contains('\CLOUDQR\')) or $([System.String]::Copy('\%(Compile.Identity)').Replace('/','\').ToUpperInvariant().Contains('\BILLING\')))" />
+    </ItemGroup>
+    <Error Code="WCB0002"
+           Condition="'@(_WcbLeakedSource)' != ''"
+           Text="Perpetual must not compile subscription-only sources, but these reached the compile item list by a route the Compile Remove above cannot see (an explicit or linked Compile Include, most likely): @(_WcbLeakedSource). Drop the Include, or move the file out of Cloud/, CloudQr/ or Billing/." />
+  </Target>
+</Project>

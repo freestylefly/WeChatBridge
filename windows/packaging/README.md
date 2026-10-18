@@ -43,15 +43,57 @@ external WPF/helper binaries and the sparse MSIX in one ZIP bundle.
 
 `windows/scripts/build-installer.ps1` produces a self-contained x64 MSI and Setup.exe with both the main app and ShareTarget runtime included. Setup has no runtime download step when built with `-SelfContained`.
 
-Version 1.0.1 is the minimum supported installer version: older Windows application files used file version 1.0.0 even when their MSI version was 0.1.0. Publishing with a lower file version can make Windows Installer skip the application components during an upgrade. The builder checks all six application EXE/DLL file versions against the installer version, and registration checks that all six files exist before reporting installation success.
+Version 1.0.1 is the minimum supported Perpetual installer version: older Windows application files used file version 1.0.0 even when their MSI version was 0.1.0. Publishing with a lower file version can make Windows Installer skip the application components during an upgrade. The guard is scoped to Perpetual, whose install history it is about; Subscription has none and starts at 0.1.0. The builder checks all six application EXE/DLL file versions against the installer version, and registration checks that all six files exist before reporting installation success.
 
 Requirements to build: .NET 10 SDK, Windows SDK (`makepri`, `makeappx`, `signtool`), WiX 6 and UI/Util/Bal/Netfx extensions, and an existing code-signing certificate. Set `-WixExtensionDirectory` and `-SigningThumbprint` to the local tooling and certificate. Only public `.cer` files are embedded; private signing material is rejected.
 
-The product version comes from `windows/Directory.Build.props`; pass the same value to `-Version`. The script refuses to run when the two disagree, because a mismatch silently produces an installer whose file versions and MSI version point at different releases.
+The product version comes from `windows/Directory.Build.props`, matched by edition. Do not pass `-Version`: the builder reads it, and passing one only re-asserts what the props file already says.
 
 ```powershell
-./windows/scripts/build-installer.ps1 -Version 1.0.8 -WixExtensionDirectory <extensions-directory> -SigningThumbprint <certificate-thumbprint>
+./windows/scripts/build-installer.ps1 -WixExtensionDirectory <extensions-directory> -SigningThumbprint <certificate-thumbprint>
 ```
+
+## Two editions
+
+There are two products, not two tiers of one product: **Perpetual** (buy-out, no
+network code path at all) and **Subscription** (the cloud product). `-Edition`
+selects one and everything else follows from it:
+
+| | Perpetual | Subscription |
+| --- | --- | --- |
+| `Directory.Build.props` `<Version>` | `1.0.8` | `0.1.0` |
+| `<EditionToken>` | `Buyout` | `Subscription` |
+| `<MsiPackageName>` (MSI `Package/@Name`) | 微信流（买断版） | 微信流（订阅版） |
+| artifact names | `WeChatBridge-Buyout-1.0.8-*` | `WeChatBridge-Subscription-0.1.0-*` |
+| MSIX capabilities | `runFullTrust`, `unvirtualizedResources` | the same, plus `internetClient` |
+| portable ZIP | `WeChatBridge-Buyout-1.0.8-Windows-Portable.zip` | not built |
+
+```powershell
+./windows/scripts/build-installer.ps1 -Edition Subscription -WixExtensionDirectory <extensions-directory> -SigningThumbprint <certificate-thumbprint>
+```
+
+Every one of those values lives in the same conditioned `PropertyGroup` in
+`Directory.Build.props`, and every reader matches on `WeChatBridgeEdition`
+exactly. Taking "the first `<Version>` in the file" is not a harmless
+shortcut: it returns Perpetual's every single time and raises nothing, so a
+Subscription build would ship under the buy-out's version number.
+
+`SparsePackage/AppxManifest.xml` ships in the **Perpetual** shape and does not
+declare `internetClient` — those binaries contain no network code path, so the
+manifest should not claim a capability that does not exist. `pack-msix.ps1
+-Edition Subscription` inserts the capability into the staged copy only; the
+file on disk is never edited. `internetClient` is not a restricted capability
+and takes no `rescap:` prefix, unlike the two that stay restricted.
+
+`UpgradeCode` is deliberately **shared** between the two editions, so they are
+mutually exclusive on one machine: installing the second supersedes the first
+and the Share Target registration path is unchanged. That is also why moving
+between editions is uninstall-then-install — Subscription's `0.1.0` is *lower*
+than an installed Perpetual `1.0.8`, and Windows Installer reports
+`WIX_DOWNGRADE_DETECTED` rather than downgrading.
+
+`build-bundle.ps1` takes the same `-Edition`; it recomputes the MSI and Setup
+file names from it and refuses a `-Version` that does not match that edition.
 
 ## Signing certificates
 

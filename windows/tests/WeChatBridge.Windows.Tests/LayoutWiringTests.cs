@@ -112,6 +112,32 @@ public sealed class LayoutWiringTests
             "FirstRun.ps1 must be UTF-8 with a BOM.");
     }
 
+    /// <summary>
+    /// The portable build is the free tier of the buy-out edition, so it is
+    /// built from the buy-out source set only.
+    /// <para>
+    /// A comment in the script is not enough of a guard: adding an
+    /// <c>-Edition</c> parameter to it is a one-line change that looks
+    /// harmless, compiles clean, and lets a subscription build reach a USB
+    /// stick — where the licence travels with the drive and the account does
+    /// not. Nothing else in the build would catch it.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void ThePortableBuildOnlyCompilesTheBuyoutEdition()
+    {
+        var script = Path.Combine(PortableRoot(), "build-portable.ps1");
+        Assert.True(File.Exists(script), $"{script} is missing.");
+
+        var text = File.ReadAllText(script);
+
+        Assert.Contains("WeChatBridgeEdition", text, StringComparison.Ordinal);
+        Assert.Contains("'Perpetual'", text, StringComparison.Ordinal);
+        // ValidateSet is what an -Edition parameter needs, so its absence is
+        // the thing being asserted: there is no parameter to pass.
+        Assert.DoesNotContain("ValidateSet", text, StringComparison.Ordinal);
+    }
+
     private static IEnumerable<string> SourceFiles() =>
         Directory.EnumerateFiles(SrcRoot(), "*.*", SearchOption.AllDirectories)
             .Where(f => f.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)

@@ -1,6 +1,78 @@
-<Project>
+﻿<Project>
+  <!-- ===================================================================
+       Edition split (design doc 7.3 / 18).
+       Two independent products are built from this one source tree:
+
+         Perpetual     buy-out. No network code path at all, structurally.
+         Subscription  the cloud product. Separate version line.
+
+       The edition is a *property* rather than a constant or an item so
+       build-installer.ps1 can read the matching <Version> back out of this
+       file by condition. Taking the first <Version> instead would silently
+       mean Perpetual once the second edition exists (design doc 18.5 item 2),
+       so every reader here matches on WeChatBridgeEdition exactly.
+       =================================================================== -->
   <PropertyGroup>
+    <WeChatBridgeEdition Condition="'$(WeChatBridgeEdition)' == ''">Perpetual</WeChatBridgeEdition>
+  </PropertyGroup>
+
+  <!-- The two editions are different products, not two tiers of one product
+       (design doc 7). A shared version number leaves support unable to tell
+       from a report which shape the user is running, so the numbers diverge. -->
+  <!-- The three release-name carriers (design doc 18.4). They live here, beside
+       the Version they belong to, so a release cannot change one without the
+       others: the build scripts read them back out of this file by matching
+       WeChatBridgeEdition, never from a hardcoded literal.
+
+       NOTE: this file contains Chinese from here on, so it is saved UTF-8 with
+       BOM. Every PowerShell reader below must also pass -Encoding UTF8
+       explicitly. Windows PowerShell 5.1 otherwise decodes this as ANSI/GBK,
+       which turns a multi-byte punctuation mark into a byte that swallows the
+       next '<' and makes the whole document fail to parse. The symptom looks
+       like a corrupt props file, not an encoding mistake.
+
+       The <WeChatBridgeEdition> element is repeated inside each conditioned
+       group as the marker the packaging scripts match on. It is not how MSBuild
+       picks the group (the Condition attribute is), and it is harmless to
+       assign: the group only evaluates when the value already equals it. It is
+       here because a reader cannot otherwise tell which group is which without
+       parsing the Condition string. -->
+  <PropertyGroup Condition="'$(WeChatBridgeEdition)' == 'Perpetual'">
+    <WeChatBridgeEdition>Perpetual</WeChatBridgeEdition>
     <Version>1.0.8</Version>
+    <WeChatBridgeEditionConstant>WECHATBRIDGE_PERPETUAL</WeChatBridgeEditionConstant>
+    <!-- Artifact file name segment: WeChatBridge-Buyout-1.0.8-Windows.msi.
+         ASCII on purpose: it lands in MSI/Burn file names and log lines. -->
+    <EditionToken>Buyout</EditionToken>
+    <!-- About panel: the trailing word after "Version 1.0.8 / Windows /" -->
+    <ProductEditionName>买断版</ProductEditionName>
+    <!-- MSI Package/@Name. Distinguishes the two products in Programs and
+         Features; the UpgradeCode stays shared so the two are mutually
+         exclusive on one machine (design doc 18.3). -->
+    <MsiPackageName>微信流（买断版）</MsiPackageName>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(WeChatBridgeEdition)' == 'Subscription'">
+    <WeChatBridgeEdition>Subscription</WeChatBridgeEdition>
+    <Version>0.1.0</Version>
+    <WeChatBridgeEditionConstant>WECHATBRIDGE_SUBSCRIPTION</WeChatBridgeEditionConstant>
+    <EditionToken>Subscription</EditionToken>
+    <ProductEditionName>订阅版</ProductEditionName>
+    <MsiPackageName>微信流（订阅版）</MsiPackageName>
+  </PropertyGroup>
+
+  <!-- Set here, in .props, because the constant has to exist before any
+       source is compiled; .targets is imported too late to be useful for it.
+       Appended rather than assigned so the configuration's own TRACE/DEBUG,
+       which the SDK adds later, survives. SDK projects import this file twice
+       (once through Microsoft.Common.props, once through the SDK), hence the
+       containment test rather than a plain append. -->
+  <PropertyGroup>
+    <DefineConstants Condition="'$(DefineConstants)' == ''">$(WeChatBridgeEditionConstant)</DefineConstants>
+    <DefineConstants Condition="'$(DefineConstants)' != '' and !$([System.String]::Copy('$(DefineConstants)').Contains('$(WeChatBridgeEditionConstant)'))">$(DefineConstants);$(WeChatBridgeEditionConstant)</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -9,4 +81,13 @@
     <DebugType>portable</DebugType>
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
+
+  <!-- A typo in the edition name would otherwise build Perpetual's sources
+       under Subscription's name: no warning, no error, and the two products
+       ship identical binaries wearing different labels. -->
+  <Target Name="ValidateWeChatBridgeEdition" BeforeTargets="PrepareForBuild">
+    <Error Code="WCB0001"
+           Condition="'$(WeChatBridgeEdition)' != 'Perpetual' and '$(WeChatBridgeEdition)' != 'Subscription'"
+           Text="WeChatBridgeEdition must be Perpetual or Subscription, but is '$(WeChatBridgeEdition)'." />
+  </Target>
 </Project>

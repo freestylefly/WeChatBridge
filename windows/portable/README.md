@@ -7,7 +7,7 @@ one you carry.
 ## Layout
 
 `build-portable.ps1` produces `windows/artifacts/portable/` and packs it into
-`windows/artifacts/WeChatBridge-<version>-Windows-Portable.zip`:
+`windows/artifacts/WeChatBridge-Buyout-<version>-Windows-Portable.zip`:
 
 ```text
 <zip root>\
@@ -39,13 +39,23 @@ up.
 ## Building
 
 ```powershell
-./windows/portable/build-portable.ps1 -Version 1.0.8
+./windows/portable/build-portable.ps1
 ```
 
-`Version` must match `windows/Directory.Build.props` — the same drift guard as
-`build-installer.ps1`. `SigningThumbprint` defaults to the newest
-`CN=WeChatBridge Windows Dev` certificate in `Cert:\CurrentUser\My`; pass a real
-code-signing certificate for anything you distribute.
+**This script has no `-Edition` parameter, on purpose.** The portable build is
+the free tier of the *buy-out* product, not a build of Subscription: it is a
+zero-network build, its licence would travel with the stick while the account
+does not, and a Subscription payload on removable media would carry an MSIX that
+declares `internetClient` next to a vault written to a USB drive. The edition
+is a hardcoded `$Edition = 'Perpetual'` inside the script, so please do not add
+a parameter "for symmetry" with `build-installer.ps1` — make it a deliberate
+change. A `LayoutWiringTests` case is the right place to pin that.
+
+The version is read from `windows/Directory.Build.props` for the Perpetual
+edition; `-Version` is accepted only as an optional cross-check, the same
+optional role it has in `build-installer.ps1`. `SigningThumbprint` defaults to
+the newest `CN=WeChatBridge Windows Dev` certificate in `Cert:\CurrentUser\My`;
+pass a real code-signing certificate for anything you distribute.
 
 Tooling comes from the same place as the installed build: `makepri`,
 `makeappx`, `signtool` and `mt.exe` on `PATH` or in a Windows Kits `bin`
