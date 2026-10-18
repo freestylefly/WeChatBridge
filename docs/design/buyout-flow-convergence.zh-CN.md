@@ -410,6 +410,7 @@ POST /v1/admin/revoke    { licenseId }   → {}
 - **影响**：D5（admin 鉴权模型）实质被此提交拍定为「复用微信账号体系」——管理员须先扫码登录，后台不再有独立密码。好处：少一套凭证、会话可过期；代价：卖家换微信号即失去 admin 身份，需预留改绑路径。
 - **待办**：此变更合理但属于产品决策，**需用户确认**；确认后 D5 标记「已定（Bearer）」，分支 2 的 admin-console 登录页按 Bearer 实现（B-② 任务描述需同步）。
 - **定级**：🟡 待确认（变更本身与 mock 一致，缺的是决策记录）。
+- **后续（2026-10-18 23:05）**：用户已确认；mock 的 adminOK 早已按 Bearer 占位；A-⑥ 落地时真实 handler 按 Bearer + `WCB_ADMIN_OPENIDS` 白名单实现（非白名单 403），D5 自此标记「已定（Bearer）」。分支 2 的 B-② 需按扫码登录改写（其看板仍写着 admin 密码）。
 
 #### R-2 登记状态三态透传 + revoked 不出票（对方上报，主线裁决后采纳）
 
@@ -431,6 +432,14 @@ POST /v1/admin/revoke    { licenseId }   → {}
 - **原样搬**：activation HTTP 包（Service/Register/Licence 三端点）、契约字段 tag、handler 映射（ErrNotConfirmed/ErrLicenceDead → 409）。
 - **适配（我方 4 表模型的必然差异，非私改契约）**：① **reissue 无 pending 请求时新插一行已确认请求**（复制旧行 anchor/amount，9 参）——双表模型下 binding 的 request_id 必须链到一行，否则买家的 poller 永远学不会 reissue（「a licence nobody can poll for is a licence nobody collects」）；对方 5 表模型 bindings 并入 requests，无此问题。② licence 判活走 `LiveBindingByInstallID`（binding 表）而非请求行状态。③ 迁移新增部分唯一索引 `activation_requests_live_install_idx ON activation_requests (install_id) WHERE status = 'pending'`，与 upsert 的 `ON CONFLICT (install_id) WHERE status='pending'` 精确对齐。
 - **出口**：`go build/vet/test ./...` 9 包全绿（-count=1 全新），activation 包 18 测试，store 侧 create 三例 + reissue 持久化例。
+
+#### I-1 真实 admin handler 相对 mock 的两处严格化（实现记录，非缺陷）
+
+- **背景**：A-⑥ 落地 admin handler 时对照 `server/mock/server.js` 逐行为核对，两处刻意比 mock 严格，在此登记供分支 2 对照。
+- **① reissue 对未知机器**：mock 对从未登记过的 installId 也铸新票返 200；真实 handler 返 404。依据：A-④ 定稿的 store 契约明文「ErrNotFound means there is nothing to reissue: no live binding and no request of any kind for that machine」——没有购买记录的机器无可签之票，凭空铸一张等于给从未购买的人发票。
+- **② `?status=` 未知值**：mock 宽容过滤（未知值当空列表）；真实 handler 返 400。依据：卖家把 "comfirmed" 打错时，「没有待确认」是本 API 唯一不能给的错答案——空列表会被读成"今天没人买"。
+- **影响**：分支 2 的 console（B-⑤）若按 mock 的 always-200 实现，对无记录机器重签会见到 404。这是正确行为，console 应显示「该机器没有购买记录」而非静默成功。
+- **定级**：🟢 实现记录（mock 在真实 handler 全量落地后删除，分歧自然消解）。
 
 #### 流程补记
 
