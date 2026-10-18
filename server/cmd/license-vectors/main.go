@@ -309,7 +309,7 @@ func buildCases() []vectorCase {
 				IssuedAt:     refIssued,
 				Entitlements: []string{"pro", "obsidian-sync", "pdf-deep-parse"},
 			},
-			expectNote: "Compare canonicalText here against entitlement-normalisation. Apart from the entitlement line they are identical, which is the point.",
+			expectNote: "Compare canonicalText here against entitlement-normalisation: the two are byte-identical, entitlement line included. That vector's input is padded, mixed-case and duplicated, this one's is a different order — normalisation absorbs all of it, so none of it survives into the signed bytes. Identical text, not merely matching lines.",
 		},
 		{
 			Name: "subscription-windowed",

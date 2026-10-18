@@ -56,7 +56,7 @@
         "ent": [
           "pro"
         ],
-        "sig": "15APgJ1xi6Y/O2e6GG1fjb4OHk6xNmFHttDG9vBYgSXH/+76Bz7WruOrWaaLK8eI0+L9Yo8m6nTX2UEpw2J+AA=="
+        "sig": "It+oumr0esqxshs0DbaMY5sQeV5NPOTr4MLydTf9aGvo1exIV+dQiWo9r/oZzFdvNlJe4nQM4fMjy3qzOwrgXg=="
       },
       "canonicalText": "wechatbridge.license.v1\nv=1\nsub=kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G\nplan=buyout\niat=1767225600\nnbf=-\nexp=-\nent=PRO",
       "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d6b523764516d325a705839764c62546e344873596331576a4536754630614133470a706c616e3d6275796f75740a6961743d313736373232353630300a6e62663d2d0a6578703d2d0a656e743d50524f",
@@ -71,7 +71,7 @@
         "ent": [
           "pro"
         ],
-        "sig": "15APgJ1xi6Y/O2e6GG1fjb4OHk6xNmFHttDG9vBYgSXH/+76Bz7WruOrWaaLK8eI0+L9Yo8m6nTX2UEpw2J+AA=="
+        "sig": "It+oumr0esqxshs0DbaMY5sQeV5NPOTr4MLydTf9aGvo1exIV+dQiWo9r/oZzFdvNlJe4nQM4fMjy3qzOwrgXg=="
       },
       "verifySubject": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
       "verifyNowUnix": 1767225600,
@@ -99,7 +99,7 @@
           "pdf-deep-parse",
           "obsidian-sync"
         ],
-        "sig": "SRrm3NTkFBBwamWnADfFYH4WODJ/UuMJu0oyQzguayuGQHh3DlOp55WAqnj7qUNDuSaijATW5bP/6ZbOGJFhYg=="
+        "sig": "/k1dCPwZW98aa4XqKqknIVpMsMfH7HTC86tG7B8Rcp+aAVfV1PEXNxmgTPQTt7FMDHa7WxnHgDUJ+VdutTkz8A=="
       },
       "canonicalText": "wechatbridge.license.v1\nv=1\nsub=kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G\nplan=buyout\niat=1767225600\nnbf=-\nexp=-\nent=OBSIDIAN-SYNC,PDF-DEEP-PARSE,PRO",
       "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d6b523764516d325a705839764c62546e344873596331576a4536754630614133470a706c616e3d6275796f75740a6961743d313736373232353630300a6e62663d2d0a6578703d2d0a656e743d4f4253494449414e2d53594e432c5044462d444545502d50415253452c50524f",
@@ -118,7 +118,7 @@
           "pdf-deep-parse",
           "obsidian-sync"
         ],
-        "sig": "SRrm3NTkFBBwamWnADfFYH4WODJ/UuMJu0oyQzguayuGQHh3DlOp55WAqnj7qUNDuSaijATW5bP/6ZbOGJFhYg=="
+        "sig": "/k1dCPwZW98aa4XqKqknIVpMsMfH7HTC86tG7B8Rcp+aAVfV1PEXNxmgTPQTt7FMDHa7WxnHgDUJ+VdutTkz8A=="
       },
       "verifySubject": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
       "verifyNowUnix": 1767225600,
@@ -144,7 +144,7 @@
           "obsidian-sync",
           "pdf-deep-parse"
         ],
-        "sig": "XVKsS9WHvASshcpVKtuTpWuUVok1ZzRcYWTyfUTH5sgb7NcTpYIN5i8x8J6MuLT0oWh4oadYkBIIf5wGzTVRzQ=="
+        "sig": "4kutQQ8nfazA4yRtzS7UmJKrWQoO2JzYNXz7LG7MsBOyNR4PHKtDmy7U7s607Cyf6fb5VWkKqrQC40f0CpGfaw=="
       },
       "canonicalText": "wechatbridge.license.v1\nv=1\nsub=kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G\nplan=buyout\niat=1767225600\nnbf=-\nexp=-\nent=OBSIDIAN-SYNC,PDF-DEEP-PARSE,PRO",
       "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d6b523764516d325a705839764c62546e344873596331576a4536754630614133470a706c616e3d6275796f75740a6961743d313736373232353630300a6e62663d2d0a6578703d2d0a656e743d4f4253494449414e2d53594e432c5044462d444545502d50415253452c50524f",
@@ -161,7 +161,7 @@
           "obsidian-sync",
           "pdf-deep-parse"
         ],
-        "sig": "XVKsS9WHvASshcpVKtuTpWuUVok1ZzRcYWTyfUTH5sgb7NcTpYIN5i8x8J6MuLT0oWh4oadYkBIIf5wGzTVRzQ=="
+        "sig": "4kutQQ8nfazA4yRtzS7UmJKrWQoO2JzYNXz7LG7MsBOyNR4PHKtDmy7U7s607Cyf6fb5VWkKqrQC40f0CpGfaw=="
       },
       "verifySubject": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
       "verifyNowUnix": 1767225600,
@@ -169,7 +169,7 @@
       "expect": {
         "verify": "ok",
         "reason": "",
-        "note": "Compare canonicalText here against entitlement-normalisation. Apart from the entitlement line they are identical, which is the point."
+        "note": "Compare canonicalText here against entitlement-normalisation: the two are byte-identical, entitlement line included. That vector's input is padded, mixed-case and duplicated, this one's is a different order — normalisation absorbs all of it, so none of it survives into the signed bytes. Identical text, not merely matching lines."
       }
     },
     {
@@ -186,7 +186,7 @@
           "pro",
           "cloud-parse"
         ],
-        "sig": "/BSgr3T4daqCIvbuwZWchzZh2pGe0sza68zjMFuVvDtF+1HktKn930iNS19RgxIifg0jUusL+BzDRQ8tUUd9lA=="
+        "sig": "WRzZhyyjDZ3Q4tKbXO6Sl32dQadhIcwKFMPZGOa0s+6nVocRTeyh0y75XGX3OLDbmGs8qSib3o1OXRJwqQtN3A=="
       },
       "canonicalText": "wechatbridge.license.v1\nv=1\nsub=u9Kp4Zn8XvC2mLbTqR7hY0wS3dF6gH0a\nplan=subscription\niat=1767225600\nnbf=1767225600\nexp=1798761600\nent=CLOUD-PARSE,PRO",
       "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d75394b70345a6e38587643326d4c6254715237685930775333644636674830610a706c616e3d737562736372697074696f6e0a6961743d313736373232353630300a6e62663d313736373232353630300a6578703d313739383736313630300a656e743d434c4f55442d50415253452c50524f",
@@ -202,7 +202,7 @@
           "pro",
           "cloud-parse"
         ],
-        "sig": "/BSgr3T4daqCIvbuwZWchzZh2pGe0sza68zjMFuVvDtF+1HktKn930iNS19RgxIifg0jUusL+BzDRQ8tUUd9lA=="
+        "sig": "WRzZhyyjDZ3Q4tKbXO6Sl32dQadhIcwKFMPZGOa0s+6nVocRTeyh0y75XGX3OLDbmGs8qSib3o1OXRJwqQtN3A=="
       },
       "verifySubject": "u9Kp4Zn8XvC2mLbTqR7hY0wS3dF6gH0a",
       "verifyNowUnix": 1767225600,
@@ -224,7 +224,7 @@
         "nbf": null,
         "exp": null,
         "ent": [],
-        "sig": "KYKwLTNRSAOGJSBHFVQja+L+otJcsEZwEaKzl1WAa0wD4Y6UV2eEw//Hi7s/FX5NqdrpWWcA+l8Fhj6zWiEfRQ=="
+        "sig": "vj9ql+qIRTAodkb9od0Y49qH0rU5UxezhKP69RL/NI3DkbgqVYqHtlaOL+FqSk2B26COxMJeUP/GRI56Bjbm2A=="
       },
       "canonicalText": "wechatbridge.license.v1\nv=1\nsub=kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G\nplan=buyout\niat=1767225600\nnbf=-\nexp=-\nent=-",
       "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d6b523764516d325a705839764c62546e344873596331576a4536754630614133470a706c616e3d6275796f75740a6961743d313736373232353630300a6e62663d2d0a6578703d2d0a656e743d2d",
@@ -237,7 +237,7 @@
         "nbf": null,
         "exp": null,
         "ent": [],
-        "sig": "KYKwLTNRSAOGJSBHFVQja+L+otJcsEZwEaKzl1WAa0wD4Y6UV2eEw//Hi7s/FX5NqdrpWWcA+l8Fhj6zWiEfRQ=="
+        "sig": "vj9ql+qIRTAodkb9od0Y49qH0rU5UxezhKP69RL/NI3DkbgqVYqHtlaOL+FqSk2B26COxMJeUP/GRI56Bjbm2A=="
       },
       "verifySubject": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
       "verifyNowUnix": 1767225600,
@@ -263,7 +263,7 @@
           "   ",
           "\t"
         ],
-        "sig": "JPB3AkD5gNcFOb42yA05JtZMmIbhvAZSAm0fRFh9qbsteuLZHUTwilpI8Bl/ajWGM2hPCHxS/pxOcRvQ4nnG8A=="
+        "sig": "P4BSGN+R5yJsGi/oaSV3l23CHxMqpxOpZU1UWVFYQv/qcrgG+9DSbKIvenRAwMSWvI2xhX+35+S0UU6t4jObSg=="
       },
       "canonicalText": "wechatbridge.license.v1\nv=1\nsub=kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G\nplan=buyout\niat=1767225600\nnbf=-\nexp=-\nent=-",
       "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d6b523764516d325a705839764c62546e344873596331576a4536754630614133470a706c616e3d6275796f75740a6961743d313736373232353630300a6e62663d2d0a6578703d2d0a656e743d2d",
@@ -280,7 +280,7 @@
           "   ",
           "\t"
         ],
-        "sig": "JPB3AkD5gNcFOb42yA05JtZMmIbhvAZSAm0fRFh9qbsteuLZHUTwilpI8Bl/ajWGM2hPCHxS/pxOcRvQ4nnG8A=="
+        "sig": "P4BSGN+R5yJsGi/oaSV3l23CHxMqpxOpZU1UWVFYQv/qcrgG+9DSbKIvenRAwMSWvI2xhX+35+S0UU6t4jObSg=="
       },
       "verifySubject": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
       "verifyNowUnix": 1767225600,
@@ -305,7 +305,7 @@
         "ent": [
           "pro"
         ],
-        "sig": "AWMSEbuphND7JH9+DnEzTRyowVWlR9Z+ODBsV6Vii8JheKPJTH4XYQhfAqWar5Hq+913W71q4lfCxCiDJtW3vw=="
+        "sig": "XUUBtyGghqavl3tNCxD4/ynrUM79XpQjymrToETvzeAOm7xJlEM02viageZ1Hr1K/P/2CBVVEfvlqUoAi+6wjg=="
       },
       "canonicalText": "wechatbridge.license.v1\nv=1\nsub=kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G\nplan=subscription\niat=1767225600\nnbf=-\nexp=-\nent=PRO",
       "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d6b523764516d325a705839764c62546e344873596331576a4536754630614133470a706c616e3d737562736372697074696f6e0a6961743d313736373232353630300a6e62663d2d0a6578703d2d0a656e743d50524f",
@@ -320,7 +320,7 @@
         "ent": [
           "pro"
         ],
-        "sig": "AWMSEbuphND7JH9+DnEzTRyowVWlR9Z+ODBsV6Vii8JheKPJTH4XYQhfAqWar5Hq+913W71q4lfCxCiDJtW3vw=="
+        "sig": "XUUBtyGghqavl3tNCxD4/ynrUM79XpQjymrToETvzeAOm7xJlEM02viageZ1Hr1K/P/2CBVVEfvlqUoAi+6wjg=="
       },
       "verifySubject": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
       "verifyNowUnix": 1767225600,
@@ -346,7 +346,7 @@
           "pro",
           "cloud-parse"
         ],
-        "sig": "zQDZP05g6BROq0KTnLDlMnQSsJ7Ok16+Zy46TY7WSaUTUkpU5pB9uEBcUYRGbnXZzx27bL030iM6a4PajTsKMg=="
+        "sig": "LIxm/dfG+UVq1FePDtDYBwRrYWK+/Aeh88HNxGZcqx+jVclImbj80zCCxUpW4nyS1ZfrVlLYus648jsG5E8uSw=="
       },
       "canonicalText": "wechatbridge.license.v1\nv=1\nsub=kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G\nplan=buyout\niat=1767225600\nnbf=-\nexp=-\nent=CLOUD-PARSE,PRO",
       "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d6b523764516d325a705839764c62546e344873596331576a4536754630614133470a706c616e3d6275796f75740a6961743d313736373232353630300a6e62663d2d0a6578703d2d0a656e743d434c4f55442d50415253452c50524f",
@@ -362,7 +362,7 @@
           "pro",
           "cloud-parse"
         ],
-        "sig": "zQDZP05g6BROq0KTnLDlMnQSsJ7Ok16+Zy46TY7WSaUTUkpU5pB9uEBcUYRGbnXZzx27bL030iM6a4PajTsKMg=="
+        "sig": "LIxm/dfG+UVq1FePDtDYBwRrYWK+/Aeh88HNxGZcqx+jVclImbj80zCCxUpW4nyS1ZfrVlLYus648jsG5E8uSw=="
       },
       "verifySubject": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
       "verifyNowUnix": 1767225600,
@@ -387,7 +387,7 @@
         "ent": [
           "pro"
         ],
-        "sig": "ctd4qkhDBxYaoLlLcGwtsJh9DBpsnfkfcn8oOg63Y7BYHWk/GFQN5NlVdJe8HSe/r4cUoIV0qdc0CzdXaoHICw=="
+        "sig": "W5jin2qfyvELH8seXx6WtLzy1UotJhPBLiLiJnMf7FyUvUqJD4907jyCvmxmwNRg0SUveYZpxQ6ijXPf5CfmKA=="
       },
       "canonicalText": "wechatbridge.license.v1\nv=1\nsub=tR2pWq9LmX4kYbN7vHc0sJdE3uF8gH1a\nplan=buyout\niat=1767225600\nnbf=-\nexp=-\nent=PRO",
       "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d745232705771394c6d58346b59624e3776486330734a644533754638674831610a706c616e3d6275796f75740a6961743d313736373232353630300a6e62663d2d0a6578703d2d0a656e743d50524f",
@@ -402,7 +402,7 @@
         "ent": [
           "pro"
         ],
-        "sig": "ctd4qkhDBxYaoLlLcGwtsJh9DBpsnfkfcn8oOg63Y7BYHWk/GFQN5NlVdJe8HSe/r4cUoIV0qdc0CzdXaoHICw=="
+        "sig": "W5jin2qfyvELH8seXx6WtLzy1UotJhPBLiLiJnMf7FyUvUqJD4907jyCvmxmwNRg0SUveYZpxQ6ijXPf5CfmKA=="
       },
       "verifySubject": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
       "verifyNowUnix": 1767225600,
@@ -427,7 +427,7 @@
         "ent": [
           "pro"
         ],
-        "sig": "MEQCIbFg9r/yBKivh7XN6l7VwBxjXtofhjeIXxMqvNG8fhVVAiH4ETrGApCtk9RcG4oBt+FXn5DQwrNVDzIgSEFUp9upAQ=="
+        "sig": "MEQCIWm8TOJorllmoWcHVMz8CumoOOUmQ0pWTlNEppTjVZ65AiG13UoBizAakthQbZv/wGjSg6/0Qhxn/T5SYMp1qNRM/Q=="
       },
       "canonicalText": "wechatbridge.license.v1\nv=1\nsub=kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G\nplan=buyout\niat=1767225600\nnbf=-\nexp=-\nent=PRO",
       "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d6b523764516d325a705839764c62546e344873596331576a4536754630614133470a706c616e3d6275796f75740a6961743d313736373232353630300a6e62663d2d0a6578703d2d0a656e743d50524f",
@@ -442,7 +442,7 @@
         "ent": [
           "pro"
         ],
-        "sig": "MEQCIbFg9r/yBKivh7XN6l7VwBxjXtofhjeIXxMqvNG8fhVVAiH4ETrGApCtk9RcG4oBt+FXn5DQwrNVDzIgSEFUp9upAQ=="
+        "sig": "MEQCIWm8TOJorllmoWcHVMz8CumoOOUmQ0pWTlNEppTjVZ65AiG13UoBizAakthQbZv/wGjSg6/0Qhxn/T5SYMp1qNRM/Q=="
       },
       "verifySubject": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
       "verifyNowUnix": 1767225600,
@@ -506,7 +506,7 @@
         "ent": [
           "pro"
         ],
-        "sig": "lfBpzEkknbqrT0tGNZoevuiNG8wvwjYQZbZqoztHm9SJ1k2CxMy2PlNcFXJDvdrMiGoV5Ds7+xdbHPutz4NWRQ=="
+        "sig": "iaxECAnuJYR+ErBK9Tpd9ZzI0+PA3hc+EpgimN6zWj7Tup88ScZtrVZfqcCzaDzoHlWoXDcj9/+M7PbrRpVdIQ=="
       },
       "canonicalText": "wechatbridge.license.v1\nv=1\nsub=u9Kp4Zn8XvC2mLbTqR7hY0wS3dF6gH0a\nplan=subscription\niat=1767225600\nnbf=1767225600\nexp=1798761600\nent=PRO",
       "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d75394b70345a6e38587643326d4c6254715237685930775333644636674830610a706c616e3d737562736372697074696f6e0a6961743d313736373232353630300a6e62663d313736373232353630300a6578703d313739383736313630300a656e743d50524f",
@@ -521,7 +521,7 @@
         "ent": [
           "pro"
         ],
-        "sig": "lfBpzEkknbqrT0tGNZoevuiNG8wvwjYQZbZqoztHm9SJ1k2CxMy2PlNcFXJDvdrMiGoV5Ds7+xdbHPutz4NWRQ=="
+        "sig": "iaxECAnuJYR+ErBK9Tpd9ZzI0+PA3hc+EpgimN6zWj7Tup88ScZtrVZfqcCzaDzoHlWoXDcj9/+M7PbrRpVdIQ=="
       },
       "verifySubject": "u9Kp4Zn8XvC2mLbTqR7hY0wS3dF6gH0a",
       "verifyNowUnix": 1798765200,
@@ -545,7 +545,7 @@
         "ent": [
           "pro"
         ],
-        "sig": "gqFhR552NqQNMrtJU8qIKXntia3lEXeJELwPaANPMZKGKQxVBGmpdnua0Gu0AgMclJJ0qoFVMKuS8BSZ5SuiSw=="
+        "sig": "huueWKik0FrlmeKDXOSb4X6U2zKDAL7diQD2WHjayUfgXGtasVHMnS+7q93Iyz3oMZ975HAtZchZaMWUQHuicQ=="
       },
       "canonicalText": "wechatbridge.license.v1\nv=1\nsub=u9Kp4Zn8XvC2mLbTqR7hY0wS3dF6gH0a\nplan=subscription\niat=1767225600\nnbf=1767225600\nexp=1798761600\nent=PRO",
       "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d75394b70345a6e38587643326d4c6254715237685930775333644636674830610a706c616e3d737562736372697074696f6e0a6961743d313736373232353630300a6e62663d313736373232353630300a6578703d313739383736313630300a656e743d50524f",
@@ -560,7 +560,7 @@
         "ent": [
           "pro"
         ],
-        "sig": "gqFhR552NqQNMrtJU8qIKXntia3lEXeJELwPaANPMZKGKQxVBGmpdnua0Gu0AgMclJJ0qoFVMKuS8BSZ5SuiSw=="
+        "sig": "huueWKik0FrlmeKDXOSb4X6U2zKDAL7diQD2WHjayUfgXGtasVHMnS+7q93Iyz3oMZ975HAtZchZaMWUQHuicQ=="
       },
       "verifySubject": "u9Kp4Zn8XvC2mLbTqR7hY0wS3dF6gH0a",
       "verifyNowUnix": 1767222000,
@@ -584,7 +584,7 @@
         "ent": [
           "pro"
         ],
-        "sig": "0E6xAExtkB4g/SHxN1eUm7x5CcaX3GnqY+bcb2syaQz5Xx6mBcTHurqB/MwBdnixTsKMhC3UMRINMO+5Vuf7fw=="
+        "sig": "xpoAcxtor3zJXQGrk1E+Sw2VhmAD741vjGrd/YoapIfz6JwA3U/6z3t/S51boiE6roQvb9bNZ/DgBMSflU4Y0w=="
       },
       "canonicalText": "wechatbridge.license.v1\nv=1\nsub=kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G\nplan=buyout\niat=1767225600\nnbf=-\nexp=-\nent=PRO",
       "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d310a7375623d6b523764516d325a705839764c62546e344873596331576a4536754630614133470a706c616e3d6275796f75740a6961743d313736373232353630300a6e62663d2d0a6578703d2d0a656e743d50524f",
@@ -599,7 +599,7 @@
         "ent": [
           "pro"
         ],
-        "sig": "0E6xAExtkB4g/SHxN1eUm7x5CcaX3GnqY+bcb2syaQz5Xx6mBcTHurqB/MwBdnixTsKMhC3UMRINMO+5Vuf7fw=="
+        "sig": "xpoAcxtor3zJXQGrk1E+Sw2VhmAD741vjGrd/YoapIfz6JwA3U/6z3t/S51boiE6roQvb9bNZ/DgBMSflU4Y0w=="
       },
       "verifySubject": "someOtherMachineInstallId",
       "verifyNowUnix": 1767225600,
@@ -624,7 +624,7 @@
         "ent": [
           "pro"
         ],
-        "sig": "EMLvkVfr/YzcnPJQs+N+sxNvW8eB5Je77nL7OHaIpKAMOymMNIj4ImcuXlJBfuoaL/zvbgHoIjKyNFGxpM0TbA=="
+        "sig": "Y6lb40SCdDZUDKo+Q+hij22X4NYoItJN6z6pjFPYXivOJDNVf35JoS44QyYMsfZJZ2LJ+TFDXmEDZUHICBEZlQ=="
       },
       "canonicalText": "wechatbridge.license.v1\nv=2\nsub=kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G\nplan=buyout\niat=1767225600\nnbf=-\nexp=-\nent=PRO",
       "canonicalBytesHex": "7765636861746272696467652e6c6963656e73652e76310a763d320a7375623d6b523764516d325a705839764c62546e344873596331576a4536754630614133470a706c616e3d6275796f75740a6961743d313736373232353630300a6e62663d2d0a6578703d2d0a656e743d50524f",
@@ -639,7 +639,7 @@
         "ent": [
           "pro"
         ],
-        "sig": "EMLvkVfr/YzcnPJQs+N+sxNvW8eB5Je77nL7OHaIpKAMOymMNIj4ImcuXlJBfuoaL/zvbgHoIjKyNFGxpM0TbA=="
+        "sig": "Y6lb40SCdDZUDKo+Q+hij22X4NYoItJN6z6pjFPYXivOJDNVf35JoS44QyYMsfZJZ2LJ+TFDXmEDZUHICBEZlQ=="
       },
       "verifySubject": "kR7dQm2ZpX9vLbTn4HsYc1WjE6uF0aA3G",
       "verifyNowUnix": 1767225600,
