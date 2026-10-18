@@ -1,0 +1,128 @@
+<Window x:Class="WeChatBridge.Windows.Activation.PurchaseWindow"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:loc="clr-namespace:WeChatBridge.Windows" xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+ Title="{loc:Loc Key='购买授权'}" Width="540" Height="660" WindowStyle="None"
+ Background="{StaticResource SurfaceColor}" ResizeMode="NoResize" WindowStartupLocation="CenterOwner"
+ FontFamily="Microsoft YaHei UI, Segoe UI" UseLayoutRounding="True" SnapsToDevicePixels="True"
+ TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType"
+ Icon="/WeChatBridge.Windows;component/Assets/AppIcon.png">
+ <!-- Same shell as the login and redeem windows, and for the same two reasons: no
+      AllowsTransparency (a layered window drops hardware acceleration and the DPI story
+      every other pane relies on), and the rounded card is a Border instead. -->
+ <shell:WindowChrome.WindowChrome><shell:WindowChrome CaptionHeight="52" CornerRadius="12" GlassFrameThickness="0"
+ ResizeBorderThickness="0" UseAeroCaptionButtons="False"/></shell:WindowChrome.WindowChrome>
+ <Window.Resources>
+ <Style x:Key="GateButton" TargetType="Button" BasedOn="{StaticResource SettingsButton}">
+ <Setter Property="MinHeight" Value="38"/><Setter Property="MinWidth" Value="104"/><Setter Property="FontSize" Value="14"/></Style>
+ <Style x:Key="GatePrimary" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+ <Setter Property="MinHeight" Value="38"/><Setter Property="MinWidth" Value="128"/><Setter Property="FontSize" Value="14"/></Style>
+ <Style x:Key="GateSmall" TargetType="Button" BasedOn="{StaticResource SettingsButton}">
+ <Setter Property="MinHeight" Value="26"/><Setter Property="MinWidth" Value="64"/><Setter Property="Padding" Value="10,0"/>
+ <Setter Property="FontSize" Value="12"/></Style>
+ <Style x:Key="Heading" TargetType="TextBlock"><Setter Property="FontSize" Value="24"/><Setter Property="FontWeight" Value="SemiBold"/>
+ <Setter Property="Foreground" Value="{StaticResource InkColor}"/><Setter Property="TextWrapping" Value="Wrap"/></Style>
+ <Style x:Key="Body" TargetType="TextBlock"><Setter Property="FontSize" Value="13.5"/><Setter Property="LineHeight" Value="22"/>
+ <Setter Property="Foreground" Value="{StaticResource InkSecondaryColor}"/><Setter Property="TextWrapping" Value="Wrap"/></Style>
+ <!-- The machine code is the one string in this window the user has to read out loud
+      or type into a chat app, so it gets its own monospaced treatment rather than
+      being styled like body copy. -->
+ <Style x:Key="Code" TargetType="TextBox"><Setter Property="FontFamily" Value="Consolas, Courier New"/>
+ <Setter Property="FontSize" Value="14"/><Setter Property="IsReadOnly" Value="True"/>
+ <Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/>
+ <Setter Property="Foreground" Value="{StaticResource InkColor}"/><Setter Property="Padding" Value="0"/></Style>
+ <Style x:Key="Card" TargetType="Border"><Setter Property="Padding" Value="18"/><Setter Property="CornerRadius" Value="12"/>
+ <Setter Property="BorderThickness" Value="1"/><Setter Property="BorderBrush" Value="{StaticResource StrokeColor}"/>
+ <Setter Property="Background" Value="{StaticResource SurfaceColor}"/></Style>
+ </Window.Resources>
+ <Border BorderBrush="{StaticResource StrokeColor}" BorderThickness="1" CornerRadius="12"><Grid>
+ <Grid.RowDefinitions><RowDefinition Height="52"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+ <Grid MouseLeftButtonDown="OnDragMove" Margin="20,0,12,0">
+ <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+ <Image Source="/WeChatBridge.Windows;component/Assets/AppIcon.png" Width="28" Height="28"/>
+ <TextBlock Text="{loc:Loc Key='购买授权'}" FontSize="15" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center"/>
+ </StackPanel>
+ <Button Width="32" Height="32" MinHeight="32" MinWidth="0" Padding="0" HorizontalAlignment="Right" Content="×" FontSize="22"
+ Style="{StaticResource GateButton}" Background="Transparent" ToolTip="{loc:Loc Key='关闭'}" IsCancel="True"
+ shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
+ </Grid>
+
+ <ScrollViewer Grid.Row="1" Margin="28,22,28,8" VerticalScrollBarVisibility="Auto">
+ <StackPanel>
+ <TextBlock Style="{StaticResource Heading}" Text="{loc:Loc Key='购买授权'}"/>
+ <TextBlock Style="{StaticResource Body}" Margin="0,8,0,0"
+ Text="{loc:Loc Key='微信流买断版一次买断，永久离线可用。确认后显示收款码，付款后回到这里点「我已付款」，卖家核对到账后即可激活。'}" />
+
+ <!-- What the user is buying, and who they are buying it for. Shown before the payment
+      code appears on purpose: nobody should see a QR code before they have seen the
+      amount and the machine it will be bound to. -->
+ <Border Style="{StaticResource Card}" Margin="0,18,0,0"><StackPanel>
+ <TextBlock Style="{StaticResource Body}" Foreground="{StaticResource InkColor}" Text="{loc:Loc Key='本机机器码'}"/>
+ <Grid Margin="0,6,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+ <TextBox x:Name="InstallIdBox" Style="{StaticResource Code}" AutomationProperties.Name="{loc:Loc Key='本机机器码'}"/>
+ <Button x:Name="CopyInstallIdButton" Grid.Column="1" Style="{StaticResource GateSmall}" Click="OnCopyInstallId"
+ Content="{loc:Loc Key='复制'}" ToolTip="{loc:Loc Key='复制机器码'}" VerticalAlignment="Center"/>
+ </Grid>
+ <TextBlock Style="{StaticResource Body}" FontSize="12" Margin="0,4,0,0" Foreground="{StaticResource InkTertiaryColor}"
+ Text="{loc:Loc Key='这是许可证的绑定凭据。重装或换机会失效，找卖家重签。'}" />
+
+ <TextBlock Style="{StaticResource Body}" Margin="0,16,0,0" Foreground="{StaticResource InkColor}" Text="{loc:Loc Key='硬件锚摘要'}"/>
+ <TextBlock x:Name="AnchorDigestText" Style="{StaticResource Body}" FontFamily="Consolas, Courier New" FontSize="12"
+ Margin="0,4,0,0" TextWrapping="Wrap" AutomationProperties.Name="{loc:Loc Key='硬件锚摘要'}"/>
+
+ <TextBlock Style="{StaticResource Body}" Margin="0,16,0,0" Foreground="{StaticResource InkColor}" Text="{loc:Loc Key='开发者微信'}"/>
+ <!-- PLACEHOLDER: the seller's WeChat id goes here. Single source of truth — see
+      SellerWeChat in PurchaseWindow.xaml.cs. The same value is what the user is told
+      to add for after-sales. -->
+ <TextBlock x:Name="SellerWeChatText" Style="{StaticResource Body}" FontSize="15" FontWeight="SemiBold"
+ Foreground="{StaticResource InkColor}" Margin="0,4,0,0" AutomationProperties.Name="{loc:Loc Key='开发者微信'}"/>
+ <TextBlock Style="{StaticResource Body}" FontSize="12" Margin="0,4,0,0" Foreground="{StaticResource InkTertiaryColor}"
+ Text="{loc:Loc Key='付款后如有疑问，加这个微信售后。'}" />
+ </StackPanel></Border>
+
+ <!-- The payment code itself. Hidden until 确认购买 — the single child rule applies to
+      every Border here, so the contents sit in a StackPanel. -->
+ <Border x:Name="PaymentCard" Style="{StaticResource Card}" Margin="0,16,0,0" Visibility="Collapsed"><StackPanel>
+ <TextBlock Style="{StaticResource Body}" Foreground="{StaticResource InkColor}" HorizontalAlignment="Center"
+ Text="{loc:Loc Key='扫码付款'}"/>
+ <Image Source="/WeChatBridge.Windows;component/Assets/PaymentCodePlaceholder.png" Width="220" Height="220"
+ Stretch="Uniform" Margin="0,12,0,0" RenderOptions.BitmapScalingMode="HighQuality"
+ AutomationProperties.Name="{loc:Loc Key='收款码'}"/>
+ <!-- The note is what makes a manual transfer matchable: the seller reads it against
+      the machine code they are shown above, and it is the only link between a WeChat
+      payment and a licence. -->
+ <TextBlock Style="{StaticResource Body}" Margin="0,14,0,0" HorizontalAlignment="Center" TextAlignment="Center"
+ Text="{loc:Loc Key='转账请备注：'}" x:Name="PaymentNotePrefix"/>
+ <TextBlock x:Name="PaymentNoteText" Style="{StaticResource Body}" FontFamily="Consolas, Courier New" FontSize="15"
+ FontWeight="SemiBold" Foreground="{StaticResource InkColor}" HorizontalAlignment="Center" TextAlignment="Center"
+ TextWrapping="Wrap" AutomationProperties.Name="{loc:Loc Key='转账备注'}"/>
+ <TextBlock Style="{StaticResource Body}" FontSize="12" Margin="0,10,0,0" TextAlignment="Center"
+ Foreground="{StaticResource InkTertiaryColor}" Text="{loc:Loc Key='付款后回到这里点「我已付款」。没备注的转账需要人工核对，会慢一些。'}" />
+ </StackPanel></Border>
+
+ <TextBlock x:Name="StatusText" Style="{StaticResource Body}" Foreground="{StaticResource InkColor}"
+ Margin="0,18,0,0" TextAlignment="Center" AutomationProperties.LiveSetting="Assertive"/>
+ <TextBlock x:Name="DetailText" Style="{StaticResource Body}" FontSize="12" Margin="0,6,0,0" TextAlignment="Center"
+ Foreground="{StaticResource InkTertiaryColor}" Visibility="Collapsed"/>
+ </StackPanel>
+ </ScrollViewer>
+
+ <Grid Grid.Row="2" Margin="28,10,28,24">
+ <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+ <TextBlock x:Name="FooterNote" Style="{StaticResource Body}" FontSize="12" VerticalAlignment="Center"
+ Foreground="{StaticResource InkTertiaryColor}" TextWrapping="Wrap" Margin="0,0,12,0"
+ Text="{loc:Loc Key='许可证离线生效，激活后不再联网。'}"/>
+ <StackPanel Orientation="Horizontal" Grid.Column="1">
+ <Button x:Name="FinishButton" Style="{StaticResource GatePrimary}" Content="{loc:Loc Key='完成'}"
+ Click="OnFinishClicked" IsDefault="True" Visibility="Collapsed" Margin="0,0,8,0"/>
+ <Button x:Name="RetryButton" Style="{StaticResource GateButton}" Content="{loc:Loc Key='重试'}"
+ Click="OnRetryClicked" Margin="0,0,8,0" Visibility="Collapsed"/>
+ <Button x:Name="StopButton" Style="{StaticResource GateButton}" Content="{loc:Loc Key='停止等待'}"
+ Click="OnStopClicked" Margin="0,0,8,0" Visibility="Collapsed"/>
+ <Button x:Name="PaidButton" Style="{StaticResource GatePrimary}" Content="{loc:Loc Key='我已付款'}"
+ Click="OnPaidClicked" Visibility="Collapsed" Margin="0,0,8,0"/>
+ <Button x:Name="ConfirmButton" Style="{StaticResource GatePrimary}" Content="{loc:Loc Key='确认购买'}"
+ Click="OnConfirmClicked" IsDefault="True"/>
+ </StackPanel>
+ </Grid>
+ </Grid></Border>
+</Window>

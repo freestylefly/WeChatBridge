@@ -10,12 +10,12 @@
 
 | # | 任务 | 状态 | commit | 备注 |
 |---|---|---|---|---|
-| C-① | 微信登录（session → QR PNG → 轮询 → 存双令牌） | ⏳ | `d48827f` | Core + `AccountController` 完成；`LoginWindow` 未提交且编译红，见下 |
-| C-② | 机器码展示（installId 主键 + 硬件锚摘要辅证） | ⏳ | `4ce2420` | `ActivationGateway` 已暴露 `InstallId` / `AnchorDigest`，**无 UI** |
-| C-③ | 购买（收款码静态图 + 登记 + 轮询 + 取票） | ⏳ | `d48827f` | `ActivationController` 完成；`PurchaseWindow` 未开工，资产已放进工作区 |
+| C-① | 微信登录（session → QR PNG → 轮询 → 存双令牌） | ✅ | `98061ea` | `LoginWindow` 已提交、编译通过 |
+| C-② | 机器码展示（installId 主键 + 硬件锚摘要辅证） | ✅ | 待提交 | 购买窗内的可复制机器码 + 锚摘要；见「机器码展示」小节 |
+| C-③ | 购买（收款码静态图 + 登记 + 轮询 + 取票） | ⏳ | 待提交 | `PurchaseWindow` 已写；**待产品方补齐收款码与开发者微信** |
 | C-④ | 启动门禁集成（未登录→登录页；已登录未授权→限制模式） | ⬜ | — | `ActivationGateway` **零引用**，`App.xaml.cs` 未接线 |
 | C-⑤ | 轮询退避 + 卖家拒绝/超时提示 | ⏳ | `4ce2420` `d48827f` | `PollSchedule` + 控制器失败分支已写，**无测试** |
-| C-⑥ | 出口 = `dotnet build/test` 通过 + mock 全流程 | ⬜ | — | build 当前红；测试一行未加 |
+| C-⑥ | 出口 = `dotnet build/test` 通过 + mock 全流程 | ⬜ | — | build/test 全绿；mock 全流程未跑，测试仍未补 |
 
 ## 细目状态（对照 `client-license-gate-progress.zh-CN.md`）
 
@@ -24,14 +24,39 @@
 | 0–9 | 契约 DTO / 传输抽象 / 退避 / 令牌 / 账户 / 激活 / 状态机 / Http 动词 / 惰性装配 | ✅ `4ce2420` |
 | 10 | `AccountController`（取票+取图+等扫码合一，取消为终态） | ✅ `d48827f` |
 | 11 | `ActivationController`（登记+轮询+取票） | ✅ `d48827f` |
-| 12 | 登录窗 UI | ⏳ 未提交，`LoginWindow.xaml:54` 编译失败 |
-| 13 | 购买窗 UI | ⬜ |
-| 14 | 机器码展示控件 | ⬜ |
+| 12 | 登录窗 UI | ✅ `98061ea` |
+| 13 | 购买窗 UI | ✅ 代码完成，⏳ 两处占位符待补 |
+| 14 | 机器码展示控件 | ✅ 可复制 TextBox + 复制按钮，嵌在购买窗内 |
 | 15 | 启动门禁接入 | ⬜ |
-| 16 | 新文案进 `en.json` | ⬜ 四条登录文案一条都没进 |
+| 16 | 新文案进 `en.json` | ✅ 40 条，登录 + 购买 + 两个控制器 |
 | 17 | Core 单测（退避 / 时间戳 / 登录 / 激活） | ⬜ 无任何 `*Activation*Tests.cs` |
 | 18 | AppTests：`HttpActivationTransport` handler 注入 | ⬜ |
 | 19 | 出口 | ⬜ |
+
+## 购买窗的流程与两处待补
+
+窗口自己多持有一个 `_confirmed`，用来把收款码挡在「用户看过金额和绑定机器」之后：
+
+```
+[1] 待确认   机器码（可复制）· 硬件锚摘要 · 开发者微信 · [确认购买]
+[2] 待付款   ← 收款码在这一步才出现，配「转账请备注：<机器码>」
+[3] 等待卖家  点「我已付款」→ ActivationController.RegisterAsync() → 退避轮询
+[4] 完成 / 拒绝 / 失败
+```
+
+**确认 ≠ 登记。** 「确认购买」只让收款码露出来，不发任何请求；真正登记发生在用户点
+「我已付款」。所以开窗即关不会在卖家台账上留痕。
+
+两处占位符待产品方补：
+
+| 位置 | 现状 |
+|---|---|
+| `PurchaseWindow.xaml.cs` 的 `SellerWeChat` 常量 | `（待填写）`。单一来源，同时用作售后联系方式与购买条款 |
+| `Assets/PaymentCodePlaceholder.png` | 670 字节占位图，替换为卖家收款码 |
+
+**机器码同时是转账备注。** 卖家那头唯一能把一笔微信转账对上一张许可证的线索就是它，
+所以窗内给了独立可复制控件（`GateSmall` 样式 + 等宽字体），并明确提示「没备注的转账
+需要人工核对，会慢一些」。
 
 ## 当前状态：绿
 
