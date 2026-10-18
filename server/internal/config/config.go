@@ -3,7 +3,13 @@
 // Everything here is an environment variable, nothing is a flag, and every
 // field has a default that is safe for a local run and obviously wrong for
 // production — so the failure mode of a half-configured deployment is a loud
-// one at start-up rather than a silent one at the first payment.
+// one at start-up rather than a silent one at the first customer.
+//
+// The payment half of the old configuration is gone with the billing package:
+// the buy-out flow is a seller confirming a WeChat payment by hand, so there
+// is no merchant id, no APIv3 key and no notify URL to half-configure. What
+// is left is the shape of the sign-in, the licence key and the admin OpenID
+// whitelist.
 package config
 
 import (
@@ -32,12 +38,16 @@ type Config struct {
 
 	// Licence issuing. The private key is a file path for the same reason.
 	LicensePrivateKeyPath string
-	// LicenseClockSkew is the tolerance the client will apply. The server sends
-	// it along so both sides agree.
-	LicenseClockSkew time.Duration
 
 	// Product policy. One product: the perpetual buy-out.
 	BuyoutProductID string
+
+	// AdminOpenIDs is the WeChat open-platform OpenID whitelist for the
+	// seller's console (design §11.7): the admin API answers only to a
+	// Bearer access token whose account OpenID is on this list. Empty in
+	// dev means "no console" — fail closed, because a console that answers
+	// "unauthorized" is safer than one that answers at all.
+	AdminOpenIDs []string
 
 	// Lifetimes, in days. Zero for the buy-out plan is not "unconfigured" — a
 	// buy-out licence is perpetual by definition and has no expiry field.
@@ -47,8 +57,9 @@ type Config struct {
 	AccessTokenTTL  time.Duration
 	RefreshTokenTTL time.Duration
 
-	// Signing keys for the tokens the client carries. Access is short and
-	// self-contained; refresh is checked against the store so it can be revoked.
+	// Signing key for the tokens the client carries. Access is short and
+	// self-contained; refresh is checked against the store so it can be
+	// revoked.
 	TokenSigningSecret string
 }
 
@@ -57,8 +68,8 @@ func (c Config) IsProd() bool { return c.Env == "prod" }
 
 // Load reads the environment and returns the configuration, or an error
 // naming every variable that is missing or unparseable — all of them, not the
-// first one, because a deployment that fixes errors one restart at a time is a
-// deployment that spends the night that way.
+// first one, because a deployment that fixes errors one restart at a time is
+// a deployment that spends the night that way.
 func Load() (Config, error) {
 	var missing []string
 	required := func(name string) string {
@@ -84,12 +95,11 @@ func Load() (Config, error) {
 
 		LicensePrivateKeyPath: required("WCB_LICENSE_PRIVATE_KEY_PATH"),
 		TokenSigningSecret:    required("WCB_TOKEN_SIGNING_SECRET"),
+
+		AdminOpenIDs: openIDList("WCB_ADMIN_OPENIDS"),
 	}
 
 	var err error
-	if c.LicenseClockSkew, err = duration("WCB_LICENSE_CLOCK_SKEW", 48*time.Hour); err != nil {
-		return c, err
-	}
 	for _, f := range []struct {
 		dst  *time.Duration
 		name string
@@ -97,7 +107,7 @@ func Load() (Config, error) {
 	}{
 		{&c.AuthSessionTTL, "WCB_AUTH_SESSION_TTL", 5 * time.Minute},
 		{&c.AccessTokenTTL, "WCB_ACCESS_TOKEN_TTL", time.Hour},
-		{&c.RefreshTokenTTL, "WCB_REFRESH_TOKEN_TTL", 30 * 24 * time.Hour},
+		{&c.RefreshTokenTTL, "WCB_REFRESH_TOKEN_TTL", 90 * 24 * time.Hour},
 	} {
 		if *f.dst, err = duration(f.name, f.def); err != nil {
 			return c, err
@@ -141,6 +151,12 @@ func (c Config) validate() error {
 		if !strings.HasPrefix(c.PublicBaseURL, "https://") {
 			add("WCB_PUBLIC_BASE_URL must be https in production, got %q", c.PublicBaseURL)
 		}
+		// The console is the mint: it signs licences with one click. A
+		// production deployment without an admin whitelist is a deployment
+		// where nobody can administer the mint — loud, not silent.
+		if len(c.AdminOpenIDs) == 0 {
+			add("WCB_ADMIN_OPENIDS is required in production")
+		}
 	}
 	if c.AccessTokenTTL <= 0 || c.RefreshTokenTTL <= c.AccessTokenTTL {
 		add("token lifetimes are inconsistent: refresh must outlast access")
@@ -155,14 +171,30 @@ func (c Config) validate() error {
 	return nil
 }
 
-// BuyoutLifetime is the buy-out licence's lifetime. It is always zero — a
-// buy-out licence has no expiry, and that absence is the product rather than an
-// unset field.
+// BuyoutLifetime is the buy-out licence's lifetime. It is zero unless an
+// operator deliberately configures one — a buy-out licence has no expiry, and
+// that absence is the definition of the product rather than an unset field.
 func (c Config) BuyoutLifetime() time.Duration {
 	if c.BuyoutLicenseDays <= 0 {
 		return 0
 	}
 	return time.Duration(c.BuyoutLicenseDays) * 24 * time.Hour
+}
+
+// AdminEnabled reports whether the admin API answers at all. An empty
+// whitelist is "no console", not "console that trusts everybody".
+func (c Config) AdminEnabled() bool { return len(c.AdminOpenIDs) > 0 }
+// openIDList parses a comma-separated OpenID whitelist, dropping blanks so
+// that "a,,b" and "a, b" both mean {a, b} — a stray comma in a deploy
+// script must not silently shrink the whitelist.
+func openIDList(name string) []string {
+	var out []string
+	for _, part := range strings.Split(env(name, ""), ",") {
+		if v := strings.TrimSpace(part); v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 func env(name, def string) string {

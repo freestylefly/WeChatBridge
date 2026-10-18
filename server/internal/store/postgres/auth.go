@@ -114,15 +114,6 @@ const markAuthSessionAuthorizedSQL = `
 	UPDATE auth_sessions SET state = 'authorized', account_id = $2
 	WHERE ticket = $1 AND state = 'pending'`
 
-// adoptInstallRecordsSQL is the history migration. It runs inside
-// CompleteAuthSession's transaction and is the reason that function exists: a
-// person who paid on Tuesday and signed in on Thursday has records sitting
-// under their anonymous install id, and once the ticket is spent nobody else
-// knows which account they belonged to.
-const adoptInstallRecordsSQL = `
-	UPDATE install_records SET account_id = $2
-	WHERE install_id = $1 AND account_id IS NULL`
-
 // CreateAuthSession records a QR sign-in that is about to be shown.
 func (s *Store) CreateAuthSession(ctx context.Context, sess store.AuthSession) error {
 	state := sess.State
@@ -180,13 +171,18 @@ func authState(raw string, expiresAt, now time.Time) store.AuthSessionState {
 	}
 }
 
-// CompleteAuthSession spends the ticket, resolves the account and moves the
-// anonymous history, atomically.
+// CompleteAuthSession spends the ticket and resolves the account, atomically.
 //
-// The three steps are one transaction because each one alone is a lie the
-// other two cannot repair: a spent ticket with no account strands the client
-// at a QR code that will never resolve, and an account with the history still
-// under the install id strands the customer's data in a table nobody reads.
+// The two steps are one transaction because each one alone is a lie the other
+// cannot repair: a spent ticket with no account strands the client at a QR
+// code that will never resolve.
+//
+// The old version also migrated anonymous install_records onto the account in
+// this transaction. That table is gone with the payment rewrite — an
+// activation request now requires a signed-in account, so there is no
+// pre-sign-in history left to move — but the install id the ticket carried is
+// still recorded on the account, because it is what ties a machine to the
+// person who bought for it.
 func (s *Store) CompleteAuthSession(ctx context.Context, ticket, openID, unionID, nickname, avatar, installID string) (store.Account, error) {
 	var result store.Account
 	now := time.Now().UTC()
@@ -212,7 +208,7 @@ func (s *Store) CompleteAuthSession(ctx context.Context, ticket, openID, unionID
 		if rowInst != "" && installID == "" {
 			// The session knows which anonymous identity started this; a caller
 			// that supplies none must not be allowed to adopt a stranger's
-			// history.
+			// identity.
 			installID = rowInst
 		}
 
@@ -229,10 +225,6 @@ func (s *Store) CompleteAuthSession(ctx context.Context, ticket, openID, unionID
 		// changed the state through a path that bypassed the lock.
 		if err := conflictWhenUnchanged("complete auth session: authorize", nil, tag.RowsAffected()); err != nil {
 			return err
-		}
-
-		if _, err := tx.Exec(ctx, adoptInstallRecordsSQL, installID, acct.ID); err != nil {
-			return wrap("complete auth session: adopt anonymous history", err)
 		}
 
 		result = acct
@@ -266,37 +258,87 @@ func (s *Store) GetAccount(ctx context.Context, id store.ID) (store.Account, err
 }
 
 // ---------------------------------------------------------------------------
-// Device sessions and token rotation
+// The token chain — one live session per account.
+//
+// The sessions and refresh_tokens tables are gone. The chain now lives in four
+// columns on the accounts row, and the consequences are deliberate:
+//
+//   - CreateSession is an UPDATE, not an INSERT. A second sign-in replaces
+//     the first account-wide, which is the machine-change path the seller
+//     answers with a reissue.
+//   - Rotation keeps the replaced hash for one generation. Presenting it
+//     again is the reuse signal, and the caller's answer — revoke the whole
+//     chain — is unchanged.
+//   - Session.ID is the account id: there is no second row to name. The
+//     access token still carries its own session id claim, minted per issue,
+//     and nothing downstream reads the stored one.
 // ---------------------------------------------------------------------------
 
 const createSessionSQL = `
-	INSERT INTO sessions (id, account_id, device_id, chain_id, access_token_hash, access_expires_at, revoked_at, created_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+	UPDATE accounts
+	SET refresh_token_hash = $2, prev_refresh_token_hash = NULL,
+	    refresh_expires_at = $3, chain_id = $4, session_revoked_at = NULL
+	WHERE id = $1`
 
-const getSessionByRefreshSQL = `
-	SELECT s.id, s.account_id, s.device_id, s.access_token_hash, s.access_expires_at,
-	       r.token_hash, r.expires_at, s.chain_id, s.revoked_at, s.created_at
-	FROM refresh_tokens r
-	JOIN sessions s ON s.id = r.session_id
-	WHERE r.token_hash = $1`
+// sessionColumns is the token-chain projection. It serves both the unlocked
+// lookup and the locked rotation read, so both see identical state.
+const sessionColumns = `
+	id, chain_id, refresh_token_hash, prev_refresh_token_hash,
+	refresh_expires_at, session_revoked_at`
+
+// sessionMatchSQL resolves a presented refresh hash against the live session
+// and against the one generation before it. The second arm is what lets a
+// replay reach the caller's revocation path instead of looking like an
+// unknown token.
+const sessionMatchSQL = `
+	SELECT ` + sessionColumns + `
+	FROM accounts
+	WHERE refresh_token_hash = $1 OR prev_refresh_token_hash = $1`
+
+const sessionMatchForUpdateSQL = sessionMatchSQL + `
+	FOR UPDATE`
+
+// rotateReplaceSQL is the conditional swap. The `refresh_token_hash = $1`
+// guard is redundant while the row is locked and deliberately not removed:
+// it is the line that keeps the rotation safe if the lock is ever replaced
+// with a snapshot read, and it is the line a reviewer greps for.
+const rotateReplaceSQL = `
+	UPDATE accounts
+	SET refresh_token_hash = $2, prev_refresh_token_hash = $1, refresh_expires_at = $4
+	WHERE id = $3 AND refresh_token_hash = $1 AND session_revoked_at IS NULL`
+
+const revokeChainSQL = `
+	UPDATE accounts SET session_revoked_at = $2
+	WHERE chain_id = $1 AND session_revoked_at IS NULL`
 
 // CreateSession stores a freshly minted device session. Only hashes are
 // written: the plaintext tokens exist in the response to the client and
 // nowhere else, so a database dump is not a set of credentials.
 func (s *Store) CreateSession(ctx context.Context, sess store.Session) error {
-	_, err := s.db.Exec(ctx, createSessionSQL,
-		sess.ID, sess.AccountID, sess.DeviceID, sess.ChainID,
-		sess.AccessTokenHash, utc(sess.AccessExpiresAt),
-		utcPtr(sess.RevokedAt), utc(sess.CreatedAt))
+	if sess.AccountID == "" {
+		return errors.New("postgres: create session: empty account id")
+	}
+	tag, err := s.db.Exec(ctx, createSessionSQL,
+		sess.AccountID, sess.RefreshTokenHash,
+		utc(sess.RefreshExpiresAt), sess.ChainID,
+	)
 	if err != nil {
 		return wrap("create session", err)
+	}
+	if tag.RowsAffected() == 0 {
+		// No such account. The caller minted tokens for an account that does
+		// not exist, which is a bug and not a race.
+		return store.ErrNotFound
 	}
 	return nil
 }
 
 // GetSessionByRefreshHash looks a session up by a presented refresh token.
 func (s *Store) GetSessionByRefreshHash(ctx context.Context, hash string) (store.Session, error) {
-	sess, err := scanSession(s.db.QueryRow(ctx, getSessionByRefreshSQL, hash))
+	if hash == "" {
+		return store.Session{}, store.ErrNotFound
+	}
+	sess, err := scanSession(s.db.QueryRow(ctx, sessionMatchSQL, hash), hash)
 	if err != nil {
 		return store.Session{}, notFound("get session by refresh hash", err)
 	}
@@ -305,7 +347,7 @@ func (s *Store) GetSessionByRefreshHash(ctx context.Context, hash string) (store
 
 // RotateRefresh exchanges a refresh token for a new pair.
 //
-// The whole exchange is one transaction over two locked rows. Presenting an
+// The whole exchange is one transaction over one locked row. Presenting an
 // already-consumed token is the signal that the chain is being replayed, and
 // the caller answers it by revoking the family — which is the difference
 // between an attacker's stolen token costing them one session and costing the
@@ -313,37 +355,7 @@ func (s *Store) GetSessionByRefreshHash(ctx context.Context, hash string) (store
 //
 // The replacement inherits the old token's expiry rather than receiving a new
 // one. Otherwise a client that refreshes every hour holds a chain alive
-// forever and "sign in again every thirty days" becomes "never".
-const (
-	rotateLockSQL = `
-		SELECT r.id, r.session_id, r.account_id, r.chain_id, r.device_id,
-		       r.expires_at, r.consumed_at,
-		       s.access_token_hash, s.access_expires_at, s.revoked_at, s.created_at
-		FROM refresh_tokens r
-		JOIN sessions s ON s.id = r.session_id
-		WHERE r.token_hash = $1
-		FOR UPDATE OF r, s`
-
-	// The `consumed_at IS NULL` guard is redundant while the rows are locked
-	// and deliberately not removed: it is the condition that makes the update
-	// safe if the lock is ever replaced with a snapshot read, and it is the
-	// line a reviewer greps for. Dropping a condition that is currently
-	// redundant is how refresh-token reuse detection quietly stops working.
-	rotateConsumeSQL = `
-		UPDATE refresh_tokens SET consumed_at = $2, rotated_to = $3
-		WHERE id = $1 AND consumed_at IS NULL`
-
-	rotateInsertSQL = `
-		INSERT INTO refresh_tokens (session_id, account_id, chain_id, device_id, token_hash, issued_at, expires_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id`
-
-	rotateAccessSQL = `
-		UPDATE sessions SET access_token_hash = $2, access_expires_at = $3
-		WHERE id = $1`
-)
-
-// RotateRefresh implements the rotation described above.
+// forever and "sign in again every ninety days" becomes "never".
 func (s *Store) RotateRefresh(ctx context.Context, oldHash, newHash, newAccessHash string, accessExpiresAt time.Time) (store.Session, store.RefreshOutcome, error) {
 	if oldHash == "" || newHash == "" || newAccessHash == "" {
 		return store.Session{}, store.RefreshExpired, errors.New("postgres: rotate refresh: empty token hash")
@@ -351,23 +363,18 @@ func (s *Store) RotateRefresh(ctx context.Context, oldHash, newHash, newAccessHa
 	now := time.Now().UTC()
 
 	var (
-		sess     store.Session
-		rotated  bool
+		sess    store.Session
+		rotated bool
 	)
 	err := s.inTx(ctx, func(tx pgx.Tx) error {
 		var (
-			oldID, sessionID, accountID, chainID, deviceID string
-			expiresAt                                      time.Time
-			consumedAt                                    pgtype.Timestamptz
-			revokedAt                                     pgtype.Timestamptz
-			accessHash                                    string
-			accessExpires                                 time.Time
-			createdAt                                     time.Time
+			accountID, chainID  string
+			currentHash, prevHash string
+			expiresAt           time.Time
+			revokedAt           pgtype.Timestamptz
 		)
-		err := tx.QueryRow(ctx, rotateLockSQL, oldHash).Scan(
-			&oldID, &sessionID, &accountID, &chainID, &deviceID,
-			&expiresAt, &consumedAt, &accessHash, &accessExpires,
-			&revokedAt, &createdAt,
+		err := tx.QueryRow(ctx, sessionMatchForUpdateSQL, oldHash).Scan(
+			&accountID, &chainID, &currentHash, &prevHash, &expiresAt, &revokedAt,
 		)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
@@ -381,26 +388,23 @@ func (s *Store) RotateRefresh(ctx context.Context, oldHash, newHash, newAccessHa
 		}
 
 		sess = store.Session{
-			ID:               sessionID,
+			ID:               accountID,
 			AccountID:        accountID,
-			DeviceID:         deviceID,
-			AccessTokenHash:  accessHash,
-			AccessExpiresAt:  utc(accessExpires),
 			RefreshTokenHash: oldHash,
 			RefreshExpiresAt: utc(expiresAt),
 			ChainID:          chainID,
 			RevokedAt:        nullTime(revokedAt),
-			CreatedAt:        utc(createdAt),
 		}
 
 		// The family was revoked: sign-out everywhere, or a theft response.
 		if sess.RevokedAt != nil {
 			return store.ErrConflict
 		}
-		// Already spent. This is the reuse signal and it is deliberately its
-		// own error rather than a flavour of ErrConflict, because the caller's
-		// response is to kill the whole chain, not to re-issue.
-		if consumedAt.Valid {
+		// Already spent — the presented hash is the one this chain replaced.
+		// This is the reuse signal and it is deliberately its own error rather
+		// than a flavour of ErrConflict, because the caller's response is to
+		// kill the whole chain, not to re-issue.
+		if prevHash != "" && oldHash == prevHash && oldHash != currentHash {
 			return store.ErrReuseDetected
 		}
 		// Expired. The client is told to re-authenticate; it is not an error,
@@ -409,27 +413,14 @@ func (s *Store) RotateRefresh(ctx context.Context, oldHash, newHash, newAccessHa
 			return nil
 		}
 
-		var newID string
-		if err := tx.QueryRow(ctx, rotateInsertSQL,
-			sessionID, accountID, chainID, deviceID, newHash, now, expiresAt,
-		).Scan(&newID); err != nil {
-			return wrap("rotate refresh: insert replacement", err)
-		}
-
-		tag, err := tx.Exec(ctx, rotateConsumeSQL, oldID, now, newID)
+		tag, err := tx.Exec(ctx, rotateReplaceSQL, oldHash, newHash, accountID, expiresAt)
 		if err != nil {
-			return wrap("rotate refresh: consume old token", err)
+			return wrap("rotate refresh: replace token", err)
 		}
-		if err := conflictWhenUnchanged("rotate refresh: consume old token", nil, tag.RowsAffected()); err != nil {
+		if err := conflictWhenUnchanged("rotate refresh: replace token", nil, tag.RowsAffected()); err != nil {
 			return err
 		}
 
-		if _, err := tx.Exec(ctx, rotateAccessSQL, sessionID, newAccessHash, utc(accessExpiresAt)); err != nil {
-			return wrap("rotate refresh: update access token", err)
-		}
-
-		sess.AccessTokenHash = newAccessHash
-		sess.AccessExpiresAt = utc(accessExpiresAt)
 		sess.RefreshTokenHash = newHash
 		rotated = true
 		return nil
@@ -459,106 +450,13 @@ func refreshOutcomeFor(err error) store.RefreshOutcome {
 	}
 }
 
-const revokeChainSessionSQL = `
-	UPDATE sessions SET revoked_at = $2
-	WHERE chain_id = $1 AND revoked_at IS NULL`
-
-const revokeChainTokenSQL = `
-	UPDATE refresh_tokens SET revoked_at = $2
-	WHERE chain_id = $1 AND revoked_at IS NULL`
-
-// RevokeChain kills every token descended from one sign-in.
+// RevokeChain kills every token descended from one sign-in. With one session
+// per account that is one row, and the statement is unchanged in shape from
+// the two-table version so the guarantee is the same.
 func (s *Store) RevokeChain(ctx context.Context, chainID string, at time.Time) error {
-	return s.inTx(ctx, func(tx pgx.Tx) error {
-		for _, q := range []string{revokeChainSessionSQL, revokeChainTokenSQL} {
-			if _, err := tx.Exec(ctx, q, chainID, utc(at)); err != nil {
-				return wrap("revoke chain", err)
-			}
-		}
-		return nil
-	})
-}
-
-// ---------------------------------------------------------------------------
-// Quota
-// ---------------------------------------------------------------------------
-
-const getQuotaSQL = `
-	SELECT account_id, used, quota_limit, reset_at
-	FROM quotas
-	WHERE account_id = $1`
-
-// consumeQuotaSQL is the hard stop, expressed as one statement.
-//
-// There is no read-then-write here and there must not be one: two concurrent
-// requests both reading `used = 97` of 100 and both spending 4 is how a
-// service sells 8 units of a service it priced for 3. The comparison happens
-// inside the UPDATE, so the row lock is the arbitration and the RETURNING
-// clause is the receipt.
-//
-// The CASE on reset_at rolls the window in the same breath. A request that
-// lands after the boundary starts from zero, and reset_at advances by
-// window_seconds — leaving it in the past would make every later request free,
-// which is the failure this guard exists to prevent.
-const consumeQuotaSQL = `
-	UPDATE quotas SET
-		used = CASE WHEN reset_at <= $2 THEN $3::bigint ELSE used + $3::bigint END,
-		reset_at = CASE WHEN reset_at <= $2
-		                THEN $2 + make_interval(secs => window_seconds)
-		                ELSE reset_at END
-	WHERE account_id = $1
-	  AND (CASE WHEN reset_at <= $2 THEN 0 ELSE used END) + $3::bigint <= quota_limit
-	RETURNING account_id, used, quota_limit, reset_at`
-
-// GetQuota reports the current window. A window that has already elapsed
-// reads as zero used, because that is what the next ConsumeQuota will charge
-// against, and a caller that shows the customer 100/100 for a window that is
-// over will not get unrated support.
-func (s *Store) GetQuota(ctx context.Context, accountID store.ID) (store.Quota, error) {
-	q, err := scanQuota(s.db.QueryRow(ctx, getQuotaSQL, accountID))
+	_, err := s.db.Exec(ctx, revokeChainSQL, chainID, utc(at))
 	if err != nil {
-		return store.Quota{}, notFound("get quota", err)
+		return wrap("revoke chain", err)
 	}
-	if !q.ResetAt.After(time.Now().UTC()) {
-		q.Used = 0
-	}
-	return q, nil
-}
-
-// ConsumeQuota spends units and returns the window as it now stands.
-func (s *Store) ConsumeQuota(ctx context.Context, accountID store.ID, units int64) (store.Quota, error) {
-	if units <= 0 {
-		// A zero or negative spend is either a caller bug or an attempt to
-		// move the counter backwards. Neither is worth a query.
-		return store.Quota{}, errors.New("postgres: consume quota: units must be positive")
-	}
-	q, err := scanQuota(s.db.QueryRow(ctx, consumeQuotaSQL, accountID, time.Now().UTC(), units))
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			// Either there is no quota row for this account or the spend would
-			// exceed the limit; the caller can tell them apart by reading
-			// GetQuota first, which it must do anyway to report the number.
-			return store.Quota{}, store.ErrConflict
-		}
-		return store.Quota{}, wrap("consume quota", err)
-	}
-	return q, nil
-}
-
-func scanQuota(row rowScanner) (store.Quota, error) {
-	var q store.Quota
-	if err := row.Scan(&q.AccountID, &q.Used, &q.Limit, &q.ResetAt); err != nil {
-		return store.Quota{}, err
-	}
-	q.ResetAt = utc(q.ResetAt)
-	return q, nil
-}
-
-// utcPtr normalises an optional instant for storage.
-func utcPtr(t *time.Time) *time.Time {
-	if t == nil {
-		return nil
-	}
-	v := t.UTC()
-	return &v
+	return nil
 }

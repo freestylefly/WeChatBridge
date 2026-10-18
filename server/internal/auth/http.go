@@ -64,7 +64,6 @@ func (s *Service) RegisterRoutes(r gin.IRouter) {
 	group.GET("/wechat/callback", s.handleCallback)
 
 	r.GET("/v1/account", s.RequireAuth(), s.handleAccount)
-	r.GET("/v1/quota", s.RequireAuth(), s.handleQuota)
 }
 
 // RequireAuth is the bearer middleware. It verifies the signature and the
@@ -360,28 +359,6 @@ func (s *Service) handleAccount(c *gin.Context) {
 		return
 	}
 	httpx.OK(c, http.StatusOK, toAccountDTO(account))
-}
-
-func (s *Service) handleQuota(c *gin.Context) {
-	accountID, ok := AccountIDFrom(c)
-	if !ok {
-		httpx.Fail(c, httpx.Unauthorized("缺少访问令牌。"))
-		return
-	}
-	quota, err := s.Quota(c.Request.Context(), accountID)
-	if err != nil {
-		httpx.Fail(c, httpx.FromStore(err))
-		return
-	}
-	var resetAt *stamp
-	if !quota.ResetAt.IsZero() {
-		resetAt = newStamp(quota.ResetAt)
-	}
-	httpx.OK(c, http.StatusOK, quotaDTO{
-		Used:    quota.Used,
-		Limit:   quota.Limit,
-		ResetAt: resetAt,
-	})
 }
 
 // renderQR is the one call into the encoder, so the size this service asks for

@@ -14,13 +14,16 @@ import (
 // migrations/0001_init.up.sql; renaming one there means renaming it here, and
 // a mismatch is a silent loss of error classification rather than a build
 // failure, which is why they live in one place.
+//
+// The orders, redeem_codes and refresh_tokens names are gone with the
+// payment rewrite; what is left is the sign-in path and the buy-out path.
 const (
-	constraintOrderOutTradeNo   = "orders_out_trade_no_key"
-	constraintRedeemCodeHash    = "redeem_codes_code_hash_key"
-	constraintAuthSessionTicket = "auth_sessions_pkey"
-	constraintRefreshTokenHash  = "refresh_tokens_token_hash_key"
-	constraintRedemptionRequest = "redemption_requests_pkey"
-	constraintAccountOpenID     = "accounts_open_id_key"
+	constraintActivationRequestPK = "activation_requests_pkey"
+	constraintLicenceBindingPK    = "licence_bindings_pkey"
+	constraintBindingLiveInstall  = "licence_bindings_live_idx"
+	constraintBindingLiveAccount  = "licence_bindings_live_account_idx"
+	constraintAuthSessionTicket   = "auth_sessions_pkey"
+	constraintAccountOpenID       = "accounts_open_id_key"
 )
 
 // PostgreSQL SQLSTATE codes this package distinguishes.
@@ -33,7 +36,7 @@ const (
 //
 // It is the only place pgx.ErrNoRows is matched. Everything else — a dropped
 // connection, a syntax error, a permission failure — keeps its own identity,
-// because "the database is down" and "that order does not exist" are answers
+// because "the database is down" and "that request does not exist" are answers
 // that must never be confused: the first is a page from the operator, the
 // second is an HTTP 404.
 func notFound(op string, err error) error {
@@ -49,7 +52,7 @@ func notFound(op string, err error) error {
 // the state the caller required, which is a different answer from "no such
 // row" and the caller is the only party that knows which of the two it is
 // looking at. It returns ErrConflict, and callers that need to tell the two
-// apart run a follow-up read first (see MarkPaid).
+// apart run a follow-up read first (see ConfirmActivationRequest).
 func conflictWhenUnchanged(op string, err error, affected int64) error {
 	if err != nil {
 		return wrap(op, err)
@@ -61,7 +64,7 @@ func conflictWhenUnchanged(op string, err error, affected int64) error {
 }
 
 // uniqueConflict classifies a unique-constraint violation that the caller has
-// declared meaningful — "another request already created this out_trade_no".
+// declared meaningful — "another sign-in already created this account".
 //
 // Only the named constraint becomes ErrConflict. A violation of any other
 // index, and every other driver error, comes back wrapped and intact: a code
@@ -84,15 +87,22 @@ func uniqueConflict(op, constraint string, err error) error {
 	return wrap(op, err)
 }
 
-// constraintViolated reports the name of the constraint a driver error names,
-// or "" when the error is not a constraint violation. It exists for the paths
-// where any constraint on a table is worth naming to the operator.
-func constraintViolated(err error) string {
+// bindingConflict classifies the three ways a licence binding insert can
+// collide: the same licence id written twice, or a second live binding for one
+// machine or for one account. All three mean the same thing to the caller —
+// somebody else got there first — and all three are the seller's to resolve,
+// because the two partial unique indexes are the machine-change policy in
+// schema form.
+func bindingConflict(op string, err error) error {
 	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		return pgErr.ConstraintName
+	if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
+		switch pgErr.ConstraintName {
+		case constraintLicenceBindingPK, constraintBindingLiveInstall, constraintBindingLiveAccount:
+			return store.ErrConflict
+		}
+		return wrap(op, fmt.Errorf("unique violation on %s: %w", pgErr.ConstraintName, err))
 	}
-	return ""
+	return wrap(op, err)
 }
 
 // wrap adds the operation's identity without ever adding a value. Every driver

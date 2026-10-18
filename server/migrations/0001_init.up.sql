@@ -14,26 +14,35 @@
 --     reports how many rows it touched, or a unique index. The application
 --     reads the row count; it never reads the row and then decides.
 --
---   * Tokens, redeem codes and licences are stored as *hashes*. The plaintext
---     never reaches this database, so a dump of it does not become a session,
---     a licence, or a customer list.
+--   * Tokens and licences are stored as *hashes* or as exact signed bytes.
+--     The plaintext refresh token never reaches this database, so a dump of
+--     it does not become a session; the licence envelope is stored as the
+--     bytes that were returned the first time, because ECDSA picks a random
+--     k and a re-sign would fork on the difference.
 --
 --   * Case-insensitive lookups are done with an index on `lower(col)` rather
 --     than the `citext` extension, deliberately: CREATE EXTENSION needs a
 --     superuser on most managed PostgreSQL, and a migration that fails at
---     deploy time is worse than an extra index. The one column whose case
---     genuinely varies — the redeem code hash, which arrives through email
---     and support chat — is stored verbatim and compared case-insensitively.
+--     deploy time is worse than an extra index.
 --
 --   * CHECK constraints encode the invariants that are expensive to get wrong
 --     under concurrency. Each one says in a comment why it exists, because a
 --     constraint nobody understands is a constraint somebody eventually
 --     removes.
-
-BEGIN;
+--
+-- This file was rewritten in place by the buy-out convergence
+-- (docs/design/buyout-flow-convergence.zh-CN.md): the payment tables —
+-- orders, redeem_codes, redemption_requests, qr_payloads, quotas, sessions,
+-- refresh_tokens, install_records — are gone, and the token chain moved onto
+-- the accounts row. No deployment of the previous shape ever existed (the
+-- service had no entrypoint), so there is no data to carry forward.
+--
+-- No BEGIN/COMMIT here: internal/migrate wraps each file in its own
+-- transaction together with the bookkeeping row, so a crash mid-migration
+-- leaves the file unapplied rather than half-applied.
 
 -- ---------------------------------------------------------------------------
--- accounts — one row per WeChat identity.
+-- accounts — one row per WeChat identity, and its one live token session.
 -- ---------------------------------------------------------------------------
 CREATE TABLE accounts (
     id            text        PRIMARY KEY DEFAULT gen_random_uuid()::text,
@@ -47,6 +56,17 @@ CREATE TABLE accounts (
     created_at    timestamptz NOT NULL DEFAULT now(),
     last_login_at timestamptz NOT NULL DEFAULT now(),
 
+    -- The token chain. One live session per account: the refresh token's
+    -- hash, the hash it replaced (whose reappearance is the reuse signal),
+    -- the expiry the replacement inherits, the chain it belongs to, and the
+    -- family kill switch. A second sign-in overwrites the slot, which is the
+    -- machine-change path — see store.Session.
+    refresh_token_hash      text,
+    prev_refresh_token_hash text,
+    refresh_expires_at      timestamptz,
+    chain_id                text,
+    session_revoked_at      timestamptz,
+
     CONSTRAINT accounts_plan_check
         CHECK (plan IN ('free', 'buyout', 'subscription'))
 );
@@ -57,15 +77,29 @@ CREATE TABLE accounts (
 CREATE UNIQUE INDEX accounts_open_id_key ON accounts (open_id);
 
 -- union_id ties the same human across the website app, the mini programme and
--- the official account. It is NULL more often than not (only accounts bound to
--- an open platform account have one) and empty strings mean "unknown" too, so
--- a partial index is the only thing that does not collapse every unbound
+-- the official account. It is NULL more often than not (only accounts bound
+-- to an open platform account have one) and empty strings mean "unknown" too,
+-- so a partial index is the only thing that does not collapse every unbound
 -- account onto one value. Empty is normalised to NULL by the application.
 CREATE UNIQUE INDEX accounts_union_id_key
     ON accounts (union_id)
     WHERE union_id IS NOT NULL AND union_id <> '';
 
 CREATE INDEX accounts_install_id_idx ON accounts (install_id) WHERE install_id IS NOT NULL;
+
+-- The refresh token's hash is the lookup key for every refresh call, so it
+-- carries a unique index: two accounts resolving the same presented token is
+-- a state the rotation logic must never have to disambiguate.
+CREATE UNIQUE INDEX accounts_refresh_token_hash_key
+    ON accounts (refresh_token_hash)
+    WHERE refresh_token_hash IS NOT NULL;
+
+-- The replaced hash is not unique: it is only ever compared against the
+-- presented token, and a collision with another account's live hash is a
+-- SHA-256 collision, not a state.
+CREATE INDEX accounts_prev_refresh_token_hash_idx
+    ON accounts (prev_refresh_token_hash)
+    WHERE prev_refresh_token_hash IS NOT NULL;
 
 -- ---------------------------------------------------------------------------
 -- auth_sessions — one QR sign-in in flight.
@@ -98,284 +132,90 @@ CREATE INDEX auth_sessions_expires_at_idx ON auth_sessions (expires_at);
 CREATE INDEX auth_sessions_install_id_idx ON auth_sessions (install_id);
 
 -- ---------------------------------------------------------------------------
--- sessions + refresh_tokens — one signed-in device, and its token family.
+-- activation_requests — one purchase registration, and the seller's answer.
+--
+-- This table replaces orders + redemption_requests + redeem_codes. The whole
+-- payment state machine collapsed into one status column because the only
+-- state transition left is a person pressing a button after checking WeChat's
+-- own ledger.
 -- ---------------------------------------------------------------------------
-CREATE TABLE sessions (
-    id                text        PRIMARY KEY DEFAULT gen_random_uuid()::text,
-    account_id        text        NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
-    device_id         text        NOT NULL DEFAULT '',
-    chain_id          text        NOT NULL,
-    access_token_hash text        NOT NULL,
-    access_expires_at timestamptz NOT NULL,
-    revoked_at        timestamptz,
-    created_at        timestamptz NOT NULL DEFAULT now(),
-
-    -- An access token that resolves to two sessions would let one device read
-    -- as another; the hash is the only thing that looks the token up.
-    CONSTRAINT sessions_access_token_hash_key UNIQUE (access_token_hash),
-
-    -- A row with no chain cannot be revoked as a family, which is the one
-    -- operation that reuse detection depends on.
-    CONSTRAINT sessions_chain_id_check CHECK (chain_id <> '')
-);
-
-CREATE INDEX sessions_chain_id_idx  ON sessions (chain_id);
-CREATE INDEX sessions_account_id_idx ON sessions (account_id);
-
-CREATE TABLE refresh_tokens (
-    id          text        PRIMARY KEY DEFAULT gen_random_uuid()::text,
-    session_id  text        NOT NULL REFERENCES sessions (id) ON DELETE CASCADE,
-    account_id  text        NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
-    chain_id    text        NOT NULL,
-    token_hash  text        NOT NULL,
-    device_id   text        NOT NULL DEFAULT '',
-    issued_at   timestamptz NOT NULL DEFAULT now(),
-    expires_at  timestamptz NOT NULL,
-    consumed_at timestamptz,
-    rotated_to  text        REFERENCES refresh_tokens (id) ON DELETE SET NULL,
-    revoked_at  timestamptz,
-
-    -- Rotation writes consumed_at and rotated_to together, so "consumed but we
-    -- do not know what replaced it" is not a state this table can be in. That
-    -- matters for the audit that reuse detection is: the chain has to be
-    -- walkable forwards from any consumed token.
-    CONSTRAINT refresh_tokens_consumption_is_complete
-        CHECK (consumed_at IS NULL OR rotated_to IS NOT NULL),
-
-    -- Rotation carries the old expiry forward instead of issuing a fresh one.
-    -- Without that rule a client that refreshes every hour holds a chain alive
-    -- forever, which turns "30 days to sign in again" into "never".
-    CONSTRAINT refresh_tokens_expires_after_issue
-        CHECK (expires_at >= issued_at)
-);
-
-CREATE UNIQUE INDEX refresh_tokens_token_hash_key ON refresh_tokens (token_hash);
-CREATE INDEX refresh_tokens_chain_id_idx ON refresh_tokens (chain_id);
-CREATE INDEX refresh_tokens_live_idx
-    ON refresh_tokens (chain_id)
-    WHERE consumed_at IS NULL AND revoked_at IS NULL;
-
--- ---------------------------------------------------------------------------
--- quotas — the server-side meter that keeps LLM costs bounded.
--- ---------------------------------------------------------------------------
-CREATE TABLE quotas (
-    account_id      text        PRIMARY KEY REFERENCES accounts (id) ON DELETE CASCADE,
-    used            bigint      NOT NULL DEFAULT 0,
-    quota_limit     bigint      NOT NULL,
-    reset_at        timestamptz NOT NULL,
-
-    -- The length of one metering window. It lives in the table rather than in
-    -- configuration because ConsumeQuota is the only thing that rolls a
-    -- window over, and a window that cannot describe its own length cannot be
-    -- rolled over: leaving reset_at in the past would make every subsequent
-    -- request start from zero, which is unlimited free use.
-    window_seconds  bigint      NOT NULL DEFAULT 2592000,
-
-    CONSTRAINT quotas_used_check  CHECK (used >= 0),
-    CONSTRAINT quotas_limit_check CHECK (quota_limit >= 0),
-    CONSTRAINT quotas_window_check CHECK (window_seconds > 0),
-
-    -- The hard stop. ConsumeQuota only ever succeeds with
-    -- `used + units <= quota_limit` in the same UPDATE, so this constraint is
-    -- what makes "the database cannot oversell" a fact about the data rather
-    -- than a fact about a particular code path. Raising a plan's allowance is
-    -- a matter of raising quota_limit above the current used count.
-    CONSTRAINT quotas_within_limit CHECK (used <= quota_limit)
-);
-
--- ---------------------------------------------------------------------------
--- redeem_codes — the buy-out product's only online path.
--- ---------------------------------------------------------------------------
-CREATE TABLE redeem_codes (
-    id                  text        PRIMARY KEY DEFAULT gen_random_uuid()::text,
-    code_hash           text        NOT NULL,
-    product_id          text        NOT NULL DEFAULT '',
-    plan                text        NOT NULL,
-    lifetime_seconds    bigint      NOT NULL DEFAULT 0,
-    issued_at           timestamptz NOT NULL DEFAULT now(),
-    -- A perpetual buy-out licence has no expiry; such a code carries the
-    -- maximum timestamp (9999-12-31T00:00:00Z) rather than NULL, because the
-    -- field is a plain time.Time in the domain type and a NULL here would
-    -- have to mean two different things to two different readers.
-    expires_at          timestamptz NOT NULL,
-    redeemed_at         timestamptz,
-    redeemed_install_id text,
-    license_id          text,
-    revoked_at          timestamptz,
-
-    CONSTRAINT redeem_codes_plan_check
-        CHECK (plan IN ('free', 'buyout', 'subscription')),
-    CONSTRAINT redeem_codes_lifetime_check CHECK (lifetime_seconds >= 0),
-    CONSTRAINT redeem_codes_hash_not_blank CHECK (code_hash <> ''),
-
-    -- The reason BurnRedeemCode is a transaction. A code that is burnt without
-    -- naming the install id cannot be attributed to anybody, and a code that is
-    -- burnt without a licence id has destroyed the customer's entitlement: the
-    -- row says "spent" and nobody can say what they bought. The flip and both
-    -- payloads are written together, so this constraint states that they are
-    -- one fact, not three.
-    CONSTRAINT redeem_codes_burn_is_complete
-        CHECK (redeemed_at IS NULL
-               OR (redeemed_install_id IS NOT NULL AND license_id IS NOT NULL)),
-
-    -- Support answers "was my code cancelled?" with this column, not with a
-    -- guess — and a cancellation dated before the code existed is a bug in
-    -- whatever wrote it, not something to store.
-    CONSTRAINT redeem_codes_revocation_is_dated
-        CHECK (revoked_at IS NULL OR revoked_at >= issued_at)
-);
-
--- Case-insensitive on purpose. The hash is a hex digest, and a code that
--- arrives by mail, by chat and by hand-typed support ticket is normalised
--- differently every time; matching on lower() means the case nobody agreed on
--- cannot turn a valid code into "not found".
-CREATE UNIQUE INDEX redeem_codes_code_hash_key ON redeem_codes (lower(code_hash));
-
--- ---------------------------------------------------------------------------
--- redemption_requests — one user gesture, one code, one answer.
--- ---------------------------------------------------------------------------
-CREATE TABLE redemption_requests (
-    request_id text        PRIMARY KEY,
-    code_hash  text        NOT NULL,
-    license_id text        NOT NULL,
-
+CREATE TABLE activation_requests (
+    request_id    text        PRIMARY KEY,
+    account_id    text        NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    install_id    text        NOT NULL,
+    anchor_digest text        NOT NULL DEFAULT '',
+    -- Advisory: what the buyer says they were asked to pay. NULL means the
+    -- buyer did not say, which is a normal answer and not a missing field.
+    amount_fen    bigint,
+    status        text        NOT NULL DEFAULT 'pending',
     -- bytea, not jsonb, and that is the whole point: jsonb reorders keys,
     -- drops duplicates and normalises numbers, so storing the envelope as
     -- jsonb would make "the bytes we returned the first time" a different
     -- value every time it was read back. The signature is the product.
-    envelope_json bytea     NOT NULL,
-    created_at    timestamptz NOT NULL DEFAULT now()
+    envelope_json bytea,
+    license_id    text        NOT NULL DEFAULT '',
+    created_at    timestamptz NOT NULL DEFAULT now(),
+    confirmed_at  timestamptz,
+
+    CONSTRAINT activation_requests_status_check
+        CHECK (status IN ('pending', 'confirmed', 'rejected')),
+    CONSTRAINT activation_requests_install_not_blank CHECK (install_id <> ''),
+    CONSTRAINT activation_requests_amount_check CHECK (amount_fen IS NULL OR amount_fen >= 0),
+
+    -- "Confirmed" is a claim about three columns at once: the seller acted,
+    -- at a known time, and a licence came out of it. A row that says
+    -- confirmed while any of the three is missing is a buyer whose poller
+    -- will wait forever for a token that does not exist.
+    CONSTRAINT activation_requests_confirmed_is_complete
+        CHECK (status <> 'confirmed'
+               OR (confirmed_at IS NOT NULL AND license_id <> ''))
 );
 
--- No foreign key to redeem_codes.code_hash on purpose: that key is indexed as
--- lower(code_hash), which cannot carry a referential constraint, and a
--- redemption request must outlive any cleanup of burnt codes. The licence id
--- here is the durable link.
-CREATE INDEX redemption_requests_code_hash_idx ON redemption_requests (lower(code_hash));
-CREATE INDEX redemption_requests_created_at_idx ON redemption_requests (created_at);
-
--- ---------------------------------------------------------------------------
--- orders — one purchase attempt.
--- ---------------------------------------------------------------------------
-CREATE TABLE orders (
-    id               text        PRIMARY KEY DEFAULT gen_random_uuid()::text,
-    -- Ours, not WeChat's, and generated by us in upper case. The unique index
-    -- on it is what stops a retry from creating a second order for one
-    -- checkout and sending the customer two QR codes for one price.
-    out_trade_no     text        NOT NULL,
-    product_id       text        NOT NULL DEFAULT '',
-    plan             text        NOT NULL,
-    amount_fen       bigint      NOT NULL,
-    currency         text        NOT NULL DEFAULT 'CNY',
-    status           text        NOT NULL DEFAULT 'pending',
-    account_id       text        NOT NULL REFERENCES accounts (id) ON DELETE RESTRICT,
-    code_url         text        NOT NULL DEFAULT '',
-    created_at       timestamptz NOT NULL DEFAULT now(),
-    expires_at       timestamptz NOT NULL,
-    paid_at          timestamptz,
-    transaction_id   text        NOT NULL DEFAULT '',
-    license_id       text        NOT NULL DEFAULT '',
-    license_key      text        NOT NULL DEFAULT '',
-    license_envelope bytea,
-
-    CONSTRAINT orders_plan_check   CHECK (plan IN ('free', 'buyout', 'subscription')),
-    CONSTRAINT orders_status_check CHECK (status IN ('pending', 'paid', 'closed', 'refunded')),
-    -- Money is in fen, integer minor units, never a float. A negative amount is
-    -- a refund path that does not exist in this table.
-    CONSTRAINT orders_amount_check  CHECK (amount_fen >= 0),
-    -- "paid" with no payment reference is the exact row a chargeback cannot be
-    -- settled against, and a callback that sets it without a transaction id is
-    -- a forgery rather than bookkeeping. MarkPaid is conditional on
-    -- status='pending', and this constraint is the backstop that says a paid
-    -- order is always evidenced.
-    CONSTRAINT orders_paid_is_evidenced
-        CHECK (status <> 'paid' OR (paid_at IS NOT NULL AND transaction_id <> '')),
-
-    -- IssueOrderLicense writes all three licence columns or none, so "this
-    -- order has an envelope" and "this order has a licence id" cannot
-    -- disagree.
-    CONSTRAINT orders_license_is_all_or_nothing
-        CHECK ((license_id = '') = (license_envelope IS NULL))
-);
-
-CREATE UNIQUE INDEX orders_out_trade_no_key ON orders (out_trade_no);
-CREATE UNIQUE INDEX orders_transaction_id_key
-    ON orders (transaction_id)
-    WHERE transaction_id <> '';
-CREATE INDEX orders_account_status_idx ON orders (account_id, status);
-CREATE INDEX orders_pending_expiry_idx ON orders (expires_at) WHERE status = 'pending';
+-- The buyer's poller reads their own latest request; the console's list reads
+-- by status. Both are "recent first", so the index carries the sort.
+CREATE INDEX activation_requests_account_idx
+    ON activation_requests (account_id, created_at DESC);
+CREATE INDEX activation_requests_status_idx
+    ON activation_requests (status, created_at DESC);
 
 -- ---------------------------------------------------------------------------
 -- licence_bindings — which machines a licence is pinned to.
+--
+-- The order_id foreign key is gone with the orders table; what ties a binding
+-- to its purchase now is request_id, and what ties it to a person is
+-- account_id. The two partial unique indexes are the machine-change policy in
+-- schema form: one live licence per machine, one live licence per account.
 -- ---------------------------------------------------------------------------
 CREATE TABLE licence_bindings (
-    id           text        PRIMARY KEY DEFAULT gen_random_uuid()::text,
-    order_id     text        NOT NULL REFERENCES orders (id) ON DELETE CASCADE,
-    install_id   text        NOT NULL,
-    plan         text        NOT NULL DEFAULT 'buyout',
-    bound_at     timestamptz NOT NULL DEFAULT now(),
-    last_seen_at timestamptz NOT NULL DEFAULT now(),
-    released_at  timestamptz,
+    license_id  text        PRIMARY KEY,
+    install_id  text        NOT NULL,
+    account_id  text        NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    request_id  text,
+    issued_at   timestamptz NOT NULL DEFAULT now(),
+    revoked_at  timestamptz,
 
-    CONSTRAINT licence_bindings_plan_check
-        CHECK (plan IN ('free', 'buyout', 'subscription')),
-
-    -- One row per machine per order, which is what makes "releasing" a state
-    -- change on the same row rather than a delete followed by an insert. A
-    -- delete-and-insert history cannot answer "when did this machine first get
-    -- its licence", and support asks exactly that.
-    CONSTRAINT licence_bindings_order_install_key UNIQUE (order_id, install_id),
-
-    -- A live binding is one that has not been released. The partial index is
-    -- the slot count's only access path, so BindDevice's count is cheap enough
-    -- to run inside the transaction that holds the order lock.
-    CONSTRAINT licence_bindings_released_is_dated
-        CHECK (released_at IS NULL OR released_at >= bound_at)
+    -- A revocation dated before the licence existed is a bug in whatever
+    -- wrote it, not something to store.
+    CONSTRAINT licence_bindings_revoked_is_dated
+        CHECK (revoked_at IS NULL OR revoked_at >= issued_at)
 );
 
-CREATE INDEX licence_bindings_live_idx
-    ON licence_bindings (order_id)
-    WHERE released_at IS NULL;
-CREATE INDEX licence_bindings_install_id_idx ON licence_bindings (install_id);
+-- One live binding per machine. A reissue revokes the old row and inserts the
+-- new one in the same transaction, so this index never sees two live rows for
+-- one install id — and a confirm that would create the second one is the
+-- machine-change case the seller must answer with a reissue, not a second
+-- licence.
+CREATE UNIQUE INDEX licence_bindings_live_idx
+    ON licence_bindings (install_id)
+    WHERE revoked_at IS NULL;
 
--- ---------------------------------------------------------------------------
--- install_records — what the client did before it had an account.
--- ---------------------------------------------------------------------------
--- Anonymous history is the reason CompleteAuthSession has to be a transaction.
--- A person buys a licence on Tuesday and only signs in on Thursday; when they
--- do, every record still carrying the anonymous install id has to move onto
--- the account, in the same transaction that marks the ticket used. Splitting
--- that in two is the "I paid and my history vanished" bug, and it is not
--- recoverable afterwards — the anonymous rows have no other owner.
-CREATE TABLE install_records (
-    id         text        PRIMARY KEY DEFAULT gen_random_uuid()::text,
-    install_id text        NOT NULL,
-    account_id text        REFERENCES accounts (id) ON DELETE CASCADE,
-    kind       text        NOT NULL,
-    payload    jsonb       NOT NULL DEFAULT '{}'::jsonb,
-    created_at timestamptz NOT NULL DEFAULT now()
-);
+-- One live binding per account: paying twice is a new purchase, and a second
+-- machine for one buyer is a reissue. Both are seller decisions, which means
+-- neither is something the schema should allow to happen silently.
+CREATE UNIQUE INDEX licence_bindings_live_account_idx
+    ON licence_bindings (account_id)
+    WHERE revoked_at IS NULL;
 
-CREATE INDEX install_records_install_id_idx ON install_records (install_id, created_at);
-CREATE INDEX install_records_account_id_idx
-    ON install_records (account_id)
-    WHERE account_id IS NOT NULL;
-
--- ---------------------------------------------------------------------------
--- qr_payloads — the cache between "render a code" and "the user acts on it".
--- ---------------------------------------------------------------------------
-CREATE TABLE qr_payloads (
-    kind text        NOT NULL,
-    ref  text        NOT NULL,
-    body text        NOT NULL,
-    at   timestamptz NOT NULL DEFAULT now(),
-
-    -- The composite key is the cache's identity: a "login" ref and a "pay" ref
-    -- may hold the same opaque string without colliding.
-    CONSTRAINT qr_payloads_pkey PRIMARY KEY (kind, ref),
-    CONSTRAINT qr_payloads_kind_check CHECK (kind IN ('login', 'pay'))
-);
-
-CREATE INDEX qr_payloads_at_idx ON qr_payloads (at);
-
-COMMIT;
+-- The ledger page reads "everything this account holds, newest first".
+CREATE INDEX licence_bindings_account_idx
+    ON licence_bindings (account_id, issued_at DESC);

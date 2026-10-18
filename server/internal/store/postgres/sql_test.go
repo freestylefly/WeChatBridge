@@ -20,54 +20,6 @@ func TestCriticalSQL(t *testing.T) {
 		must []string
 	}{
 		{
-			name: "burn redeem code is conditional on being unspent and unrevoked",
-			sql:  burnRedeemCodeSQL,
-			must: []string{
-				"UPDATE redeem_codes",
-				"redeemed_at IS NULL",
-				"revoked_at IS NULL",
-				// The flip and its two payloads must be one statement; the
-				// schema's CHECK would reject them apart, which is the point.
-				"redeemed_install_id",
-				"license_id",
-			},
-		},
-		{
-			name: "rotation only consumes a token that is not already consumed",
-			sql:  rotateConsumeSQL,
-			must: []string{"consumed_at IS NULL", "rotated_to"},
-		},
-		{
-			name: "rotation locks the token and its session",
-			sql:  rotateLockSQL,
-			must: []string{"FOR UPDATE OF r, s", "consumed_at"},
-		},
-		{
-			name: "a replacement refresh token inherits the old expiry",
-			sql:  rotateInsertSQL,
-			must: []string{"expires_at", "chain_id"},
-		},
-		{
-			name: "marking an order paid is conditional on it still being pending",
-			sql:  markPaidSQL,
-			must: []string{"status = 'pending'", "paid_at", "transaction_id", "RETURNING"},
-		},
-		{
-			name: "closing an order only works while it is pending",
-			sql:  closeOrderSQL,
-			must: []string{"status = 'pending'"},
-		},
-		{
-			name: "a licence is issued once",
-			sql:  issueLicenseInsertSQL,
-			must: []string{"license_envelope IS NULL"},
-		},
-		{
-			name: "quota cannot be oversold",
-			sql:  consumeQuotaSQL,
-			must: []string{"quota_limit", "<=", "RETURNING", "used"},
-		},
-		{
 			name: "sign-in never demotes a paying customer",
 			sql:  upsertAccountSQL,
 			// plan appears only in the INSERT column list; if it turns up in
@@ -75,39 +27,58 @@ func TestCriticalSQL(t *testing.T) {
 			must: []string{"ON CONFLICT (open_id) DO UPDATE", "last_login_at"},
 		},
 		{
-			name: "anonymous history is only claimed by whoever still owns it",
-			sql:  adoptInstallRecordsSQL,
-			must: []string{"account_id IS NULL"},
-		},
-		{
 			name: "completing a ticket is conditional on it being pending",
 			sql:  markAuthSessionAuthorizedSQL,
 			must: []string{"state = 'pending'", "state = 'authorized'", "account_id"},
 		},
 		{
-			name: "a binding is taken by reviving the row, not by adding one",
-			sql:  bindDeviceSQL,
-			must: []string{"ON CONFLICT (order_id, install_id) DO UPDATE", "released_at = NULL"},
-		},
-		{
-			name: "the slot count ignores released machines and the machine itself",
-			sql:  countLiveBindingsSQL,
-			must: []string{"released_at IS NULL", "install_id <> $2"},
-		},
-		{
-			name: "binding serialises on the order row",
-			sql:  lockOrderForBindingSQL,
+			name: "the ticket lock is a real lock",
+			sql:  lockAuthSessionSQL,
 			must: []string{"FOR UPDATE"},
 		},
 		{
-			name: "revoking a chain revokes the sessions and the tokens",
-			sql:  revokeChainSessionSQL,
-			must: []string{"chain_id = $1", "revoked_at = $2"},
+			name: "a replayed refresh token is still findable",
+			sql:  sessionMatchSQL,
+			// Without the second arm a replay looks like an unknown token and
+			// the revocation path never runs.
+			must: []string{"prev_refresh_token_hash = $1"},
 		},
 		{
-			name: "redeem codes are matched case-insensitively",
-			sql:  getRedeemCodeSQL,
-			must: []string{"lower(code_hash) = lower($1)"},
+			name: "rotation only replaces a token that is live and unrevoked",
+			sql:  rotateReplaceSQL,
+			must: []string{"refresh_token_hash = $1", "session_revoked_at IS NULL"},
+		},
+		{
+			name: "a confirmation is conditional on the request still being pending",
+			sql:  confirmFlipSQL,
+			// Two sellers, one button, one licence: the loser reads a conflict
+			// and re-reads the row rather than minting a second time.
+			must: []string{"status = 'pending'", "status = 'confirmed'", "license_id = $2"},
+		},
+		{
+			name: "a reissue retires the old binding before installing the new one",
+			sql:  reissueRetireSQL,
+			must: []string{"revoked_at IS NULL", "RETURNING account_id"},
+		},
+		{
+			name: "revoking only touches a binding that is still live",
+			sql:  revokeBindingSQL,
+			must: []string{"revoked_at IS NULL"},
+		},
+		{
+			name: "the console's list can ask for every state",
+			sql:  listActivationRequestsSQL,
+			must: []string{"$1 = '' OR r.status = $1"},
+		},
+		{
+			name: "the buyer's poller waits on the newest request",
+			sql:  latestActivationRequestSQL,
+			must: []string{"ORDER BY created_at DESC", "LIMIT 1"},
+		},
+		{
+			name: "the ledger reads every binding, newest first",
+			sql:  listBindingsSQL,
+			must: []string{"ORDER BY b.issued_at DESC"},
 		},
 	}
 
@@ -131,26 +102,29 @@ func TestCriticalSQL(t *testing.T) {
 // concatenation, and no test would otherwise notice.
 func TestNoStringBuiltSQL(t *testing.T) {
 	queries := map[string]string{
-		"burnRedeemCodeSQL":      burnRedeemCodeSQL,
-		"rotateLockSQL":          rotateLockSQL,
-		"rotateConsumeSQL":       rotateConsumeSQL,
-		"rotateInsertSQL":        rotateInsertSQL,
-		"rotateAccessSQL":        rotateAccessSQL,
-		"markPaidSQL":            markPaidSQL,
-		"closeOrderSQL":          closeOrderSQL,
-		"refundOrderSQL":         refundOrderSQL,
-		"issueLicenseInsertSQL":  issueLicenseInsertSQL,
-		"consumeQuotaSQL":        consumeQuotaSQL,
-		"upsertAccountSQL":       upsertAccountSQL,
-		"adoptInstallRecordsSQL": adoptInstallRecordsSQL,
-		"bindDeviceSQL":          bindDeviceSQL,
-		"countLiveBindingsSQL":   countLiveBindingsSQL,
-		"getRedeemCodeSQL":       getRedeemCodeSQL,
-		"getAuthSessionSQL":      getAuthSessionSQL,
-		"createOrderSQL":         createOrderSQL,
-		"getOrderSQL":            getOrderSQL,
-		"putQrSQL":               putQrSQL,
-		"getQrSQL":               getQrSQL,
+		"upsertAccountSQL":              upsertAccountSQL,
+		"createAuthSessionSQL":          createAuthSessionSQL,
+		"getAuthSessionSQL":             getAuthSessionSQL,
+		"lockAuthSessionSQL":            lockAuthSessionSQL,
+		"markAuthSessionAuthorizedSQL":  markAuthSessionAuthorizedSQL,
+		"getAccountSQL":                 getAccountSQL,
+		"createSessionSQL":              createSessionSQL,
+		"sessionMatchSQL":               sessionMatchSQL,
+		"rotateReplaceSQL":              rotateReplaceSQL,
+		"revokeChainSQL":                revokeChainSQL,
+		"createActivationRequestSQL":    createActivationRequestSQL,
+		"latestActivationRequestSQL":    latestActivationRequestSQL,
+		"getActivationRequestSQL":       getActivationRequestSQL,
+		"listActivationRequestsSQL":     listActivationRequestsSQL,
+		"confirmLockSQL":                confirmLockSQL,
+		"confirmInsertBindingSQL":       confirmInsertBindingSQL,
+		"confirmFlipSQL":                confirmFlipSQL,
+		"reissueRetireSQL":              reissueRetireSQL,
+		"reissuePendingSQL":             reissuePendingSQL,
+		"revokeBindingSQL":              revokeBindingSQL,
+		"bindingExistsSQL":              bindingExistsSQL,
+		"liveBindingSQL":                liveBindingSQL,
+		"listBindingsSQL":               listBindingsSQL,
 	}
 	for name, q := range queries {
 		for _, forbidden := range []string{"%s", "%v", "Sprintf"} {

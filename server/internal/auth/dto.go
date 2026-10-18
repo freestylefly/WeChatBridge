@@ -104,10 +104,3 @@ func toAccountDTO(a store.Account) *accountDTO {
 		WechatBound: a.WechatBound || a.OpenID != "",
 	}
 }
-
-// quotaDTO is GET /v1/quota.
-type quotaDTO struct {
-	Used    int64  `json:"used"`
-	Limit   int64  `json:"limit"`
-	ResetAt *stamp `json:"resetAt"`
-}
