@@ -101,11 +101,13 @@ When a permission is missing, the target app is not installed, or the paste fail
 | --- | --- | --- |
 | Approach | Reverse engineering and memory injection: hook WeChat, read the SQLCipher key, decrypt local `.db` files | Reuse WeChat's own select, package, and forward flow; deliver between apps with Accessibility and the clipboard |
 | Account risk | Injecting into the process trips risk-control heuristics and can get an account limited or banned | Indistinguishable from a manual forward, so no risk-control exposure |
-| Data scope | Once the key is extracted, every contact and group chat can be scanned silently | Only the messages you select in the UI, processed locally |
+| Data scope | Once the key is extracted, every contact and group chat can be scanned silently | Only the messages you select in the UI, processed locally, never uploaded |
 | Update resilience | Depends on memory offsets, so each WeChat release can break it | Independent of WeChat internals and keeps working after WeChat updates |
 | Workflow fit | Offline bulk export and archiving | Built for AI workflows, delivering prompts directly to Codex, Claude, Obsidian, and more |
 
 Conversation content only comes from files WeChat exports on your request. WeChatBridge does not read the WeChat database, does not decrypt data, and does not inject into WeChat. Share Extensions run in the macOS sandbox without network access. See [SECURITY.md](SECURITY.md) for details.
+
+These boundaries describe the perpetual edition, and the free tier we ship today is fully covered by them. The subscription edition reaches the network to use its cloud capabilities. It, too, keeps the conversation archive on your machine; what it uploads is only files you explicitly choose to hand to the cloud, listed before each upload.
 
 ## FAQ
 
