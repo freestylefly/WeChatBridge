@@ -19,8 +19,17 @@ public sealed class LicensingCanonicalPayloadTests
     /// The literal text the server and the client must both produce for
     /// <see cref="LicenseToken.CurrentSchemaVersion"/>. <c>\n</c> line endings, no trailing
     /// newline, 109 bytes.
+    /// <para>
+    /// <c>ReplaceLineEndings</c> is not decoration. This repository has no
+    /// <c>.gitattributes</c> and <c>core.autocrlf</c> is on, so a checkout on Windows
+    /// hands the compiler this literal with <c>\r\n</c> — and a raw string literal
+    /// keeps whatever the file has. The signature is still perfectly valid and every
+    /// field still parses; the client simply never agrees with the server. Normalising
+    /// here keeps the vector hand-written (still not generated from the implementation
+    /// under test) while making it independent of how it was checked out.
+    /// </para>
     /// </summary>
-    public const string SharedCanonicalVector = """
+    public static string SharedCanonicalVector { get; } = """
         wechatbridge.license.v1
         v=1
         sub=Zx8Kq3nT7pQ1mR4vW9yB0
@@ -29,7 +38,7 @@ public sealed class LicensingCanonicalPayloadTests
         nbf=-
         exp=-
         ent=EXPORT,SCENE
-        """;
+        """.ReplaceLineEndings("\n");
 
     /// <summary>
     /// SHA-256 of <see cref="SharedCanonicalVector"/>'s UTF-8 bytes, no trailing newline.

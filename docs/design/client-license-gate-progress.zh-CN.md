@@ -135,4 +135,63 @@ dotnet test    windows/WeChatBridge.Windows.sln -c Release
 
 # 网络命名空间门禁
 powershell -ExecutionPolicy Bypass -File windows/scripts/Test-NoNetworkCode.ps1 -Edition Perpetual
-```
+
+## 6. 校准（2026-10-18，追加，不改上文）
+
+本文 §1 的状态列写于 `4ce2420` 之后、`d48827f` 之前，未随该提交更新。核对代码后的实际状态：
+
+| # | 任务 | §1 记的 | 实际 |
+|---|---|---|---|
+| 10 | `AccountController` | ⬜ | ✅ `d48827f` |
+| 11 | `ActivationController` | ⬜ | ✅ `d48827f` |
+| 12 | 登录窗 | ⬜ | ✅ 已修好并编译通过，但**尚未提交** |
+| 14 | 机器码展示 | ⬜ | ⏳ `ActivationGateway` 已暴露 `InstallId` / `AnchorDigest`，UI 未做 |
+| 16 | `en.json` | ⬜ | ⬜ `扫码登录` / `登录二维码` / `正在获取二维码…` / `扫码链接` 四条均未进表 |
+| 17 | Core 单测 | ⬜ | ⬜ 无任何 `*Activation*Tests.cs` |
+| 18 | AppTests 注入 | ⬜ | ⬜ |
+
+其余 0–9 与 13/15/19 与 §1 一致。
+
+## 7. 编译修复记录（2026-10-18）
+
+登录窗带着三处编译错误进来，本机修掉后 build/test 全绿（Perpetual 497+45、
+Subscription 496+45、`Test-NoNetworkCode.ps1` 通过）：
+
+1. **`LoginWindow.xaml:49-56`** — Border 塞了 `QrImage` 与 `QrPlaceholder` 两个子元素，
+   WPF 的 Border 只接受一个。图片与占位文字本就要叠放切换，套一层 Grid。
+2. **`LoginWindow.xaml.cs:128`** — `BitmapFrame` 没有 `CanFree`。改成直接 `Freeze()`。
+3. **`LicensingCanonicalPayloadTests.SharedCanonicalVector`** — 见下，这条最值得记。
+
+### ⚠️ 钉死字节的向量不能直接放源文件字面量
+
+`TheClientProducesTheSharedVectorExactly` 红：期望含 `\r\n`，实际 `\n`。
+
+**不是生产代码的错。** 同文件的 `TheSharedVectorHasTheDocumentedShapeAndDigest` 用
+`Vector().Bytes`（生产输出）断言 109 字节与摘要 `0897d8…`，一直绿——证明生产端
+canonical 与 Go 侧钉死的摘要一致。
+
+真因是 `core.autocrlf=true` 且仓库**没有 `.gitattributes`**（`git ls-files --eol` 为
+`i/lf w/crlf`）。C# raw string literal 保留文件行尾，于是 Windows 检出的字面量每个
+换行都是 `\r\n`。
+
+这类失败最阴的地方：**签名照样完全有效、字段照样全解析、Pro 标记照样同时熄灭**，
+只是客户端和服务端永远差那一个字节。凡是钉字节的向量（许可证 canonical、兑换码
+归一化表、时间戳格式）都要防这一手——要么归一化，要么加 `.gitattributes` 强制
+`*.cs text eol=lf`（后者是仓库级决定，需与另两条分支协调）。
+
+### 更正 §1 任务 16 的一处误解
+
+§1 写「`LocalizationTests` 断言中英逐条对应」。**Windows 侧并没有这样的测试**——
+`LocalizationTests` 只把 `en.json` 跟它自己比对（校验复合格式占位符索引集合），
+不扫源码。`LayoutWiringTests` 虽然扫 `.cs`/`.xaml`，但只查 `LocalApplicationData` /
+`portable.flag` / `CoordinationSuffix` / `FirstRun.ps1` BOM。
+
+所以任务 16 漏掉新文案**不会打红 CI**，只会让英文用户看到中文。是真实功能缺口，
+但不会自己暴露——macOS 的 `check-localizations.swift` 才有源码扫描，那是 macOS 侧的事。
+
+### 仍未守住的边界（补测试时注意）
+
+§3「Core 不得出现任何网络类型」目前是守住的，但任务 17 一旦开始补测试：测试工程是
+`net10.0` 且只引用 Core，不要为了方便把 `HttpActivationTransport` 拖进来。
+
+看板 `docs/progress/client-license-gate.md` 已按此校准。
