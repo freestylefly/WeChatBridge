@@ -47,6 +47,16 @@ async function main() {
     await page.waitForSelector("#login-qr:not([hidden])", { timeout: 8000 });
     const qrSrc = await page.getAttribute("#login-qr", "src");
     check("二维码已加载（QR 端点）", /\/v1\/auth\/session\/[0-9a-f]+\/qr$/.test(qrSrc || ""), qrSrc);
+    // 上一条的正则只看结尾，拼接出一个 "http://hosthttps://host/..." 的废地址时
+    // 它照样通过——二维码其实是裂图，而状态栏还写着「等待微信扫码…」。
+    // 所以这里额外断言地址本身是良构的：只允许出现一次 scheme，且能解析。
+    // new URL 对垃圾输入是抛异常而不是返回 null，所以先做长度判断再构造。
+    const qrWellFormed = (qrSrc || "").split("://").length === 2 &&
+      (() => { try { return new URL(qrSrc).origin === MOCK; } catch (_) { return false; } })();
+    check("二维码地址良构（无重复 scheme）", qrWellFormed, qrSrc);
+    // 真正画出来才算加载成功：裂图的 naturalWidth 是 0。
+    check("二维码确实渲染出图像",
+      (await page.evaluate(() => document.getElementById("login-qr").naturalWidth)) > 0);
     check("登录状态提示等待扫码", (await page.textContent("#login-status")).includes("等待微信扫码"));
     check("安装标识已生成本地", /^wcbadmin-[0-9a-f]{32}$/.test(await page.textContent("#login-install-id")));
     await page.screenshot({ path: path.join(here, "shot-login.png") });

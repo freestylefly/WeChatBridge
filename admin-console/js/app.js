@@ -53,6 +53,16 @@
       " " + p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
   }
 
+  // 服务端给了绝对地址就用它的，给了相对地址才补 baseURL。两者不能无脑拼接：
+  // 把绝对地址接在 baseURL 后面会产出 "http://hosthttps://host/..." 这种废地址，
+  // <img> 取不到东西只会碎成裂图，而状态栏还停在「等待微信扫码…」——
+  // 卖家看到的是一张坏图和一个永远等下去的状态，没有任何线索。
+  function absoluteOrBase(url, base) {
+    var s = String(url == null ? "" : url);
+    if (/^https?:\/\//i.test(s)) return s;
+    return String(base || "").replace(/\/+$/, "") + s;
+  }
+
   function copyText(text) {
     function fallback() {
       var ta = document.createElement("textarea");
@@ -104,7 +114,11 @@
   // 任一会话内错误 → 三态之一。requestId 必须亮出来，那是服务端日志的钥匙。
   function reportError(scope, err) {
     if (err && err.name === "NetworkError") {
-      showToast("net", "网络错误：" + scope, err.message + "（请确认契约 mock 已启动、地址是否可在「设置」中修改）");
+      // 服务端没回话有三种原因：地址写错、服务没起、以及浏览器跨源拦截。
+      // 第三种最阴——开发者本机同源调试时永远不会遇到，只有卖家会撞上，
+      // 而卖家看到的只是一句「Failed to fetch」。所以这里要把跨源点出来。
+      showToast("net", "网络错误：" + scope, err.message +
+        "（请检查「设置」里的服务端地址；页面与服务端不同源时浏览器会拦截请求，需要服务端放行 CORS）");
     } else if (err && err.name === "ApiError") {
       var detail = "HTTP " + err.status + " · " + err.code + "：" + (err.message || "");
       if (err.requestId) detail += "（request_id: " + err.requestId + "）";
@@ -284,7 +298,8 @@
       var res = await api.auth.createSession(installId(), "admin-console");
       loginTicket = res.ticket;
       loginExpiresAt = Date.parse(res.expiresAt) || 0;
-      $("login-qr").src = api.baseURL + res.qrImageUrl;
+      // qrImageUrl 按契约是绝对地址：服务端假定客户端没有它自己的 origin 可拼。
+      $("login-qr").src = absoluteOrBase(res.qrImageUrl, api.baseURL);
       $("login-qr").hidden = false;
       $("login-qr-placeholder").hidden = true;
       $("login-authorize").href = res.authorizeUrl;
@@ -355,6 +370,16 @@
   }
 
   $("login-refresh").addEventListener("click", startLogin);
+
+  // 裂图是最难自查的故障：二维码区域显示着占位框以外的东西，状态却还是
+  // 「等待微信扫码…」，卖家只会一直等下去。这里把它变成看得见的失败。
+  $("login-qr").addEventListener("error", function () {
+    $("login-qr").hidden = true;
+    $("login-qr-placeholder").hidden = false;
+    $("login-qr-placeholder").textContent = "二维码加载失败，请点「刷新二维码」重试。";
+    setLoginStatus("二维码加载失败", { refresh: true });
+    stopLoginPolling();
+  });
 
   // ------------------------------------------------------------------
   // 会话存取（令牌只进 sessionStorage：关标签页即失效，不落盘）

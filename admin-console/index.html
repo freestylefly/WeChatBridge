@@ -163,8 +163,15 @@
   </div>
 
   <!-- 三态反馈：成功 / 失败 / 网络错误 -->
-  <div id="toast-root" class="toast-root" aria-live="polite"></div>
+  <!--
+    toast-root 放在两个视图之外（见文件末尾）。放在 #view-app 里时，登录阶段
+    整个 section 是 hidden 的，取二维码失败、网络不通这些恰恰发生在登录阶段的
+    提示一条也弹不出来，卖家只剩状态栏那半句话。
+  -->
 </section>
+
+<!-- 三态反馈容器：登录与应用两个视图共用，故置于视图之外。 -->
+<div id="toast-root" class="toast-root" aria-live="polite"></div>
 
 <noscript>本页面需要启用 JavaScript。</noscript>
 

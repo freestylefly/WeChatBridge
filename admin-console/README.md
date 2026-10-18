@@ -28,6 +28,12 @@ node server/mock/server.js --port 8901
 | 自动刷新间隔 | `js/config.js` 的 `autoRefreshMs` | 待确认列表轮询，默认 10 秒 |
 | 运行时覆盖 | 页面「设置」页 | 写本浏览器 localStorage，开发期在 mock / 真服务端间切换用；「恢复默认」即回到 config.js |
 
+**部署约束：页面必须与服务端同源。** 服务端目前不带任何 CORS 响应头
+（`internal/` 下无 CORS 中间件），`baseURL` 指向别的源时浏览器会在预检阶段
+拦掉全部请求，页面只会得到一句 `Failed to fetch`。要么让静态页与 API 同源部署，
+要么由服务端显式放行——**不要**为了图省事给管理接口开 `*` 通配 CORS。
+
+
 ## 功能
 
 - **扫码登录**：复用冻结的 auth 端点（建会话 → QR → 轮询 → 双令牌）。访问令牌只存
