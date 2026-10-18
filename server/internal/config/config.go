@@ -126,7 +126,7 @@ func Load() (Config, error) {
 		}
 	}
 
-	c.BuyoutProductID = env("WCB_BUYOUT_PRODUCT_ID", "windows-buyout")
+	c.BuyoutProductID = env("WCB_BUYOUT_PRODUCT_ID", "wechatbridge-windows-buyout")
 
 	if len(missing) > 0 {
 		return c, fmt.Errorf("config: missing %s: %s", plural(len(missing), "variable"), strings.Join(missing, ", "))

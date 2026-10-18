@@ -135,13 +135,16 @@ ShareTarget 从主程序 Link 了 10 个文件（XAML 选入口浮层等），�
 ### 服务端：许可证是唯一的信任根
 
 ```
-auth/    微信扫码登录（redirect 落在服务端，桌面进程永远拿不到 code）
-token/   access = HS256 JWT；refresh = 不透明 wcb1_ 串（自包含的 refresh 只能靠「不认」作废）
-license/ ECDSA P-256 签发，客户端只嵌 SPKI 公钥
-billing/ 微信支付 Native 下单（订阅形态）
-redeem/  兑换码（买断形态）
-store/   接口在 store.go，实现在 store/postgres
+auth/      微信扫码登录（redirect 落在服务端，桌面进程永远拿不到 code）
+token/     access = HS256 JWT；refresh = 不透明 wcb1_ 串（自包含的 refresh 只能靠「不认」作废）
+license/   ECDSA P-256 签发，客户端只嵌 SPKI 公钥
+activation/ 买断版客户侧三端点：登记 → 轮询 → 取票（无支付网关）
+admin/     卖家控制台（Bearer + OpenID 白名单）
+cmd/wcb/   唯一入口：装配、迁移执行、优雅关闭
+store/     接口在 store.go，实现在 store/postgres
 ```
+
+`billing/`（微信支付 Native）与 `redeem/`（兑换码）已随兑换码退役删除（`86abca3 [A-③]`）。买断版现在由卖家在后台人工核对微信付款后一键发证，客户端侧没有任何自助购买入口。
 
 **签名从不是对 JSON 文本签的**，而是对规范化后的 8 行字符串签（域分隔符 `wechatbridge.license.v1`，空段用 `-` 占位，**无尾随换行**）。ent 排序去重，因为 map 迭代或没写 ORDER BY 的 SELECT 每次返回顺序都不同。
 
@@ -193,13 +196,10 @@ git fetch --all --quiet && for b in server-convergence admin-console client-lice
 
 ## 已知缺口（别当成新 bug 去排查）
 
-- **`server/` 是纯库，没有 `main.go`、没有 `cmd/`、没有迁移执行器。** 全仓库找不到一个调用 `config.Load` / `postgres.New` / `RegisterRoutes` 的地方——服务现在起不来，装配是分支 A 的 A-⑦。
 - **`windows/src` 下不存在 `Cloud/`、`CloudQr/`、`Billing/` 目录。** 版本隔离机制全部建好并被 CI 守着，但订阅形态的源码还没有落地，所以 `Test-NoNetworkCode.ps1` 在 Subscription 下会打印 SKIPPED。
 - **`LicensePublicKeys.PlaceholderKeyV1` 是刻意的占位串**，不是忘了填。未替换前**每一张许可证都验不过**，`IsPro` 对所有用户恒为 false——这是 fail-closed 设计，不是 bug。填入服务端 SPKI 公钥是发版阻塞项。
-- **`server/mock/` 当前不在磁盘上**（在分支 A 上），`docs/design/` 里几处提到它的命令现在跑不通。
-- **服务端 `WCB_BUYOUT_PRODUCT_ID` 默认值 `windows-buyout` 与客户端硬编码的 `wechatbridge-windows-buyout` 不一致**，用默认值会导致每一次兑换都返回 422 `wrong_product`。
-- **客户端 `ActivationContract` 声明的 `v1/activation/*` 三个端点在 Go 服务端还不存在**——那是收敛设计的新 API，机器 A 的活。
-- **Go 与 C# 的许可证信封有两处已知不一致**（时间戳 int64 vs `DateTimeOffset`、base64 vs base64url），记录在 `docs/design/client-license-gate-progress.zh-CN.md` §4。按协议「只记录不私改」，新激活链路用 `ActivationJson.Options` 绕开了，老的兑换码路径仍然是坏的。
+- **`BuyoutProductID` 与 `httpx.CodeWrongProduct` 目前没有任何消费方**：字段被读进 `Config` 就没人用，错误码定义了也没有处理器返回。两者都是兑换码时代的残留，产品校验随兑换码一起退役了。**若日后重建产品校验，默认值已与客户端 `RedeemContract.ProductId` 统一为 `wechatbridge-windows-buyout`**，但别以为今天存在这条校验路径。
+- **Go 与 C# 的许可证信封仍有一处不一致**：base64（Go 用 std）对 base64url（C# `Base64Url`）。目前靠 C# 解码器的宽松映射兜住，实测可 roundtrip；一旦有人给 C# 加严格字母表校验就会当场炸。时间戳那处（int64 vs `DateTimeOffset`）已由 `b822761` 修复。成因与排查路径见 `windows/docs/LICENCE-ENVELOPE-WIRE-CONTRACT.zh-CN.md`。
 - **`Tests/FolderDeliveryTests.swift` 的 11 个测试不在任何 target 里**，`swift test` 从不编译它们。
 - **`App.swift` / `ShareEntryProbe.swift` / `AppLink.swift` / `ShareFailure.swift` 引用的 ADR-0005 / ADR-0006 在仓库里不存在。**
 - **`ci.yml` 只在 `[main, feat/windows-port]` 上触发**，当前分支不在其中，本地必须自己跑。
