@@ -35,6 +35,10 @@
 
 运行时双栈（两套 store 按 DSN 选择）**不做**，理由与代价写在切换手册 §1。
 
+**切换流程已干跑验证**（不是纸面推演）：在临时 worktree 上从 fork `main`（PG 版，`server/internal/store/` = `postgres`）执行
+`git merge --ff-only sqlite-migration-2026-10-19` → 目录原地变 `sqlite`，零冲突，`go build ./...` 与
+store/migrate/config 三包 `go test` 全绿。
+
 ## 真库验证记录（S-⑤）
 
 首次让服务在真实数据库上跑起来——`server-convergence` 看板里 A-⑦ 遗留的「真冒烟待 DB（沙箱无 postgres）」阻塞项，正是这次迁移消掉的：
