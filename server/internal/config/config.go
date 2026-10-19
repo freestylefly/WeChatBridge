@@ -28,6 +28,15 @@ type Config struct {
 	BasePath      string // "", or "/wechat_auth" — see below
 	LogLevel      string
 
+	// DatabaseURL is the SQLite database, not a connection string to a
+	// server: a file path (/var/lib/wcb/store.db), ":memory:", or a file:
+	// URI. It is required because a service that defaulted to a scratch
+	// database would answer every request from an empty ledger and look
+	// healthy doing it.
+	//
+	// A postgres:// (or anything else scheme-shaped) value is refused by
+	// internal/store/sqlite.New, which names the migration document in its
+	// error rather than trying to parse a URL it cannot honour.
 	DatabaseURL string
 
 	// WeChat open platform. AppID/AppSecret are the website app's, and the
