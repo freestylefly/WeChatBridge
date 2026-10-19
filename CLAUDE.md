@@ -85,11 +85,41 @@ powershell -ExecutionPolicy Bypass -File windows/scripts/Test-NoNetworkCode.ps1 
 
 ```bash
 cd server
-go build ./... && go vet ./... && go test ./...
-go test ./internal/license/ -run TestVerify -v     # 单包单测试
+GOTOOLCHAIN=go1.26.9 go build ./... && GOTOOLCHAIN=go1.26.9 go vet ./... && GOTOOLCHAIN=go1.26.9 go test ./...
+GOTOOLCHAIN=go1.26.9 go test ./internal/license/ -run TestVerify -v     # 单包单测试
 ```
 
-`go test ./...` 全绿**不需要**真实 PostgreSQL、微信凭据或网络——每个外部依赖都在接口后面，测试用 pgxmock / fake store 顶替。
+**`GOTOOLCHAIN=go1.26.9` 不能省。** `go.mod` 写 `go 1.26`，而发行版装的是 Go 1.22。裸跑 `go test ./...` 会先尝试下载 toolchain，在只能走内部镜像的机器上得到 `toolchain not available`——**这看着像网络问题，实际是版本没选对**：对应 toolchain 早已在 `$(go env GOMODCACHE)/golang.org/toolchain@v0.0.1-go1.26.9.linux-amd64` 里，显式指定即可命中缓存。装 Go 1.26+ 本机后这个前缀可以摘掉。
+
+`go test ./...` 全绿**不需要**真实 PostgreSQL、微信凭据或网络——每个外部依赖都在接口后面，测试用 pgxmock / fake store 顶替。**但 pgxmock 只断言查询字符串，从不执行它**：`store/postgres` 里那些真正要紧的语义——部分唯一索引的并发冲突（`activation_requests_live_install_idx` 是 `UNIQUE … WHERE status='pending'`）、条件 UPDATE 守卫实际影响几行、隐式行序——一行都没被真跑过。覆盖它们是 A-⑧ 的活，需要真库。
+
+#### 本机 PostgreSQL（供 A-⑧ 集成测试）
+
+服务端的持久层需要一个真实例。它跟 CI 无关（CI 根本不测服务端），纯属本地开发依赖。
+
+```bash
+apt-get install -y --no-install-recommends postgresql-16 postgresql-client-16
+pg_isready -h 127.0.0.1                                    # 16 装完即由 systemd 拉起
+
+# 建角色与库，然后让 server 自己跑迁移（不要手灌 SQL，
+# 否则 schema_migrations 台账缺失，启动时会撞 "relation already exists"）
+su postgres -c "psql -c \"CREATE ROLE wcb LOGIN PASSWORD 'wcb'\""
+su postgres -c "createdb -O wcb wcb"
+```
+
+启动需要五个变量，缺一即拒（`config.required`）：
+
+```bash
+WCB_DATABASE_URL="postgres://wcb:wcb@127.0.0.1:5432/wcb?sslmode=disable" \
+WCB_WECHAT_APP_ID=wxtest WCB_WECHAT_APP_SECRET=secret \
+WCB_LICENSE_PRIVATE_KEY_PATH=/path/to/ec-p256.pk8.pem \
+WCB_TOKEN_SIGNING_SECRET=<≥32 字节> \
+WCB_HTTP_ADDR=:18901 GIN_MODE=release ./cmd/wcb
+```
+
+监听地址是 `WCB_HTTP_ADDR`（默认 `:8080`），**不是** `WCB_ADDR`。`WCB_ADMIN_OPENIDS` 留空时 admin 路由整个不挂载（404 而非全信任，见下文）。
+
+**常驻占用实测 85 MB**（PG 16.15 空闲态，6 个进程 RSS 求和，共享内存被重复计入，实际更低）。在 3.6 GiB / 2 vCPU 的机器上约占 `available` 的 3%，不必为它调 `shared_buffers`。
 
 ### 契约 mock 与卖家后台（Windows 端的前后端，不在 CI 里）
 
@@ -171,6 +201,23 @@ store/     接口在 store.go，实现在 store/postgres
 **签名从不是对 JSON 文本签的**，而是对规范化后的 8 行字符串签（域分隔符 `wechatbridge.license.v1`，空段用 `-` 占位，**无尾随换行**）。ent 排序去重，因为 map 迭代或没写 ORDER BY 的 SELECT 每次返回顺序都不同。
 
 **跨语言的东西一律是复制而非共享**：许可证规范化向量 + SHA-256、兑换码归一化表、时间戳格式、wire 枚举字符串，两端各有一份并各有一对测试。`go test ./...` 全绿**不代表**客户端还验得过——唯一无法被编译器检查的跨语言契约就是这个 canonical 格式，所以两端各自钉死了同一个常量与同一个摘要。
+
+**签名是 64 字节的 raw `r‖s`，不是 DER。** `internal/license/crypto.go` 的 `signRaw` 手工 `FillBytes` 拼两个 32 字节再 base64；`verifyRaw` 的注释写明它自己做 malleability 检查。任何用 `openssl dgst -verify` 之类的通用工具去验这张许可证都会得到 `Error verifying data`——那条命令要 DER（P-256 通常 70–72 字节）。手工验证时先把 raw 转成 `SEQUENCE{INTEGER r, INTEGER s}` 再验，否则会误判成事故。
+
+顺带记下 canonical 的确切形状（`license.go:115`），每行都带 `key=` 前缀，漏掉就会算出不同的字节：
+
+```
+wechatbridge.license.v1
+v=1
+sub=…
+plan=…
+iat=…
+nbf=…
+exp=-          ← 空段占位 Absent
+ent=PRO        ← 大写、排序、去重后逗号连接
+```
+
+无尾随换行。客户端 `IsPro` 恒为 true 的前提是这三件事同时成立：内嵌公钥与签发私钥配对、canonical 逐字节一致、raw 签名被正确拆回 `r‖s`。
 
 ## 不看代码看不出来的约定（红线）
 
