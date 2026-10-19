@@ -27,6 +27,13 @@ const accountColumns = `
 //
 //   - plan is never written by the DO UPDATE. Signing in must not demote
 //     someone who paid, so the entitlement column is insert-only.
+//   - created_at is bound, not defaulted. The schema's DEFAULT
+//     CURRENT_TIMESTAMP is UTC and correct, but it writes a second-granular
+//     literal while the driver writes sub-second ones, and two shapes in one
+//     column is the R-new hazard. Binding it keeps every instant the
+//     application writes in the driver's shape; the default remains for
+//     rows the application never wrote, where failing loudly is the right
+//     answer anyway.
 //   - insert_marker is written only by the INSERT branch and never touched
 //     by the DO UPDATE. PostgreSQL answered "was this row new?" with
 //     (xmax = 0) AS created, reading a heap-tuple system column SQLite does
@@ -39,8 +46,8 @@ const accountColumns = `
 //   - The nonce is bound twice ($7 in VALUES and again in RETURNING). The
 //     driver binds $NNN by number, so reuse is exact rather than positional.
 const upsertAccountSQL = `
-	INSERT INTO accounts (open_id, union_id, nickname, avatar_url, plan, install_id, last_login_at, insert_marker)
-	VALUES ($1, NULLIF($2, ''), $3, $4, 'free', NULLIF($5, ''), $6, $7)
+	INSERT INTO accounts (open_id, union_id, nickname, avatar_url, plan, install_id, created_at, last_login_at, insert_marker)
+	VALUES ($1, NULLIF($2, ''), $3, $4, 'free', NULLIF($5, ''), $6, $6, $7)
 	ON CONFLICT (open_id) DO UPDATE SET
 		last_login_at = EXCLUDED.last_login_at,
 		nickname      = CASE WHEN EXCLUDED.nickname   <> '' THEN EXCLUDED.nickname   ELSE accounts.nickname   END,
@@ -410,7 +417,7 @@ func (s *Store) RotateRefresh(ctx context.Context, oldHash, newHash, newAccessHa
 	err := s.inTx(ctx, func(tx querier) error {
 		var (
 			accountID, chainID    string
-			currentHash, prevHash string
+			currentHash, prevHash sql.NullString
 			expiresAt             time.Time
 			revokedAt             sql.NullTime
 		)
@@ -444,8 +451,9 @@ func (s *Store) RotateRefresh(ctx context.Context, oldHash, newHash, newAccessHa
 		// Already spent — the presented hash is the one this chain replaced.
 		// This is the reuse signal and it is deliberately its own error rather
 		// than a flavour of ErrConflict, because the caller's response is to
-		// kill the whole chain, not to re-issue.
-		if prevHash != "" && oldHash == prevHash && oldHash != currentHash {
+		// kill the whole chain, not to re-issue. A chain that has never
+		// rotated has no previous generation, and NULL flattens to "" here.
+		if p := text(prevHash); p != "" && oldHash == p && oldHash != text(currentHash) {
 			return store.ErrReuseDetected
 		}
 		// Expired. The client is told to re-authenticate; it is not an error,

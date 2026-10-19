@@ -78,11 +78,17 @@ func scanAccount(row rowScanner) (store.Account, error) {
 // matches either generation, so the row cannot say which one the caller
 // presented, and the answer does not matter here — the paths that care ask
 // the database again under a lock.
+//
+// Both hash columns are nullable in the schema — a session that has never
+// rotated has no previous generation — so they are scanned through
+// sql.NullString. Scanning a NULL into a plain string is unsupported by
+// database/sql, and the PostgreSQL suite never noticed the shape because its
+// mock always fed the column a value.
 func scanSession(row rowScanner, presented string) (store.Session, error) {
 	var (
 		s       store.Session
-		live    string
-		prev    string
+		live    sql.NullString
+		prev    sql.NullString
 		expires time.Time
 		revoked sql.NullTime
 	)
