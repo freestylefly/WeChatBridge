@@ -19,7 +19,21 @@
 | S-③ | store 包换基 `postgres` → `sqlite` + 装配切换 | ✅ | `212acfa` | 去 `FOR UPDATE`（改 `BEGIN IMMEDIATE` + 条件 UPDATE）；`errors.go` 改（表名+列名）封闭白名单 + 扩展码 2067/1555；DSN pragmas 用 `_pragma=key(value)` 形式 + `_txlock=immediate`；单连接池 + foreign_keys 回读自检 |
 | S-③′ | 真库测试抓出的两处生产修正 | ✅ | `47d5f74` | ① `created_at` 改绑定（DEFAULT 写秒级、驱动写亚秒级，同列两形态是 R-new 隐患）；② token 链的 live/prev 哈希列改 `sql.NullString`——**从未轮换过的链没有上一代，NULL 是合法状态，扫描进 string 会报错**；PG mock 永远喂非 NULL 且服务从未真跑过，所以这个形状此前没人见过 |
 | S-④ | store 测试全量切换为真实 SQLite | ✅ | `feea0ca` | 5 文件 58 例（auth 18 / activation 16 / sqlite 11 / errors 8 / sql 5）；替代 pgxmock；含文档 §4.1 点名的真库 `created` 断言、R6 pragma 自检、R15 占位符不混用、R11 迁移运行器覆盖 |
-| S-⑤ | 验证、文档与收尾 | 🔄 | — | config 注释已更新；真冒烟已通过（见下）；看板；push fork |
+| S-⑤ | 验证、文档与收尾 | ✅ | `455ae0e` | config 注释已更新；真冒烟已通过（见下）；看板 + 切换手册（§独立分支与切换口径）；tag 快照已推 fork |
+
+## 独立分支与切换口径（2026-10-19 08:58）
+
+主线不动，SQLite 在旁待命——切换路径已固化成不可变引用：
+
+| 位置 | 内容 |
+|---|---|
+| fork `feat/sqlite-migration`（`455ae0e`） | SQLite 完整实现 |
+| tag `sqlite-migration-2026-10-19` | 同上内容的**不可变快照**（防分支被 force push / 重组抹掉——fork 上已发生过一次旧分支重组） |
+| `docs/design/sqlite-switchover.zh-CN.md` | 切换手册：三步切换、部署侧环境变量/备份/并发假设的对照表、数据处置、回退、验证清单、已知边界 |
+
+几何关系 `git rev-list --left-right --count zmuimeng/main...feat/sqlite-migration` = `0  7`：**落后 0、领先 7，纯线性**，合并是纯 fast-forward（`git merge --ff-only`，冲突数为零）。上游 `origin` 无写权限，一切在 fork 上，进 upstream 走 PR。
+
+运行时双栈（两套 store 按 DSN 选择）**不做**，理由与代价写在切换手册 §1。
 
 ## 真库验证记录（S-⑤）
 
