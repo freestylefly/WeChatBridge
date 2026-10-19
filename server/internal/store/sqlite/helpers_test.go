@@ -98,13 +98,24 @@ func seedAuthSession(t *testing.T, s *Store, ticket, installID string, expiresAt
 // seedActivationRequest files a registration the way the buyer's client does.
 func seedActivationRequest(t *testing.T, s *Store, requestID, accountID, installID string, amount *int64) store.ActivationRequest {
 	t.Helper()
+	return seedActivationRequestAt(t, s, requestID, accountID, installID, amount, testNow)
+}
+
+// seedActivationRequestAt is seedActivationRequest at a chosen instant.
+//
+// The instant matters wherever "the newest row" is the assertion: two rows
+// sharing a created_at leave ORDER BY free to answer with either, and a test
+// that says "the newest" while the data cannot tell newest from oldest is
+// asserting on the query plan.
+func seedActivationRequestAt(t *testing.T, s *Store, requestID, accountID, installID string, amount *int64, at time.Time) store.ActivationRequest {
+	t.Helper()
 	r, err := s.CreateActivationRequest(context.Background(), store.ActivationRequest{
 		RequestID:    requestID,
 		AccountID:    accountID,
 		InstallID:    installID,
 		AnchorDigest: "anchor-" + requestID,
 		AmountFen:    amount,
-		CreatedAt:    testNow,
+		CreatedAt:    at,
 	})
 	if err != nil {
 		t.Fatalf("seed activation request %s: %v", requestID, err)
@@ -114,9 +125,22 @@ func seedActivationRequest(t *testing.T, s *Store, requestID, accountID, install
 
 // seedLiveBinding confirms a request, which installs its binding — the state
 // a reissue and a second-press conflict both start from.
+//
+// The confirmation is dated testNow, and every test that later revokes or
+// reissues dates its own action testLater: the schema refuses a revocation
+// older than the licence it retires, which is the fixture telling the truth
+// about ordering rather than the constraint being wrong.
 func seedLiveBinding(t *testing.T, s *Store, requestID, licenseID string) store.ActivationRequest {
 	t.Helper()
-	r, err := s.ConfirmActivationRequest(context.Background(), requestID, licenseID, []byte(`{"licenseId":"`+licenseID+`"}`), testLater)
+	return seedLiveBindingAt(t, s, requestID, licenseID, testNow)
+}
+
+// seedLiveBindingAt is seedLiveBinding at a chosen instant. The ledger test
+// needs it: two bindings sharing an issued_at leave "newest first" for the
+// query plan to decide.
+func seedLiveBindingAt(t *testing.T, s *Store, requestID, licenseID string, at time.Time) store.ActivationRequest {
+	t.Helper()
+	r, err := s.ConfirmActivationRequest(context.Background(), requestID, licenseID, []byte(`{"licenseId":"`+licenseID+`"}`), at)
 	if err != nil {
 		t.Fatalf("seed live binding for %s: %v", requestID, err)
 	}
