@@ -82,10 +82,17 @@ public sealed class UiSmokeTests
                             Assert.Equal("示例收集", model.CollectionRows.Single(r => r.Id == collectionId).Title);
                         }
                     }
+                    var textImport = new TextImportWindow("测试聊天文字");
+                    textImport.Show();
+                    Assert.True(((Button)textImport.FindName("ImportButton")).IsEnabled);
+                    RenderDetached(textImport, "text-import", language, previewDirectory, 560);
+                    ((TextBox)textImport.FindName("BodyInput")).Text = " ";
+                    Assert.False(((Button)textImport.FindName("ImportButton")).IsEnabled);
+                    textImport.Close();
                     var wizardModel = new MainViewModel(fixture.Paths, Path.Combine(config, "wizard-" + language),
                         false);
                     var wizardStore = new OnboardingStateStore(Path.Combine(config, "wizard-state-" + language));
-                    var wizard = new OnboardingWindow(wizardModel, wizardStore, () => Task.FromResult(false));
+                    var wizard = new OnboardingWindow(wizardModel, wizardStore, () => Task.FromResult(ShareRegistrationState.NotRegistered));
                     wizard.Show();
                     WaitFor(() => ((TextBlock)wizard.FindName("RegistrationTitle")).Text == L10n.Text("未检测到 Windows 分享入口"));
                     Assert.False(wizard.AllowsTransparency);
@@ -125,7 +132,7 @@ public sealed class UiSmokeTests
                     Assert.All(((ItemsControl)wizard.FindName("EntriesList")).Items.Cast<OnboardingWindow.WizardEntry>(),
                         row => Assert.Equal(row.Enabled, wizardModel.IsEntryEnabled(row.Action)));
                     wizardStore.Save(new OnboardingState { Step = 2 });
-                    var resumed = new OnboardingWindow(wizardModel, wizardStore, () => Task.FromResult(true));
+                    var resumed = new OnboardingWindow(wizardModel, wizardStore, () => Task.FromResult(ShareRegistrationState.Registered));
                     resumed.Show();
                     Assert.Equal(2, resumed.CurrentStep);
                     WaitFor(() => ((TextBlock)resumed.FindName("RegistrationTitle")).Text == L10n.Text("Windows 分享入口已注册"));

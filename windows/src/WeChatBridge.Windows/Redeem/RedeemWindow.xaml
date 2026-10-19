@@ -1,0 +1,96 @@
+<Window x:Class="WeChatBridge.Windows.Redeem.RedeemWindow"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:loc="clr-namespace:WeChatBridge.Windows" xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+ Title="{loc:Loc Key='兑换许可证'}" Width="540" Height="430" WindowStyle="None"
+ Background="{StaticResource SurfaceColor}" ResizeMode="NoResize" WindowStartupLocation="CenterOwner"
+ FontFamily="Microsoft YaHei UI, Segoe UI" UseLayoutRounding="True" SnapsToDevicePixels="True"
+ TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType"
+ Icon="/WeChatBridge.Windows;component/Assets/AppIcon.png">
+ <!-- No AllowsTransparency here, for the same reason the onboarding wizard has none:
+      a layered window disables hardware acceleration and drops the DPI story that
+      every other pane in this app relies on. The rounded card is a Border instead. -->
+ <shell:WindowChrome.WindowChrome><shell:WindowChrome CaptionHeight="52" CornerRadius="12" GlassFrameThickness="0"
+ ResizeBorderThickness="0" UseAeroCaptionButtons="False"/></shell:WindowChrome.WindowChrome>
+ <Window.Resources>
+ <Style x:Key="RedeemButton" TargetType="Button" BasedOn="{StaticResource SettingsButton}">
+ <Setter Property="MinHeight" Value="38"/><Setter Property="MinWidth" Value="104"/><Setter Property="FontSize" Value="14"/></Style>
+ <Style x:Key="RedeemPrimary" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+ <Setter Property="MinHeight" Value="38"/><Setter Property="MinWidth" Value="112"/><Setter Property="FontSize" Value="14"/></Style>
+ <Style x:Key="Heading" TargetType="TextBlock"><Setter Property="FontSize" Value="24"/><Setter Property="FontWeight" Value="SemiBold"/>
+ <Setter Property="Foreground" Value="{StaticResource InkColor}"/><Setter Property="TextWrapping" Value="Wrap"/></Style>
+ <Style x:Key="Body" TargetType="TextBlock"><Setter Property="FontSize" Value="13.5"/><Setter Property="LineHeight" Value="22"/>
+ <Setter Property="Foreground" Value="{StaticResource InkSecondaryColor}"/><Setter Property="TextWrapping" Value="Wrap"/></Style>
+ <Style x:Key="Card" TargetType="Border"><Setter Property="Padding" Value="18"/><Setter Property="CornerRadius" Value="12"/>
+ <Setter Property="BorderThickness" Value="1"/><Setter Property="BorderBrush" Value="{StaticResource StrokeColor}"/>
+ <Setter Property="Background" Value="{StaticResource SurfaceColor}"/></Style>
+ </Window.Resources>
+ <Border BorderBrush="{StaticResource StrokeColor}" BorderThickness="1" CornerRadius="12"><Grid>
+ <Grid.RowDefinitions><RowDefinition Height="52"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+ <Grid MouseLeftButtonDown="OnDragMove" Margin="20,0,12,0">
+ <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+ <Image Source="/WeChatBridge.Windows;component/Assets/AppIcon.png" Width="28" Height="28"/>
+ <TextBlock Text="{loc:Loc Key='兑换许可证'}" FontSize="15" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center"/>
+ </StackPanel>
+ <Button Width="32" Height="32" MinHeight="32" MinWidth="0" Padding="0" HorizontalAlignment="Right" Content="×" FontSize="22"
+ Style="{StaticResource RedeemButton}" Background="Transparent" ToolTip="{loc:Loc Key='关闭'}" IsCancel="True"
+ shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
+ </Grid>
+ <Grid Grid.Row="1" Margin="28,22,28,24">
+ <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+ <RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+ <StackPanel>
+ <TextBlock Style="{StaticResource Heading}" Text="{loc:Loc Key='粘贴你的兑换码'}" />
+ <TextBlock x:Name="IntroText" Style="{StaticResource Body}" Margin="0,8,0,0"
+ Text="{loc:Loc Key='买断版只兑换一次。兑换码在订单邮件或订单页里，兑换完成后本机不再发起任何网络请求。'}" />
+ </StackPanel>
+
+ <!-- Shown when a previous attempt left a pending record. It never retries on its own:
+      a request the user did not ask for is the one thing the buy-out edition promised
+      not to send, and a click here is what makes it legitimate again. -->
+ <Border x:Name="PendingCard" Grid.Row="1" Style="{StaticResource Card}" Background="{StaticResource BrandSoftColor}"
+ Margin="0,16,0,0" Visibility="Collapsed">
+ <TextBlock x:Name="PendingText" Style="{StaticResource Body}" Foreground="{StaticResource InkColor}"
+ Text="{loc:Loc Key='上一次兑换没有得到结果。重新粘贴同一个兑换码再点「兑换」，系统会用同一个请求编号问一次服务端，不会重复发证。'}" />
+ </Border>
+
+ <StackPanel x:Name="EditorPanel" Grid.Row="2" Margin="0,18,0,0">
+ <TextBlock Style="{StaticResource Body}" FontSize="12" Foreground="{StaticResource LiveInkColor}" Text="{loc:Loc Key='兑换码'}" />
+ <TextBox x:Name="CodeInput" Style="{StaticResource MacField}" FontSize="16" Margin="0,8,0,0"
+ FontFamily="Consolas, Cascadia Mono, Microsoft YaHei UI" TextChanged="OnCodeChanged"
+ AutomationProperties.Name="{loc:Loc Key='兑换码'}" />
+ <TextBlock Style="{StaticResource Body}" FontSize="12" Margin="0,6,0,0" Foreground="{StaticResource InkTertiaryColor}"
+ Text="WCB-XXXXX-XXXXX-XXXXX-XXXXX" />
+ <TextBlock x:Name="StatusText" Style="{StaticResource Body}" Margin="0,14,0,0" Foreground="{StaticResource InkColor}"
+ AutomationProperties.LiveSetting="Assertive" />
+ </StackPanel>
+
+ <StackPanel x:Name="SuccessPanel" Grid.Row="3" Visibility="Collapsed" Margin="0,24,0,0">
+ <Border Style="{StaticResource Card}" Background="{StaticResource BrandSoftColor}">
+ <StackPanel>
+ <TextBlock Style="{StaticResource Heading}" FontSize="19" Text="{loc:Loc Key='兑换成功'}" />
+ <TextBlock x:Name="IssuedText" Style="{StaticResource Body}" Foreground="{StaticResource InkColor}" Margin="0,10,0,0" />
+ <TextBlock Style="{StaticResource Body}" FontSize="12" Margin="0,12,0,0"
+ Text="{loc:Loc Key='许可证已经写入本机配置，网络通道随之关闭。重启微信流后 Pro 功能仍然有效。'}" />
+ </StackPanel>
+ </Border>
+ </StackPanel>
+
+ <Grid Grid.Row="4" Margin="0,20,0,0">
+ <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+ <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+ <Button x:Name="PasteButton" Style="{StaticResource RedeemButton}" Content="{loc:Loc Key='从剪贴板粘贴'}" Click="OnPasteClicked" />
+ <Button x:Name="DiscardButton" Style="{StaticResource RedeemButton}" Content="{loc:Loc Key='放弃这次兑换'}"
+ Click="OnDiscardClicked" Margin="8,0,0,0" Visibility="Collapsed" />
+ </StackPanel>
+ <StackPanel Orientation="Horizontal" Grid.Column="1">
+ <Button x:Name="FinishButton" Style="{StaticResource RedeemPrimary}" Content="{loc:Loc Key='完成'}"
+ Click="OnFinishClicked" IsDefault="True" Visibility="Collapsed" Margin="0,0,8,0" />
+ <Button x:Name="RetryButton" Style="{StaticResource RedeemButton}" Content="{loc:Loc Key='重试'}" Click="OnRetryClicked"
+ IsEnabled="False" Visibility="Collapsed" Margin="0,0,8,0" />
+ <Button x:Name="RedeemButton" Style="{StaticResource RedeemPrimary}" Content="{loc:Loc Key='兑换'}"
+ Click="OnRedeemClicked" IsDefault="True" IsEnabled="False" />
+ </StackPanel>
+ </Grid>
+ </Grid>
+ </Grid></Border>
+</Window>

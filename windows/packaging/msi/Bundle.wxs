@@ -11,7 +11,10 @@
      xmlns:netfx="http://wixtoolset.org/schemas/v4/wxs/netfx"
      xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
 
-  <Bundle Name="微信流" Compressed="yes" Version="$(var.BundleVersion)" Manufacturer="微信流"
+  <!-- Name carries the edition: the MSI row below it already does, and a
+       Programs and Features list that shows the same name twice tells a user
+       (and support) nothing about which product they are looking at. -->
+  <Bundle Name="$(var.ProductName)" Compressed="yes" Version="$(var.BundleVersion)" Manufacturer="微信流"
           UpgradeCode="{7E2C1F44-9B51-4F2C-8C1F-8C1D5B8C6E61}"
           IconSourceFile="$(var.IconFile)">
 

@@ -11,7 +11,7 @@ public sealed record ObsidianSettings
 {
     public string? VaultPath { get; init; }
 
-    public string Subfolder { get; init; } = "微信流";
+    public string Subfolder { get; init; } = "31.微信会话";
 }
 
 /// <summary>Loads and saves <see cref="ObsidianSettings"/> via <see cref="ConfigStore"/>.</summary>

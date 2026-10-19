@@ -93,10 +93,7 @@ public sealed class InboxPaths
 {
     public InboxPaths(string? root = null)
     {
-        Root = root ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "WeChatBridge",
-            "Inbox");
+        Root = root ?? AppLayout.Current.Inbox;
     }
 
     public string Root { get; }

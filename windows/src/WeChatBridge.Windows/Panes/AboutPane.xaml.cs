@@ -13,8 +13,14 @@ public partial class AboutPane : UserControl
         InitializeComponent();
         var informational = Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
-        VersionText.Text = L10n.Format($"版本 {ShortVersion(informational)} · Windows");
-
+        // The trailing word is the edition, and it is a compile-time constant rather
+        // than something read back from disk: the two editions carry different version
+        // numbers on purpose, so a support report that quotes this line says which
+        // product the user is running without anyone having to ask. The inner lookup
+        // is done first so the translation wraps the placeholder, not the other way
+        // round — L10n.Format would otherwise translate the whole line and leave the
+        // Chinese edition name sitting inside an English sentence.
+        VersionText.Text = L10n.Format($"版本 {ShortVersion(informational)} · Windows · {L10n.Text(Edition.DisplayName)}");
     }
 
     /// <summary>1.0.0+commithash → 1.0.0 (short hash): the NuGet metadata stays, the label stays readable.</summary>

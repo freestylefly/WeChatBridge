@@ -20,6 +20,37 @@
                 <TextBlock Style="{StaticResource SectionLabel}" Text="{loc:Loc Key='分享入口'}" />
                 <TextBlock Margin="0,2,0,0" FontSize="12" Foreground="{StaticResource InkSecondaryColor}"
                            Text="{loc:Loc Key='微信菜单里只有「微⁠信流」一行；下面开启的入口会出现在它的选择器里。'}" />
+                <!-- Portable only. The share menu needs package identity, which a
+                     copied-onto-a-stick build does not have until this computer
+                     registers it once — and that registration is what this card
+                     offers. Sits above the list rather than inside it so the
+                     twelve-row template stays reusable. -->
+                <Border x:Name="ShareRegistrationCard" Style="{StaticResource Card}"
+                        Margin="0,10,0,0" Visibility="Collapsed">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock x:Name="ShareRegistrationTitle" FontSize="13.5"
+                                           Foreground="{StaticResource InkColor}"
+                                           Text="{loc:Loc Key='微信分享菜单未启用'}" />
+                                <TextBlock x:Name="ShareRegistrationDetail" Margin="0,3,0,0"
+                                           FontSize="12" TextWrapping="Wrap"
+                                           Foreground="{StaticResource InkSecondaryColor}"
+                                           Text="{loc:Loc Key='不启用也能用：在「记录」页点「导入聊天文件」，或把 ZIP 拖进来。启用后需要重启微信。'}" />
+                            </StackPanel>
+                            <Button x:Name="ShareRegistrationButton" Grid.Column="1"
+                                    VerticalAlignment="Center" Margin="12,0,0,0"
+                                    Style="{StaticResource SettingsButton}" Padding="12,5"
+                                    Click="ShareRegistration_Click">
+                                <Button.Content><loc:Loc Key="在这台电脑上启用分享入口"/></Button.Content>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+                </Border>
                 <Border Height="1" Background="{StaticResource StrokeColor}" Margin="0,8,0,10" />
                 <Border Style="{StaticResource Card}" Padding="0">
                     <ItemsControl ItemsSource="{Binding Entries}" AlternationCount="100000">
@@ -161,6 +192,9 @@
             <CheckBox Content="{loc:Loc Key='保存后自动打开 Obsidian 笔记'}" Margin="0,12,0,0"
                                   Foreground="{StaticResource InkColor}"
                                   IsChecked="{Binding OpenObsidianAfterDelivery}"/>
+            <CheckBox Content="{loc:Loc Key='WorkBuddy 聊天包导入后自动归档到微信会话'}" Margin="0,10,0,0"
+                      Foreground="{StaticResource InkColor}"
+                      IsChecked="{Binding AutoArchiveWorkBuddyToObsidian, Mode=TwoWay}"/>
                         </StackPanel>
 
             <!-- 「发送到自定义」的应用 — the ForwardTargetList port. -->

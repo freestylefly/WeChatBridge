@@ -3,6 +3,7 @@
   <h1>WeChatBridge (微信流)</h1>
   <p><strong>Send WeChat conversations to AI agents and local knowledge bases from the native share menu.</strong></p>
   <p>A native, lightweight, fully local WeChat hand-off and archiving tool for macOS.</p>
+  <p>The privacy boundaries below describe the perpetual edition: what ships today is its free tier, which is fully offline and never uploads conversation content, and Pro licensing only touches the network once to redeem a license. The subscription edition connects and adds cloud capabilities such as deep PDF parsing and AI task orchestration; it uploads only files you explicitly choose to hand to the cloud, listing exactly which ones before each upload, and the conversation archive itself stays on your machine. The subscription edition is currently planned for Windows only.</p>
 
   <p>
     <a href="https://github.com/freestylefly/WeChatBridge/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/freestylefly/WeChatBridge/ci.yml?branch=main&style=flat-square&label=build" alt="Build status" /></a>
@@ -17,7 +18,7 @@
 </div>
 
 > [!NOTE]
-> All installers are distributed through Lanzou Cloud: [Windows build](https://wwbsr.lanzout.com/b0umjur4d) and [macOS build](https://wwbsr.lanzout.com/b0umjur8h), both using the extraction password `向明`. See [Download](#download).
+> All installers are distributed through Lanzou Cloud: [Windows build](https://wwbsr.lanzout.com/b0umjur4d) and [macOS build](https://wwbsr.lanzout.com/b0umjur8h), both using the extraction password `向明`. See [Download](#download). The current installers are the free tier of the perpetual edition; the subscription edition is a separate artifact that connects and adds cloud capabilities.
 
 ## Why WeChatBridge
 
@@ -47,6 +48,7 @@ flowchart LR
 | Local history | Inspect delivery state, retry, copy, reveal files, and clean old batches |
 | Safe fallback | Files remain on the clipboard when an app or permission is unavailable |
 | Bilingual UI | Simplified Chinese and English throughout |
+| Edition | A perpetual edition with no account that never uploads, whose Pro licensing only touches the network to redeem a license, and a subscription edition that connects, adds cloud capabilities, and uploads only files you explicitly choose to hand to the cloud. The free tier we ship today is fully offline |
 
 ### Built-in destinations
 
@@ -112,6 +114,8 @@ Full steps, permissions, and troubleshooting live in the [usage guide](USAGE_EN.
 - Accessibility is used only to activate a destination and perform the paste action.
 - Update packages are distributed through Lanzou Cloud; automatic checks are currently disabled in the source configuration.
 
+The boundaries above describe the perpetual edition, and the free tier we ship today is fully covered by them. The subscription edition reaches the network for its cloud capabilities. It, too, keeps the conversation archive on your machine; what it uploads is only files you explicitly choose to hand to the cloud, listed one by one before each upload.
+
 ## Requirements
 
 - macOS 14 Sonoma or later
@@ -128,7 +132,11 @@ All installers are distributed through Lanzou Cloud. Pick your platform below; t
 | Windows | [wwbsr.lanzout.com/b0umjur4d](https://wwbsr.lanzout.com/b0umjur4d) | `向明` |
 | macOS | [wwbsr.lanzout.com/b0umjur8h](https://wwbsr.lanzout.com/b0umjur8h) | `向明` |
 
-For macOS, open the DMG and drag WeChatBridge into Applications; the package supports both Apple Silicon and Intel Macs. For Windows, unzip the archive and follow the instructions inside.
+For macOS, open the DMG and drag WeChatBridge into Applications; the package supports both Apple Silicon and Intel Macs.
+
+For Windows, run `WeChatBridge-<version>-Windows-Setup.exe` and follow the wizard. It asks for administrator approval once, to trust the installer package's signing certificate. **Do not unzip and run the contents directly** — unzipping skips that trust step, and the WeChat share menu then fails to register.
+
+If you would rather not install anything, use the portable build: unzip `WeChatBridge-<version>-Windows-Portable.zip` to any directory on a USB drive and run `FirstRun.bat` in the root. Every piece of data stays on the drive; the WeChat share menu is off by default and can be turned on from the Entries page with “Enable the share entry on this computer”.
 
 ## Build from source
 

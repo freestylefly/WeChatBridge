@@ -348,6 +348,9 @@ public sealed class SkillService : INotifyPropertyChanged
     {
         foreach (var start in new[] { AppContext.BaseDirectory, Environment.CurrentDirectory })
         {
+            // A removable drive can vanish while we run, and GetFullPath throws
+            // DriveNotFoundException for a current directory on a volume that is
+            // gone — including when FirstRun.bat started us from one.
             if (FindResourcesRoot(start) is { } found)
                 return found;
         }
@@ -357,7 +360,16 @@ public sealed class SkillService : INotifyPropertyChanged
     /// <summary>Single-start variant of <see cref="FindResourcesRoot()"/> — the testable seam.</summary>
     internal static string? FindResourcesRoot(string start)
     {
-        var candidate = Path.GetFullPath(start);
+        string candidate;
+        try
+        {
+            candidate = Path.GetFullPath(start);
+        }
+        catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException
+            or DriveNotFoundException or IOException)
+        {
+            return null;
+        }
         for (var hop = 0; hop < MaxAncestorHops; hop++)
         {
             if (File.Exists(Path.Combine(candidate, "Skills", "catalog.json")))

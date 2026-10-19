@@ -19,6 +19,22 @@
   <Dependencies>
     <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" />
   </Dependencies>
+  <!--
+    No internetClient here, and that is the buy-out shape of this file on purpose
+    (design doc §7.3). The Perpetual binaries have no network code path at all —
+    Directory.Build.targets removes the Cloud\ and Billing\ sources from the
+    compile, so there is nothing to reach the network with. Declaring the
+    capability anyway would make the manifest advertise access the package does
+    not have and cannot use.
+
+    Subscription is built from the same sources with a different
+    WeChatBridgeEdition; pack-msix.ps1 -Edition Subscription inserts a
+    Capability element named internetClient as the first child of the element
+    below, in the staged copy only. This file on disk stays in the buy-out shape.
+    internetClient is not a restricted capability: it belongs to the default
+    foundation namespace and takes no rescap: prefix, unlike the two restricted
+    capabilities below, which keep theirs.
+  -->
   <Capabilities>
     <rescap:Capability Name="runFullTrust" />
     <rescap:Capability Name="unvirtualizedResources" />

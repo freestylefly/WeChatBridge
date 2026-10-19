@@ -127,6 +127,36 @@
             </Border>
         </StackPanel>
 
+        <!-- 授权状态。Always visible, and never a blocker: forwarding works for every
+             installation, licensed or not. This is the standing place to see where the
+             licence stands and to reopen the page after deciding not to buy the first
+             time it appeared. -->
+        <StackPanel Margin="0,24,0,0">
+            <TextBlock Style="{StaticResource SectionLabel}" Text="{loc:Loc Key='授权状态'}" />
+            <Border Height="1" Background="{StaticResource StrokeColor}" Margin="0,8,0,10" />
+            <Border Style="{StaticResource Card}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock x:Name="LicenceStatusText" FontSize="13"
+                                   Foreground="{StaticResource InkSecondaryColor}"
+                                   TextWrapping="Wrap" />
+                        <TextBlock x:Name="MachineCodeHint" Margin="0,4,0,0" FontSize="12"
+                                   Foreground="{StaticResource InkTertiaryColor}"
+                                   TextWrapping="Wrap" Visibility="Collapsed" />
+                    </StackPanel>
+                    <Button x:Name="OpenActivationButton" Grid.Column="1" VerticalAlignment="Center"
+                            Margin="12,0,0,0" Style="{StaticResource SettingsButton}"
+                            Click="OpenActivation_Click">
+                        <Button.Content><loc:Loc Key="购买授权"/></Button.Content>
+                    </Button>
+                </Grid>
+            </Border>
+        </StackPanel>
+
         <!-- 应用行为 -->
         <StackPanel Margin="0,24,0,0">
             <TextBlock Style="{StaticResource SectionLabel}" Text="{loc:Loc Key='应用行为'}" />
@@ -141,10 +171,11 @@
                                Text="{loc:Loc Key='开机自动启动'}" />
                     <TextBlock Margin="0,3,0,0" FontSize="12"
                                Foreground="{StaticResource InkSecondaryColor}" TextWrapping="Wrap"
-                               Text="{loc:Loc Key='登录后后台驻留，分享进来时几乎立即转发；关掉则每次分享要冷启动。'}" />
+                               Text="{Binding AutoStartHint}" />
                 </StackPanel>
                 <CheckBox Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0"
                           Style="{StaticResource MacToggle}"
+                          IsEnabled="{Binding AutoStartAvailable}"
                           IsChecked="{Binding AutoStartEnabled, Mode=TwoWay}" />
             </Grid>
             <Grid Margin="0,16,0,0">
@@ -166,6 +197,22 @@
                     <ComboBoxItem><ComboBoxItem.Content><loc:Loc Key="保留 7 天"/></ComboBoxItem.Content></ComboBoxItem>
                     <ComboBoxItem><ComboBoxItem.Content><loc:Loc Key="保留 30 天"/></ComboBoxItem.Content></ComboBoxItem>
                 </ComboBox>
+            </Grid>
+            <Grid Margin="0,16,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock FontSize="13.5" Foreground="{StaticResource InkColor}"
+                               Text="{loc:Loc Key='自动导入 WorkBuddy 聊天包'}" />
+                    <TextBlock Margin="0,3,0,0" FontSize="12"
+                               Foreground="{StaticResource InkSecondaryColor}" TextWrapping="Wrap"
+                               Text="{loc:Loc Key='只监视 WorkBuddy 的本机聊天记录导出目录；新 ZIP 写完后自动出现在记录中，不会自动发送。'}" />
+                </StackPanel>
+                <CheckBox Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0"
+                          Style="{StaticResource MacToggle}"
+                          IsChecked="{Binding WorkBuddyAutoImport, Mode=TwoWay}" />
             </Grid>
         </StackPanel>
 

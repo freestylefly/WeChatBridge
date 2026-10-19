@@ -21,16 +21,21 @@ namespace WeChatBridge.ShareTarget;
 
 internal static class Program
 {
-    private const string ChangeEventName = "Local\\WeChatBridge.Windows.InboxChanged";
+    // Suffixes match App.xaml.cs. Without them a portable helper would connect
+    // to an installed build's resident keeper and commit the share into the
+    // installed Inbox, and its "is the app already running?" probe would match
+    // the installed app so the portable exe never gets launched at all.
+    private static readonly string Suffix = AppLayout.Current.CoordinationSuffix;
+    private static string ChangeEventName => "Local\\WeChatBridge.Windows.InboxChanged" + Suffix;
 
     /// <summary>The main app's single-instance mutex — probing it tells us whether a launch is needed at all.</summary>
-    private const string MainMutexName = "Local\\WeChatBridge.Windows.Main";
+    private static string MainMutexName => "Local\\WeChatBridge.Windows.Main" + Suffix;
 
     /// <summary>The named pipe a stub uses to hand a share to the resident keeper.</summary>
-    internal const string PipeName = "WeChatBridge.ShareTarget.Pipe";
+    internal static string PipeName => "WeChatBridge.ShareTarget.Pipe" + Suffix;
 
     /// <summary>One keeper per session — doubles as the residency election when two cold starts race.</summary>
-    private const string KeeperMutexName = "Local\\WeChatBridge.ShareTarget.Keeper";
+    private static string KeeperMutexName => "Local\\WeChatBridge.ShareTarget.Keeper" + Suffix;
 
     /// <summary>Serialises share handling in the keeper: two shares in quick succession must not open two pickers or race the clipboard.</summary>
     private static readonly SemaphoreSlim ActivationGate = new(1, 1);
@@ -90,12 +95,18 @@ internal static class Program
     private static void RunMessageLoop(Func<Task> run)
     {
         SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
+        // Captured here, on the STA thread, because the continuation below runs
+        // on a thread-pool thread — Dispatcher.CurrentDispatcher there is a
+        // second, empty dispatcher, and shutting that one down leaves this loop
+        // pumping forever. That is how a process that lost the keeper election
+        // used to linger instead of exiting.
+        var dispatcher = Dispatcher.CurrentDispatcher;
         var task = run();
         task.ContinueWith(t =>
         {
             _ = t.Exception; // observed; every branch already logs its own failure
             if (!_resident)
-                Dispatcher.CurrentDispatcher.BeginInvokeShutdown(DispatcherPriority.Background);
+                dispatcher.BeginInvokeShutdown(DispatcherPriority.Background);
         });
         Dispatcher.Run();
     }

@@ -43,6 +43,13 @@ DerivedData/
 *.cer
 *.p8
 
+# A local run of the licence server: its generated issuing key, its config and
+# the public key that key implies. Whole-directory rather than per-file because
+# anything dropped in here to make `go run ./cmd/wcb` work is by definition
+# something that must not reach the repository — and the private key in
+# particular must never be committed, here or anywhere else.
+/server/.local/
+
 # Local environment files
 .env
 .env.*

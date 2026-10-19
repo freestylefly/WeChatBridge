@@ -1,7 +1,17 @@
 [CmdletBinding()]
 param(
     [string]$Publisher = 'CN=WeChatBridge Windows Dev',
-    [string]$Version = '1.0.8.0',
+    # No default on purpose. Every caller passes the version it actually built
+    # from; a default here is one more place a stale number can survive, and it
+    # is a four-segment Appx version that must agree with the payload's file
+    # versions. Registering a package whose Identity/Version disagrees with the
+    # binaries underneath it produces a share target that fails at run time.
+    [Parameter(Mandatory = $true)]
+    [string]$Version,
+    # Which of the two products this package is. Only Subscription gets the
+    # internetClient capability; see the injection below.
+    [ValidateSet('Perpetual', 'Subscription')]
+    [string]$Edition = 'Perpetual',
     [string]$ExternalContentDirectory,
     [Parameter(Mandatory = $true)]
     [string]$OutputPath
@@ -39,6 +49,38 @@ try {
     [xml]$manifest = Get-Content -Raw -Encoding UTF8 $manifestPath
     $manifest.Package.Identity.Publisher = $Publisher
     $manifest.Package.Identity.Version = $Version
+
+    # Design doc section 7.3: the two editions are separate releases, so their
+    # manifests differ. SparsePackage/AppxManifest.xml ships in the Perpetual
+    # shape and deliberately does not declare internetClient: those binaries
+    # have no network code path at all, so claiming the capability would
+    # describe something that does not exist. Subscription gets it here, in the
+    # staged copy only; the source file is never edited.
+    #
+    # internetClient is NOT a restricted capability: it lives in the default
+    # foundation namespace and takes no rescap: prefix. Only runFullTrust and
+    # unvirtualizedResources need one, and those two stay as they are.
+    if ($Edition -eq 'Subscription') {
+        $foundationNamespace = 'http://schemas.microsoft.com/appx/manifest/foundation/windows10'
+        $capabilities = $manifest.SelectSingleNode("//*[local-name()='Capabilities']")
+        if (-not $capabilities) { throw 'The staged manifest has no Capabilities element.' }
+        # local-name() so this matches the unprefixed form regardless of how the
+        # source manifest spelled it; already-present means nothing to do.
+        $existing = $manifest.SelectSingleNode("//*[local-name()='Capability' and @Name='internetClient']")
+        if (-not $existing) {
+            $capability = $manifest.CreateElement('Capability', $foundationNamespace)
+            $capability.SetAttribute('Name', 'internetClient')
+            # Before the first child, so the capability reads as the first thing
+            # the element declares, and so a re-run over an already-patched
+            # manifest has an obvious insertion point.
+            if ($capabilities.FirstChild) {
+                $null = $capabilities.InsertBefore($capability, $capabilities.FirstChild)
+            }
+            else {
+                $null = $capabilities.AppendChild($capability)
+            }
+        }
+    }
     $manifest.Save($manifestPath)
 
     # A package without a resources index registers cleanly but does not reach the share
@@ -78,4 +120,5 @@ finally {
 
 Write-Output "Packed: $output"
 Write-Output "Publisher: $Publisher"
+Write-Output "Edition: $Edition"
 Write-Output "Version: $Version"

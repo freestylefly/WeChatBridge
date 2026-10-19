@@ -1,5 +1,10 @@
 [CmdletBinding()]
-param([string]$OutputDirectory = $PSScriptRoot)
+param(
+    [string]$OutputDirectory = $PSScriptRoot,
+    # The portable build installs to a removable drive, so the installed-app
+    # path is only the default. Pass the payload directory to collect from a stick.
+    [string]$AppRoot = (Join-Path $env:LOCALAPPDATA 'WeChatBridge\App')
+)
 $ErrorActionPreference = 'Stop'
 $report = New-Object System.Collections.Generic.List[string]
 function Record([string]$text) { $report.Add($text.Replace($env:USERPROFILE, '%USERPROFILE%')) }
@@ -32,7 +37,7 @@ Section 'System' {
     Record "Windows=$($os.ProductName) DisplayVersion=$($os.DisplayVersion) Build=$($os.CurrentBuild).$($os.UBR)"
     Record "PowerShell=$($PSVersionTable.PSVersion) CollectorElevated=$([ShareDiagnosticToken]::Elevated($PID))"
 }
-$appRoot = Join-Path $env:LOCALAPPDATA 'WeChatBridge\App'
+$appRoot = $AppRoot
 Section 'Installed files' {
     foreach ($relative in @('WeChatBridge.Windows.exe','WeChatBridge.Windows.dll','WeChatBridge.Windows.Core.dll',
         'share-target\WeChatBridge.ShareTarget.exe','share-target\WeChatBridge.ShareTarget.dll',

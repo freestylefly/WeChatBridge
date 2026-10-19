@@ -9,8 +9,22 @@
     <PackageReference Include="xunit"/>
     <PackageReference Include="xunit.runner.visualstudio"/>
     <ProjectReference Include="../../src/WeChatBridge.Windows/WeChatBridge.Windows.csproj"/>
+    <!-- The helper links types that also live in the main app, so referencing
+         its assembly would make those names ambiguous (CS0433). Build it as a
+         dependency instead and copy its output verbatim under share-target\ —
+         the process tests run that executable, they never bind to its types. -->
+    <ProjectReference Include="../../src/WeChatBridge.ShareTarget/WeChatBridge.ShareTarget.csproj" ReferenceOutputAssembly="false"/>
     <Compile Include="../WeChatBridge.Windows.Tests/TempInbox.cs" Link="TempInbox.cs"/>
     <Using Include="Xunit"/>
     <Using Include="System.IO"/>
   </ItemGroup>
+
+  <Target Name="CopyShareTargetForProcessTests" AfterTargets="Build">
+    <ItemGroup>
+      <ShareTargetPayload Include="$(MSBuildThisFileDirectory)..\..\src\WeChatBridge.ShareTarget\bin\$(Configuration)\$(TargetFramework)\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ShareTargetPayload)"
+          DestinationFiles="@(ShareTargetPayload->'$(OutDir)share-target\%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
 </Project>

@@ -17,7 +17,11 @@ public sealed record PrefetchHint(
     [property: JsonPropertyName("files")] IReadOnlyList<string> RelativePaths)
 {
     public const string FileName = "prefetch-hint.json";
-    public const string EventName = "Local\\WeChatBridge.Windows.PrefetchHint";
+    /// <summary>
+    /// Suffixed so a portable copy's helper and app meet each other rather than
+    /// a same-named pair belonging to an installed build.
+    /// </summary>
+    public static string EventName => "Local\\WeChatBridge.Windows.PrefetchHint" + AppLayout.Current.CoordinationSuffix;
 
     /// <summary>
     /// Full paths wherever the batch currently lives: Ready after commit, the

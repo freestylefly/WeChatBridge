@@ -3,6 +3,7 @@
   <h1>WeChatBridge（微信流）</h1>
   <p><strong>从微信转发菜单，把聊天记录送进 AI Agent 与本地知识库。</strong></p>
   <p>原生、轻量、完全本地的 macOS 微信聊天记录转发与归档工具。</p>
+  <p>本文的隐私边界适用于买断形态：当前发布的是它的免费档，完全离线，不上传聊天内容；Pro 授权仅在兑换许可证时联网一次。订阅版形态联网，提供 PDF 深度解析与 AI 任务编排等云端能力；订阅版只有你主动选择交给云端的文件会被上传，每次都会先列出具体是哪些文件，聊天归档本身始终留在本机。订阅版目前只规划了 Windows。</p>
 
   <p>
     <a href="https://github.com/freestylefly/WeChatBridge/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/freestylefly/WeChatBridge/ci.yml?branch=main&style=flat-square&label=build" alt="构建状态" /></a>
@@ -17,7 +18,7 @@
 </div>
 
 > [!NOTE]
-> 安装包统一通过蓝奏云发布：[Windows 版](https://wwbsr.lanzout.com/b0umjur4d)与 [macOS 版](https://wwbsr.lanzout.com/b0umjur8h)的提取密码均为 `向明`，详见[下载安装](#下载安装)。
+> 安装包统一通过蓝奏云发布：[Windows 版](https://wwbsr.lanzout.com/b0umjur4d)与 [macOS 版](https://wwbsr.lanzout.com/b0umjur8h)的提取密码均为 `向明`，详见[下载安装](#下载安装)。现有安装包是买断形态的免费档；订阅版是另一份发行物，联网并提供云端能力。
 
 ## 为什么做微信流
 
@@ -47,6 +48,7 @@ flowchart LR
 | 本地记录 | 查看批次状态、重新发送、复制、定位文件和清理历史 |
 | 失败兜底 | 目标未安装或权限不足时，文件仍会保留在剪贴板 |
 | 双语界面 | 完整支持简体中文与 English |
+| 版本形态 | 分买断版与订阅版：买断版无账号、不上传，Pro 授权仅在兑换许可证时联网一次；订阅版联网并提供云端能力，只上传你主动选择交给云端的文件。当前发布的免费档完全离线 |
 
 ### 内置转发入口
 
@@ -116,6 +118,8 @@ flowchart LR
 - 辅助功能权限只用于激活目标应用和执行粘贴。
 - 更新包统一从蓝奏云获取，当前源码配置尚未启用自动检查。
 
+以上边界描述的是买断形态，当前发布的免费档完全适用。订阅版会为云端能力联网，它同样不上传聊天归档本身，只上传你主动选择交给云端的文件，并会在上传前列出具体是哪些。
+
 更完整的能力边界见 [产品能力文档](PRODUCT_CAPABILITIES.zh-CN.md)。
 
 ## 系统要求
@@ -134,7 +138,11 @@ flowchart LR
 | Windows | [wwbsr.lanzout.com/b0umjur4d](https://wwbsr.lanzout.com/b0umjur4d) | `向明` |
 | macOS | [wwbsr.lanzout.com/b0umjur8h](https://wwbsr.lanzout.com/b0umjur8h) | `向明` |
 
-macOS 版下载后打开 DMG，将“微信流”拖入“应用程序”，安装包同时支持 Apple Silicon 和 Intel Mac；Windows 版解压后按目录内说明运行。
+macOS 版下载后打开 DMG，将“微信流”拖入“应用程序”，安装包同时支持 Apple Silicon 和 Intel Mac。
+
+Windows 版下载后运行 `WeChatBridge-<版本>-Windows-Setup.exe`，按向导安装即可，过程会请求一次管理员授权用于信任安装包的签名证书。**不要直接解压后运行**——解压会跳过证书信任这一步，微信分享菜单随后无法注册。
+
+不想安装可以用便携版：解压 `WeChatBridge-<版本>-Windows-Portable.zip` 到 U 盘任意目录，双击根目录下的 `FirstRun.bat` 即可。便携版的所有数据都写在 U 盘里，拔下后不留痕；微信分享菜单默认不启用，需要时在「入口」页点「在这台电脑上启用分享入口」。
 
 ## 从源码构建
 
@@ -186,7 +194,9 @@ shared/                 # 两端共用的资产与契约
 site/                   # Sparkle 更新源与版本说明
 ```
 
-项目使用 Swift Package Manager 管理 macOS 源码和 Sparkle 依赖。`macos/Scripts/make-app.sh` 会把主程序与十二个 Share Extension 组装成完整的 `.app`。Windows 侧见 `windows/AGENTS.md` 与 `windows/docs/README.zh-CN.md`。
+项目使用 Swift Package Manager 管理 macOS 源码和 Sparkle 依赖。`macos/Scripts/make-app.sh` 会把主程序与十二个 Share Extension 组装成完整的 `.app`。Windows 侧见 `windows/docs/README.zh-CN.md` 与 `windows/packaging/README.md`。
+
+完整的目录说明——每个目录的用途、三个用户数据根的定义位置、以及几条不看代码看不出来的约定（本地化方向、.ps1 的 UTF-8 BOM 要求、免 SDK 构建工具）——见 [`docs/repository-structure.zh-CN.md`](docs/repository-structure.zh-CN.md)。
 
 ## 开发与验证
 

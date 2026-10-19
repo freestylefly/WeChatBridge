@@ -6,7 +6,8 @@ namespace WeChatBridge.Windows.Core;
 public sealed record CollectionImportProgress(Guid OperationId, DateTimeOffset UpdatedAt, string Phase)
 {
     public const string FileName = "collection-import.json";
-    public const string EventName = "Local\\WeChatBridge.Windows.CollectionImport";
+    /// <inheritdoc cref="PrefetchHint.EventName"/>
+    public static string EventName => "Local\\WeChatBridge.Windows.CollectionImport" + AppLayout.Current.CoordinationSuffix;
     public bool IsFresh(DateTimeOffset now) => now - UpdatedAt < TimeSpan.FromSeconds(45) && UpdatedAt <= now.AddSeconds(5);
     public static CollectionImportProgress? Read(InboxPaths paths)
     {

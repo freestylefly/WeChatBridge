@@ -104,7 +104,8 @@ public sealed class BatchRow : INotifyPropertyChanged
         BatchOutcomeKind.Failed => batch.Outcome.Detail is { Length: > 0 } detail
             ? L10n.Format($"未送达 · {detail}")
             : L10n.Text("未送达"),
-        _ => batch.Action == ShareAction.Collect ? L10n.Text("收集中") : L10n.Text("未执行"),
+        _ => batch.Action == ShareAction.Collect ? L10n.Text("收集中")
+            : batch.Outcome is null && batch.Action == ShareAction.Hub ? L10n.Text("待发送") : L10n.Text("未执行"),
     };
 
     private static StatusTone StatusToneFor(ReadyBatch batch) => batch.Outcome?.Kind switch
@@ -226,15 +227,68 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         _scenes = scenes;
         _settings = _settingsStore.Load();
         _isAppInstalled = isAppInstalled;
+        ReconcileLocations();
         // Residency is the whole point of the background instance: reconcile
         // the stored preference with the Run key at every start so a fresh
-        // install self-registers and a user deletion stays deleted.
+        // install self-registers and a user deletion stays deleted. A portable
+        // build is never eligible: the Run key would hold a removable drive's
+        // path, and the drive is often not there at sign-in. Normalise the
+        // stored value too, or the toggle would read back as on.
+        if (AppLayout.Current.IsPortable && _settings.LaunchAtLogin)
+        {
+            _settings.LaunchAtLogin = false;
+            _settingsStore.Save(_settings);
+        }
         if (manageLogin && _settings.LaunchAtLogin != WeChatBridge.Windows.LaunchAtLogin.IsRegistered())
             WeChatBridge.Windows.LaunchAtLogin.Apply(_settings.LaunchAtLogin);
     }
 
+    /// <summary>
+    /// Adopts the vault that shipped on the drive, then drops the absolute paths
+    /// that moving to another machine or another drive letter left dangling.
+    /// Both matter only in portable mode — see <see cref="StaleLocationReconciler"/>.
+    /// </summary>
+    private void ReconcileLocations()
+    {
+        if (!AppLayout.Current.IsPortable)
+            return;
+        var firstRunVault = _settings.ObsidianVaultPath is null
+            && AppLayout.Current.Vault is { } vault && Directory.Exists(vault);
+        if (firstRunVault)
+        {
+            _settings.ObsidianVaultPath = AppLayout.Current.Vault;
+            _settingsStore.Save(_settings);
+        }
+
+        var reconciler = new StaleLocationReconciler(_settings, _settingsStore, _targetStore);
+        reconciler.Run();
+        if (reconciler.Changed)
+        {
+            RebuildEntries();
+            RaiseForStaleLocations(reconciler);
+        }
+    }
+
+    private void RaiseForStaleLocations(StaleLocationReconciler reconciler)
+    {
+        var lost = reconciler.DroppedTargets + reconciler.DroppedFolders;
+        if (reconciler.VaultRepointed)
+            ToastRequested?.Invoke(L10n.Text("U 盘位置变了，已改用这个 U 盘上的知识库。"), null, null, false);
+        if (lost > 0)
+            ToastRequested?.Invoke(
+                string.Format(
+                    System.Globalization.CultureInfo.CurrentCulture,
+                    L10n.Text("U 盘位置变了，已移除 {0} 个找不到的应用或文件夹设置。"),
+                    lost),
+                null, null, false);
+    }
+
     /// <summary>A status capsule inside the window: message, optional button, its action.</summary>
     public event Action<string, string?, Action?, bool>? ToastRequested;
+
+    /// <summary>Raises a status capsule from outside the view model.</summary>
+    public void Notify(string message, string? buttonText = null, Action? action = null, bool warn = false) =>
+        ToastRequested?.Invoke(message, buttonText, action, warn);
 
     /// <summary>A pane asking the window to switch tabs (添加应用… → 入口).</summary>
     public event Action<AppTab>? NavigationRequested;
@@ -321,6 +375,31 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    /// <summary>
+    /// False on a removable drive: the Run key would name a path that is often
+    /// absent at sign-in, leaving a dead entry behind.
+    /// </summary>
+    public bool AutoStartAvailable => !AppLayout.Current.IsPortable;
+
+    public string AutoStartHint => L10n.Text(AutoStartAvailable
+        ? "登录后后台驻留，分享进来时几乎立即转发；关掉则每次分享要冷启动。"
+        : "便携版不能开机自启：开机项里记的是 U 盘路径，拔了盘就是一条失效的记录。");
+
+    public bool WorkBuddyAutoImport
+    {
+        get => _settings.WorkBuddyAutoImport;
+        set
+        {
+            if (value == _settings.WorkBuddyAutoImport) return;
+            _settings.WorkBuddyAutoImport = value;
+            SaveSettings();
+            OnPropertyChanged(nameof(WorkBuddyAutoImport));
+            WorkBuddyAutoImportChanged?.Invoke(value);
+        }
+    }
+
+    public event Action<bool>? WorkBuddyAutoImportChanged;
+
     public string? ObsidianVaultPath
     {
         get => _settings.ObsidianVaultPath;
@@ -345,6 +424,18 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             _settings.ObsidianSubfolder = value;
             SaveSettings();
             OnPropertyChanged(nameof(ObsidianSubfolder));
+        }
+    }
+
+    public bool AutoArchiveWorkBuddyToObsidian
+    {
+        get => _settings.AutoArchiveWorkBuddyToObsidian;
+        set
+        {
+            if (value == _settings.AutoArchiveWorkBuddyToObsidian) return;
+            _settings.AutoArchiveWorkBuddyToObsidian = value;
+            SaveSettings();
+            OnPropertyChanged(nameof(AutoArchiveWorkBuddyToObsidian));
         }
     }
 
@@ -841,6 +932,11 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     /// </summary>
     private static void OpenInObsidian(string vaultPath, IReadOnlyList<string> notes)
     {
+        // A portable build ships Obsidian but never installed it, so nothing has
+        // claimed obsidian:// yet. Claim it here — the first time it is needed,
+        // not at startup — and only when nothing else already owns it.
+        if (AppLayout.Current.IsPortable)
+            ObsidianProtocol.Ensure();
         var vaultName = Path.GetFileName(
             vaultPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
         if (string.IsNullOrEmpty(vaultName))

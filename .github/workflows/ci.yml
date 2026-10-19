@@ -32,6 +32,21 @@ jobs:
 
   windows:
     runs-on: windows-latest
+    strategy:
+      # Both editions must be green before either is released, so one failing
+      # leg must not cancel the other: the two legs catch different mistakes,
+      # and losing the Subscription log because Perpetual broke would hide
+      # exactly the failure this matrix exists to surface.
+      fail-fast: false
+      matrix:
+        # The two are different products built from one source tree (design doc
+        # section 7). WeChatBridgeEdition selects the version line, the
+        # conditional compilation constant, and which source directories are
+        # compiled at all. It must be passed to restore, build AND test: passing
+        # it to build only would leave the test run evaluating a different
+        # edition, and the allow-list in EditionIsolationTests is chosen by the
+        # edition constant that define sets.
+        edition: [Perpetual, Subscription]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -41,15 +56,42 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Restore Windows solution
-        run: dotnet restore windows/WeChatBridge.Windows.sln
+      - name: Restore Windows solution (${{ matrix.edition }})
+        run: dotnet restore windows/WeChatBridge.Windows.sln -p:WeChatBridgeEdition=${{ matrix.edition }}
 
-      - name: Build Windows solution
-        run: dotnet build windows/WeChatBridge.Windows.sln --configuration Release --no-restore --nologo
+      - name: Build Windows solution (${{ matrix.edition }})
+        run: dotnet build windows/WeChatBridge.Windows.sln --configuration Release --no-restore --nologo -p:WeChatBridgeEdition=${{ matrix.edition }}
 
-      - name: Test Windows solution
-        run: dotnet test windows/WeChatBridge.Windows.sln --configuration Release --no-build --nologo
+      - name: Test Windows solution (${{ matrix.edition }})
+        run: dotnet test windows/WeChatBridge.Windows.sln --configuration Release --no-build --nologo -p:WeChatBridgeEdition=${{ matrix.edition }}
 
+      # =================================================================
+      # ORDERING: this must stay above every signing and publishing step.
+      #
+      # Signing is not something that happens to this repository's output, it
+      # is a request to a signing service that owns the key. Once the buy-out
+      # binaries go up there, a shape error found afterwards is not a rebuild,
+      # it is a revocation: the signed artefacts exist, are distributed, and
+      # the version string that tells support which product a customer is
+      # running is already baked into their Authenticode signature. Finding a
+      # mislabelled edition after that point means new keys, a new version
+      # number, and telling customers to reinstall.
+      #
+      # It is cheap to get right here, where the only cost of being wrong is a
+      # red job. Test-NoNetworkCode.ps1 proves two things from the bytes of the
+      # built assemblies: that the buy-out build names no networking type, and
+      # that the assemblies are the edition it was asked about rather than the
+      # other one under this edition's name. The second half is what catches a
+      # stale output folder, which is why this reads the version out of the
+      # binaries instead of trusting the build log.
+      # =================================================================
+      - name: Check the ${{ matrix.edition }} build for networking code
+        shell: pwsh
+        run: ./windows/scripts/Test-NoNetworkCode.ps1 -Edition ${{ matrix.edition }}
+
+      # From here on the artefacts are treated as release candidates. Anything
+      # added above this line is a check; anything added below it needs the
+      # signing revocation story above to be true first.
       - name: Validate sparse MSIX manifest
         shell: pwsh
         run: |

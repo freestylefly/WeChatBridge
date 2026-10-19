@@ -9,8 +9,18 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
      xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
      xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+  <!--
+    Two products share this author and this UpgradeCode. Sharing the UpgradeCode
+    is deliberate (design doc §18.3): the buy-out and the subscription are mutually
+    exclusive on one machine, so the second install supersedes the first and the
+    Share Target registration path stays byte-identical. Package/@Name carries the
+    product name that Programs and Features shows — MsiPackageName, which differs
+    per edition, so a support screenshot says which one is installed. $(var.EditionToken)
+    is the ASCII token (Buyout / Subscription) used for file names and the
+    registry marker below.
+  -->
 
-  <Package Name="微信流" Language="1033" Codepage="936" Version="$(var.MsiVersion)"
+  <Package Name="$(var.MsiPackageName)" Language="1033" Codepage="936" Version="$(var.MsiVersion)"
            Manufacturer="微信流" UpgradeCode="{9D8B6223-A1B3-4E46-95C9-9C500833E4CA}"
            Scope="perUser" InstallerVersion="500" Compressed="yes">
 
@@ -63,6 +73,14 @@
                   Target="[INSTALLFOLDER]WeChatBridge.Windows.exe"
                   WorkingDirectory="INSTALLFOLDER" Icon="AppIcon.ico" />
         <RegistryValue Root="HKCU" Key="Software\WeChatBridge" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+        <!-- Which of the two products is installed here. The installed=1 marker
+             above is shared and means "this product is registered"; this one
+             names the shape, because the two editions otherwise overwrite each
+             other in Programs and Features and leave nothing to tell them apart.
+             Read it before offering a license purchase or a sign-in: the buy-out
+             build has neither a network stack nor an account. Value is ASCII
+             (Buyout / Subscription) so it never needs a codepage. -->
+        <RegistryValue Root="HKCU" Key="Software\WeChatBridge" Name="edition" Type="string" Value="$(var.EditionToken)" />
         <RemoveFolder Id="WeChatBridgeProgramsFolderCleanup" Directory="WeChatBridgeProgramsFolder" On="uninstall" />
       </Component>
     </DirectoryRef>
