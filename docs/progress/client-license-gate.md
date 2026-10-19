@@ -9,12 +9,18 @@
 > 2026-10-19 校准：C-⑤ 的退避单测补齐（`cbcaa5d`）；C-④ 的 `ActivationGate` 早已随
 > `2d994b0` 落树，此前的「待提交」是看板滞后，不是代码缺失。同批补了 C-1 时间戳转换器
 > 修复（`b822761`）与 S1–S4 共 80 项新测试。
+>
+> 2026-10-19 再校准（服务端真机联调后）：**C-① 降级 ⏳** —— 见下「微信登录二维码的错配」。
+> 原判 ✅ 只核对了「代码存在且编译通过」，没拿真机扫码跑通一次。
+> 另：`LicensePublicKeys.PlaceholderKeyV1` 的占位公钥已换成真实签发公钥，
+> 此前的 🔴 阻塞项解除（私钥在服务端 `/etc/wechatbridge/license-ec.pk8.pem`，
+> 公私钥 DER 逐字节一致，签名/验签实测通过）。
 
 ## 任务表
 
 | # | 任务 | 状态 | commit | 备注 |
 |---|---|---|---|---|
-| C-① | 微信登录（session → QR PNG → 轮询 → 存双令牌） | ✅ | `98061ea` | `LoginWindow` 已提交、编译通过 |
+| C-① | 微信登录（session → QR PNG → 轮询 → 存双令牌） | ⏳ | `98061ea` | 代码在，**但 QR 那一步是错的**，见下「微信登录二维码的错配」 |
 | C-② | 机器码展示（installId 主键 + 硬件锚摘要辅证） | ✅ | `7232d39` | 购买窗内的可复制机器码 + 锚摘要；通用页另有一行常驻显示 |
 | C-③ | 购买（收款码静态图 + 登记 + 轮询 + 取票） | ⏳ | `7232d39` | `PurchaseWindow` 已写；**待产品方补齐收款码与开发者微信** |
 | C-④ | 启动门禁集成（未登录→登录页；已登录未授权→引导购买） | ✅ | `2d994b0` | `ActivationGate`；**不锁任何功能**，见下 |
@@ -185,11 +191,55 @@ C# raw string literal 保留文件里的行尾，所以 Windows 检出的字面�
 set WECHATBRIDGE_LICENSE_SERVER=http://127.0.0.1:8901/
 ```
 
+## 微信登录二维码的错配（2026-10-19 真机联调发现）
+
+**结论：服务端 `/v1/auth/session/:ticket/qr` 返回的码扫不通。要改成浏览器打开 `authorizeUrl`。**
+
+两种二维码不是一回事：
+
+| | 内容 | 扫了会怎样 |
+| --- | --- | --- |
+| 服务端 `/qr` 渲染的 | `renderQR(session.AuthorizeURL)`，即整个 qrconnect URL | 手机扫 → 微信在**手机里打开那个页面** → 页面在手机上渲染不出 PC 登录 → 提示「不允许在手机中扫码」，回调永远不来 |
+| 微信自己发的 | `open.weixin.qq.com/connect/qrcode/<uuid>`，嵌在 qrconnect 页面的 `<img class="js_qrcode_img web_qrcode_img">` 里 | 手机扫 → 微信识别为登录码 → 确认授权 → 回调 `redirect_uri` |
+
+联调证据（服务端日志，2026-10-19 08:39–08:45）：
+
+- 08:39:15 有人用浏览器直接打开 `/v1/auth/wechat/callback?code=xxx&state=ticket`（字面量占位），返回 400 —— **回调端点本身是好的**，伪造 state 被正确拒绝
+- 整段时间内**真实回调一次都没有**，nginx 与服务端两侧计数都是 0 —— 微信在跳转之前就中止了
+- AppID/Secret 单独验证有效（`cgi-bin/token` 换到 access_token），排除凭据问题
+- 最终改用「电脑浏览器打开 `authorizeUrl` → 手机扫微信那张码」，08:44:46 回调成功、令牌交付、激活登记落库
+
+**服务端不需要改**：`authorizeUrl` 一直在响应里（`AccountService.cs:168` 已经解析）。要改的是客户端——`LoginWindow` 现在拿 `qrImageUrl` 调 `FetchQrAsync` 拉 PNG 自己渲染（`LoginWindow.xaml` 的 `QrImage`），这条路径要走系统浏览器打开 `authorizeUrl` 代替。
+
+> 排查时的教训：这个错配在「编译通过 + 单测全绿」下完全看不出来，客户端一直连不上服务端，
+> 而服务端日志干净得只剩轮询。任何写着「二维码登录」的端到端流程，都值得拿真机扫一次再标 ✅。
+
 ## 阻塞项
 
 无外部阻塞（契约已冻结）。
 
 范围外但影响出口的两项，等机器 A：
 
-- 🔴 `LicensePublicKeys.PlaceholderKeyV1` 仍是占位串，发版前必须换真公钥；未换前一切票据验不过，`IsPro` 恒 false。这是设计上的 fail-closed，不是 bug。
+- ✅ ~~`LicensePublicKeys.PlaceholderKeyV1` 仍是占位串~~ **已解除（2026-10-19）**：已替换为服务端真实签发公钥。公私钥 DER 逐字节一致，且用服务端私钥签名、客户端公钥验签实测通过。常量名 `PlaceholderKeyV1` 未改（交接中刻意只换值，改名要连带改三处引用）。
 - 🟡 `server/mock/` 不在本分支树上，mock 全流程需借主检出跑：`node /d/WeChatBridge/server/mock/server.js --port 8901`，客户端 `export WECHATBRIDGE_LICENSE_SERVER=http://127.0.0.1:8901/`。
+
+### 真实服务端已就位（2026-10-19）
+
+买家侧全链路已用真机跑通：扫码 → 回调 → 双令牌交付 → 激活登记落库（`activation_requests` 1 行 `pending`）。服务端在 `https://ocbot.aixifs.com/v1/*`，配置与密钥在 `/etc/wechatbridge/`，systemd unit `wechatbridge.service`。
+
+客户端连它时注意两点：
+
+- `WECHATBRIDGE_LICENSE_SERVER` **必须带结尾斜杠**。`HttpActivationTransport.cs:46` 专门处理这个：base 不带尾斜杠时 `new Uri("https://host/api", "v1/auth/session")` 会解析成 `https://host/v1/auth/session`，路径段被静默丢弃。
+- 库里是 **PostgreSQL 不是 SQLite**。`sqlite3 "$WCB_DATABASE_URL"` 连不上；等价写法 `PGPASSWORD=… psql -h 127.0.0.1 -U wcb -d wcb -tAc "SELECT open_id FROM accounts WHERE nickname='…';"`。
+- 卖家后台在 `https://ocbot.aixifs.com/admin/`（静态页，与 `/v1/*` 同源，无 CORS 头也不需要）。卖家身份靠同一个 Bearer + `WCB_ADMIN_OPENIDS` 白名单判定：token 验得过但不在名单上是 **403** 而非 401。
+
+### 签发链路已实测跑通（2026-10-19）
+
+卖家扫码登录 → `POST /v1/admin/confirm` → `activation_requests` 转 `confirmed` → `licence_bindings` 落库 → 买断版 envelope 签出（`exp: null`、`ent: [PRO]`）。
+
+拿**客户端 `LicensePublicKeys.cs` 里内嵌的那把公钥**验签通过，即 `IsPro` 为 true 的三个前提（公私钥配对、canonical 逐字节一致、raw 签名拆分正确）同时成立。
+
+手工验证这张许可证时注意两件事，都会让人误判成事故：
+
+- 签名是 **64 字节 raw `r‖s`**（`internal/license/crypto.go` 的 `signRaw`），不是 DER。`openssl dgst -verify` 要 DER，直接喂会报 `Error verifying data`，得先转 `SEQUENCE{INTEGER r, INTEGER s}`。
+- canonical 每行都带 `key=` 前缀（`license.go:115`），无尾随换行，空段用 `-`。凭印象拼很容易少写前缀，那样算出的是不同的字节。
