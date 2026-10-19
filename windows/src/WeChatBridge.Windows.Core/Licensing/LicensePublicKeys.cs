@@ -24,7 +24,9 @@ public static class LicensePublicKeys
     /// <para>
     /// Paired with the private key in the server's signing pipeline, which is
     /// where the key is generated and the only place it lives. It is not in
-    /// this repository and is not on any developer machine.
+    /// this repository and is not on any developer machine. As of 2026-10-19
+    /// it is deployed at <c>/etc/wechatbridge/license-ec.pk8.pem</c> (PKCS#8,
+    /// mode 600) behind <c>wechatbridge.service</c>.
     /// </para>
     /// <para>
     /// base64url, unpadded — <see cref="Base64Url.TryDecode"/> is what reads
@@ -32,8 +34,14 @@ public static class LicensePublicKeys
     /// written in standard base64 would import as different bytes here than
     /// the server derived them from.
     /// </para>
+    /// <para>
+    /// The identifier still says <c>Placeholder</c> because renaming it was
+    /// left out of the swap on purpose: this file was being handed to another
+    /// developer at the time, and a value-only diff is the cheapest thing to
+    /// merge. The name is historical, not descriptive.
+    /// </para>
     /// </summary>
-    public const string PlaceholderKeyV1 = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEhVxpyiTAh_oFRSPEUU7S1HLOYzjwOb1W5VF3Skp_-IH7yIInku28_WVWDtis0xuBAmCaHFycB3aWeQUDxkb5_g";
+    public const string PlaceholderKeyV1 = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEwbLEFzGEcMyOsGB3UvyCdWq66T0lGyZE5uvOT7NKSJcRql0W5wi7v8rWepV8h83psVlVfUbDkXeXqUtKMNTreA";
 
     /// <summary>Format version to base64url SubjectPublicKeyInfo.</summary>
     public static IReadOnlyDictionary<int, string> PublicKeys { get; } =
@@ -46,9 +54,11 @@ public static class LicensePublicKeys
     /// <summary>
     /// The key factory the verifier is given. Returns <c>null</c> rather than throwing
     /// for anything unusable, because "this licence has no key" and "this licence is
-    /// not signed" are the same answer for the caller: it does not verify. The
-    /// placeholder above is deliberately not importable, and the test suite injects a
-    /// factory over its own throwaway key pair instead of borrowing this one.
+    /// not signed" are the same answer for the caller: it does not verify. That is
+    /// also the answer for a malformed or non-importable key — including the
+    /// placeholder this class used to hold before 2026-10-19, which is why the
+    /// test suite injects a factory over its own throwaway key pair rather than
+    /// borrowing the compiled-in one.
     /// </summary>
     public static ECDsa? ImportSubjectPublicKeyInfo(string? base64UrlSubjectPublicKeyInfo)
     {
