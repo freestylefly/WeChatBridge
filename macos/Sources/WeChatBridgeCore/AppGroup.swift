@@ -38,13 +38,22 @@ public enum AppGroup {
         }
 
         /// The real account home, not the sandbox container home.
+        ///
+        /// On iOS there is no account home to reach, and each process gets its
+        /// own container: this is only a scratch root for tests and previews.
+        /// iOS bundles must declare `.appGroup`, or the app and its extension
+        /// would each read a different inbox.
         public static var sharedRoot: URL {
+            #if os(macOS)
             guard let entry = getpwuid(getuid()), let path = entry.pointee.pw_dir else {
                 return FileManager.default.homeDirectoryForCurrentUser
                     .appendingPathComponent("Library/Application Support/WeChatBridge", isDirectory: true)
             }
             return URL(fileURLWithPath: String(cString: path), isDirectory: true)
                 .appendingPathComponent("Library/Application Support/WeChatBridge", isDirectory: true)
+            #else
+            return URL.applicationSupportDirectory.appendingPathComponent("WeChatBridge", isDirectory: true)
+            #endif
         }
     }
 }

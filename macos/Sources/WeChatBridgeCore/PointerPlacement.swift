@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 /// Where a panel that answers a click belongs on screen.
