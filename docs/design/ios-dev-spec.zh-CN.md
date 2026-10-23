@@ -144,7 +144,7 @@ $ROOT/
 │ 分享 ZIP                      │
 └──────────────┬───────────────┘
                ▼
-┌──────── WeChatBridgeShare（iOS 分享扩展） ────────┐
+┌─────── WeChatBridgeiOSShare（iOS 分享扩展） ───────┐
 │ ShareViewController                                │
 │  ① AttachmentImporter → BatchStaging（复制原字节）  │
 │  ② staging.commit(manifest, action: .collect)       │
@@ -154,7 +154,7 @@ $ROOT/
 └──────────────┬────────────────────────────────────┘
                │ App Group 容器 /Inbox/Ready/<batchID>/
                ▼
-┌──────────── WeChatBridge（iOS 主 App） ────────────┐
+┌────────── WeChatBridgeiOS（iOS 主 App） ───────────┐
 │ RelayStore（@MainActor, ObservableObject）          │
 │   InboxReader.loadBatches() → [RelayEntry]          │
 │   RelayEntry = ReadyBatch + 解析结果（缓存）          │
@@ -220,57 +220,19 @@ v1 **不搬动 Core**，iOS 工程把 `../macos` 当作本地 Swift 包引用，
 
 ### 5.3 project.yml 要点
 
-```yaml
-name: WeChatBridge
-options:
-  bundleIdPrefix: com.xiangming
-  deploymentTarget: { iOS: "17.0" }
-  createIntermediateGroups: true
-configFiles:
-  Debug: Config/Signing.xcconfig
-  Release: Config/Signing.xcconfig
-packages:
-  WeChatBridgeKit:
-    path: ../macos
-targets:
-  WeChatBridge:
-    type: application
-    platform: iOS
-    sources: [App, Resources]
-    dependencies:
-      - package: WeChatBridgeKit
-        product: WeChatBridgeCore
-      - target: WeChatBridgeShare
-    info: { path: Config/App-Info.plist }
-    entitlements: { path: Config/App.entitlements }
-    settings:
-      PRODUCT_BUNDLE_IDENTIFIER: com.xiangming.wechatbridge.ios
-      SWIFT_VERSION: "6.0"
-      TARGETED_DEVICE_FAMILY: "1"
-  WeChatBridgeShare:
-    type: app-extension
-    platform: iOS
-    sources: [ShareExtension]
-    dependencies:
-      - package: WeChatBridgeKit
-        product: WeChatBridgeCore
-    info: { path: Config/Share-Info.plist }
-    entitlements: { path: Config/Share.entitlements }
-    settings:
-      PRODUCT_BUNDLE_IDENTIFIER: com.xiangming.wechatbridge.ios.share
-      SWIFT_VERSION: "6.0"
-      APPLICATION_EXTENSION_API_ONLY: YES
-  WeChatBridgeiOSTests:
-    type: bundle.unit-test
-    platform: iOS
-    sources: [Tests]
-    dependencies:
-      - target: WeChatBridge
-schemes:
-  WeChatBridge:
-    build: { targets: { WeChatBridge: all, WeChatBridgeShare: all } }
-    test: { targets: [WeChatBridgeiOSTests] }
-```
+以 `ios/project.yml` 为准。target 名带 `iOS`，是为了不和 Mac 包里的 `WeChatBridgeApp`/`WeChatBridgeShare` 产品重名：
+
+| target | 类型 | 源码 | Bundle ID |
+|---|---|---|---|
+| `WeChatBridgeiOS` | application | `App`、`Resources` | `com.xiangming.wechatbridge.ios` |
+| `WeChatBridgeiOSShare` | app-extension | `ShareExtension` | `com.xiangming.wechatbridge.ios.share` |
+| `WeChatBridgeiOSTests` | bundle.unit-test | `Tests`（`Tests/Fixtures` 作为文件夹资源） | `com.xiangming.wechatbridge.ios.tests` |
+
+- 两个 target 都依赖本地包 `WeChatBridgeKit`（`path: ../macos`）的 `WeChatBridgeCore` 产品，主 App 内嵌扩展。
+- Info.plist 和 entitlements 用 `INFOPLIST_FILE` / `CODE_SIGN_ENTITLEMENTS` 指向 `Config/` 下的文件（不用 XcodeGen 的 `info:` 生成，避免覆盖手写键）。
+- 主 App 和扩展 `SWIFT_VERSION = 5.0`（和 Mac App 层一致）；Core 保持 Swift 6。
+- 测试 target 用 `TEST_HOST = $(BUILT_PRODUCTS_DIR)/WeChatBridgeiOS.app/WeChatBridgeiOS`，`@testable import WeChatBridgeiOS`。
+- scheme 是 `WeChatBridgeiOS`（build 两个 target，test `WeChatBridgeiOSTests`）。
 
 `Config/Signing.xcconfig`：
 
@@ -280,7 +242,6 @@ CODE_SIGN_STYLE = Automatic
 #include? "Signing.local.xcconfig"
 ```
 
-如果在 SwiftUI 的 Swift 6 严格并发下出现大量与本任务无关的告警，可以把主 App 降到 `SWIFT_VERSION: "5.0"`（Mac App 层就是 v5），但 Core 保持 v6。
 
 ### 5.4 标识与配置（全部写死，不要另起名字）
 
@@ -619,7 +580,7 @@ cd /Users/wn/me-code/WeChatBridge-HUB/.worktrees/ios-relay && SDK=$(xcrun --sdk 
 ### 8.3 iOS 构建和单元测试（需要 iOS 26.5 平台）
 
 ```bash
-cd /Users/wn/me-code/WeChatBridge-HUB/.worktrees/ios-relay/ios && xcodegen generate && xcodebuild -project WeChatBridge.xcodeproj -scheme WeChatBridge -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath build test 2>&1 | tail -20
+cd /Users/wn/me-code/WeChatBridge-HUB/.worktrees/ios-relay/ios && xcodegen generate && xcodebuild -project WeChatBridge.xcodeproj -scheme WeChatBridgeiOS -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO test 2>&1 | tail -20
 ```
 
 通过标准：`** TEST SUCCEEDED **`。模拟器名字以 `xcrun simctl list devices available` 为准。`ios/Scripts/verify.sh` 依次跑 8.1、8.2、8.3，任何一步失败就以非零退出。

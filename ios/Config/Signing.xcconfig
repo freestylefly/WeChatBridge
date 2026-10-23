@@ -1,0 +1,5 @@
+// Simulator builds need no account. A device build with the App Group needs a
+// paid team; put DEVELOPMENT_TEAM overrides in Signing.local.xcconfig (ignored).
+DEVELOPMENT_TEAM = DLKMC3ZRZQ
+CODE_SIGN_STYLE = Automatic
+#include? "Signing.local.xcconfig"
