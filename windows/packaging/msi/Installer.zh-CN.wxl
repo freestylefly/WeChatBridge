@@ -1,0 +1,68 @@
+<?xml version='1.0' encoding='utf-8'?>
+<WixLocalization xmlns="http://wixtoolset.org/schemas/v4/wxl" Culture="zh-cn" Language="2052">
+  <String Id="Caption" Value="微信流安装" />
+  <String Id="Title" Value="微信流" />
+  <String Id="CheckingForUpdatesLabel" Value="正在检查更新" />
+  <String Id="UpdateButton" Value="更新到 [WixStdBAUpdateAvailable]" />
+  <String Id="InstallHeader" Value="安装微信流" />
+  <String Id="InstallMessage" Value="点击「一键安装」，即可在这台电脑上使用微信流。" />
+  <String Id="InstallMessageOptions" Value="点击「一键安装」，即可在这台电脑上使用微信流。" />
+  <String Id="InstallVersion" Value="版本 [WixBundleVersion]" />
+  <String Id="ConfirmCancelMessage" Value="要取消安装吗？" />
+  <String Id="ExecuteUpgradeRelatedBundleMessage" Value="正在更新旧版本" />
+  <String Id="HelpHeader" Value="安装帮助" />
+  <String Id="HelpText" Value="双击安装程序后，点击「一键安装」。&#10;&#10;首次安装微信分享入口时，Windows 可能请求管理员授权。&#10;&#10;本安装包已包含运行时，无需另外安装 .NET。" />
+  <String Id="HelpCloseButton" Value="关闭" />
+  <String Id="InstallLicenseLinkText" Value="开源协议" />
+  <String Id="InstallAcceptCheckbox" Value="我同意开源协议" />
+  <String Id="InstallOptionsButton" Value="安装选项" />
+  <String Id="InstallInstallButton" Value="一键安装" />
+  <String Id="InstallCancelButton" Value="取消" />
+  <String Id="OptionsHeader" Value="安装选项" />
+  <String Id="OptionsLocationLabel" Value="安装位置：" />
+  <String Id="OptionsBrowseButton" Value="选择位置" />
+  <String Id="OptionsOkButton" Value="确定" />
+  <String Id="OptionsCancelButton" Value="取消" />
+  <String Id="ProgressHeader" Value="正在安装，请稍候" />
+  <String Id="ProgressLabel" Value="当前步骤：" />
+  <String Id="OverallProgressPackageText" Value="正在准备…" />
+  <String Id="ProgressCancelButton" Value="取消" />
+  <String Id="ModifyHeader" Value="微信流已安装" />
+  <String Id="ModifyRepairButton" Value="修复安装" />
+  <String Id="ModifyUninstallButton" Value="卸载" />
+  <String Id="ModifyCancelButton" Value="关闭" />
+  <String Id="SuccessHeader" Value="安装完成" />
+  <String Id="SuccessCacheHeader" Value="安装文件已准备好" />
+  <String Id="SuccessInstallHeader" Value="微信流已安装完成" />
+  <String Id="SuccessLayoutHeader" Value="安装文件已保存" />
+  <String Id="SuccessModifyHeader" Value="操作完成" />
+  <String Id="SuccessRepairHeader" Value="修复完成" />
+  <String Id="SuccessUninstallHeader" Value="已卸载微信流" />
+  <String Id="SuccessUnsafeUninstallHeader" Value="已卸载微信流" />
+  <String Id="SuccessLaunchButton" Value="打开微信流" />
+  <String Id="SuccessRestartText" Value="请重新启动电脑后使用微信流。" />
+  <String Id="SuccessUninstallRestartText" Value="请重新启动电脑以完成卸载。" />
+  <String Id="SuccessRestartButton" Value="重新启动" />
+  <String Id="SuccessCloseButton" Value="完成" />
+  <String Id="FailureHeader" Value="安装未完成" />
+  <String Id="FailureCacheHeader" Value="无法准备安装文件" />
+  <String Id="FailureInstallHeader" Value="安装未完成" />
+  <String Id="FailureLayoutHeader" Value="无法保存安装文件" />
+  <String Id="FailureModifyHeader" Value="操作未完成" />
+  <String Id="FailureRepairHeader" Value="修复未完成" />
+  <String Id="FailureUninstallHeader" Value="卸载未完成" />
+  <String Id="FailureUnsafeUninstallHeader" Value="卸载未完成" />
+  <String Id="FailureHyperlinkLogText" Value="请检查提示后重试。若仍然失败，可打开 &lt;a href=&quot;#&quot;&gt;安装日志&lt;/a&gt; 排查。" />
+  <String Id="FailureRestartText" Value="请重新启动电脑以完成回滚。" />
+  <String Id="FailureRestartButton" Value="重新启动" />
+  <String Id="FailureCloseButton" Value="关闭" />
+  <String Id="FilesInUseTitle" Value="请先关闭微信流" />
+  <String Id="FilesInUseLabel" Value="以下程序正在使用需要更新的文件：" />
+  <String Id="FilesInUseNetfxCloseRadioButton" Value="关闭程序后继续" />
+  <String Id="FilesInUseCloseRadioButton" Value="关闭程序并尝试恢复" />
+  <String Id="FilesInUseDontCloseRadioButton" Value="暂不关闭，稍后重启电脑" />
+  <String Id="FilesInUseRetryButton" Value="重试" />
+  <String Id="FilesInUseIgnoreButton" Value="继续" />
+  <String Id="FilesInUseExitButton" Value="退出" />
+  <String Id="InstallDetails" Value="如提示管理员授权，请选择允许。&#10;主程序、分享入口和运行时一起安装，无需另外下载。" />
+</WixLocalization>

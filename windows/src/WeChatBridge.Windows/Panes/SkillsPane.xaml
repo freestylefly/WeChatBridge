@@ -1,0 +1,246 @@
+<UserControl x:Class="WeChatBridge.Windows.Panes.SkillsPane"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:WeChatBridge.Windows">
+    <UserControl.Resources>
+        <!-- 官方技能 / 用于 N 个场景 capsules — the port of SkillBadge. -->
+        <Style x:Key="SkillBadge" TargetType="Border">
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="9,3" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Background" Value="{StaticResource SunkenColor}" />
+        </Style>
+
+        <!-- One skill card: mark, name+summary, pill, badges, expandable detail. -->
+        <DataTemplate x:Key="SkillCardTemplate">
+            <Border Style="{StaticResource Card}" Padding="14" Margin="0,0,0,8">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Disclosure — the ▸/▾ toggle. -->
+                        <Button Grid.Column="0" VerticalAlignment="Top" Padding="4" Margin="0,4,6,0"
+                                Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                Click="ToggleDetails_Click" ToolTip="{loc:Loc Key='展开或收起详情'}">
+                            <TextBlock FontSize="11" Foreground="{StaticResource InkTertiaryColor}"
+                                       Text="{Binding IsExpanded, Converter={StaticResource ExpandGlyph}}" />
+                        </Button>
+
+                        <Border Grid.Column="1" Width="44" Height="44" CornerRadius="10"
+                                Background="{StaticResource BrandSoftColor}" VerticalAlignment="Top">
+                            <TextBlock FontSize="17" FontWeight="SemiBold"
+                                       Foreground="{StaticResource BrandColor}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Text="{Binding Mark}" />
+                        </Border>
+
+                        <StackPanel Grid.Column="2" Margin="12,0,0,0" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock FontSize="13.5" FontWeight="Medium"
+                                           Foreground="{StaticResource InkColor}" Text="{Binding Skill.Name}" />
+                                <TextBlock Margin="6,0,0,0" FontSize="12" VerticalAlignment="Bottom"
+                                           Foreground="{StaticResource InkTertiaryColor}"
+                                           Text="{Binding Skill.Version, StringFormat={}v{0}}" />
+                            </StackPanel>
+                            <TextBlock Margin="0,3,0,0" FontSize="12.5" TextWrapping="Wrap"
+                                       MaxHeight="50" TextTrimming="CharacterEllipsis"
+                                       Foreground="{StaticResource InkSecondaryColor}"
+                                       Text="{Binding Skill.Summary}" />
+                        </StackPanel>
+
+                        <Border Grid.Column="3" Style="{StaticResource StatusPill}"
+                                VerticalAlignment="Top" Margin="12,0,0,0">
+                            <TextBlock Style="{StaticResource StatusPillText}" Text="{Binding StatusTitle}" />
+                        </Border>
+                    </Grid>
+
+                    <Grid Margin="0,12,0,0">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border Style="{StaticResource SkillBadge}">
+                                <TextBlock FontSize="11" FontWeight="Medium"
+                                           Foreground="{StaticResource InkSecondaryColor}"
+                                           Text="{Binding OriginText}" />
+                            </Border>
+                            <!-- Clicking jumps to the first scene that references this skill. -->
+                            <Button Padding="0" Margin="0" Background="Transparent" BorderThickness="0"
+                                    Cursor="Hand" IsEnabled="{Binding HasScenes}"
+                                    ToolTip="{loc:Loc Key='查看引用这个技能的场景'}" Click="SceneBadge_Click">
+                                <Border Style="{StaticResource SkillBadge}">
+                                    <TextBlock FontSize="11" FontWeight="Medium"
+                                               Foreground="{StaticResource InkSecondaryColor}"
+                                               Text="{Binding SceneCount, StringFormat={}用于 {0} 个场景}" />
+                                </Border>
+                            </Button>
+                            <Border Style="{StaticResource SkillBadge}"
+                                    Visibility="{Binding LibraryText, Converter={StaticResource StringToVisibility}}"
+                                    ToolTip="{loc:Loc Key='场景提示词通过技能库中的 SKILL.md 引用这个技能'}">
+                                <TextBlock FontSize="11" FontWeight="Medium" Text="{Binding LibraryText}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{StaticResource InkSecondaryColor}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding LibraryConflict}" Value="True">
+                                                    <Setter Property="Foreground" Value="{StaticResource WarnInkColor}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Details: the id, the reference token, the library path. -->
+                    <StackPanel Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibility}}">
+                        <Border Height="1" Margin="0,12,0,10" Background="{StaticResource StrokeSoftColor}" />
+
+                        <Border Margin="0,0,0,10" Padding="12,10" CornerRadius="10"
+                                Background="{StaticResource WarnFillColor}"
+                                Visibility="{Binding PackageMissing, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock FontSize="12" TextWrapping="Wrap" Foreground="{StaticResource WarnInkColor}"
+                                       Text="{Binding PackageMissingText}" />
+                        </Border>
+
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Width="72" FontSize="12" Foreground="{StaticResource InkTertiaryColor}"
+                                           Text="{loc:Loc Key='技能 ID'}" />
+                                <TextBlock FontSize="12" Foreground="{StaticResource InkColor}"
+                                           Text="{Binding Skill.Id}" />
+                            </StackPanel>
+                            <StackPanel Margin="0,6,0,0" Orientation="Horizontal">
+                                <TextBlock Width="72" FontSize="12" Foreground="{StaticResource InkTertiaryColor}"
+                                           Text="{loc:Loc Key='引用方式'}" />
+                                <TextBlock FontSize="12" Foreground="{StaticResource InkColor}"
+                                           Text="{Binding ReferenceToken}" />
+                            </StackPanel>
+                            <StackPanel Margin="0,6,0,0" Orientation="Horizontal"
+                                        Visibility="{Binding LibraryFile, Converter={StaticResource StringToVisibility}}">
+                                <TextBlock Width="72" FontSize="12" Foreground="{StaticResource InkTertiaryColor}"
+                                           Text="{loc:Loc Key='技能库'}" />
+                                <TextBlock FontSize="12" Foreground="{StaticResource InkColor}"
+                                           TextWrapping="Wrap" Text="{Binding LibraryFile}" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Imported skills are the user's to keep or drop. -->
+                        <Button Margin="0,10,0,0" HorizontalAlignment="Left"
+                                Style="{StaticResource SettingsButton}" Padding="10,3" FontSize="11.5"
+                                Content="{loc:Loc Key='从技能库移除'}"
+                                Visibility="{Binding IsUserSkill, Converter={StaticResource BoolToVisibility}}"
+                                Click="RemoveSkill_Click" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <ScrollViewer x:Name="Root" VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <!-- Catalog load failure — the loadError line on macOS. -->
+            <Border Margin="0,4,0,0" Padding="12,10" CornerRadius="10"
+                    Background="{StaticResource WarnFillColor}"
+                    Visibility="{Binding LoadError, Converter={StaticResource StringToVisibility}}">
+                <TextBlock FontSize="12" Foreground="{StaticResource WarnInkColor}"
+                           Text="{Binding LoadError}" TextWrapping="Wrap" />
+            </Border>
+
+            <!-- Metrics: totals, user imports, scene-referenced. -->
+            <Grid Margin="0,16,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Style="{StaticResource Card}" MinHeight="58"
+                        Padding="12" Margin="0,0,6,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock FontSize="18" VerticalAlignment="Center" Margin="0,0,10,0"
+                                   Width="24" TextAlignment="Center"
+                                   Foreground="{StaticResource BrandColor}" Text="◇" />
+                        <TextBlock FontSize="13.5" FontWeight="Medium" VerticalAlignment="Center"
+                                   Foreground="{StaticResource InkColor}"
+                                   Text="{Binding SkillCount, StringFormat={}{0} 个技能}" />
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="1" Style="{StaticResource Card}" MinHeight="58"
+                        Padding="12" Margin="0,0,6,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock FontSize="18" VerticalAlignment="Center" Margin="0,0,10,0"
+                                   Width="24" TextAlignment="Center"
+                                   Foreground="{StaticResource BlueColor}" Text="⇩" />
+                        <TextBlock FontSize="13.5" FontWeight="Medium" VerticalAlignment="Center"
+                                   Foreground="{StaticResource InkColor}"
+                                   Text="{Binding ImportedCount, StringFormat={}{0} 个导入}" />
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="2" Style="{StaticResource Card}" MinHeight="58" Padding="12">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock FontSize="18" VerticalAlignment="Center" Margin="0,0,10,0"
+                                   Width="24" TextAlignment="Center"
+                                   Foreground="{StaticResource WarningColor}" Text="▸" />
+                        <TextBlock FontSize="13.5" FontWeight="Medium" VerticalAlignment="Center"
+                                   Foreground="{StaticResource InkColor}"
+                                   Text="{Binding ReferencedCount, StringFormat={}被 {0} 个场景引用}" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Search field, full width — SkillSearchField. -->
+            <Grid Margin="0,16,0,0">
+                <TextBox x:Name="SearchBox" Style="{StaticResource MacField}"
+                         Padding="10,5" FontSize="12.5"
+                         TextChanged="Search_Changed" />
+                <TextBlock Text="{loc:Loc Key='搜索技能名、描述或标识'}" FontSize="12.5" IsHitTestVisible="False"
+                           Foreground="{StaticResource InkTertiaryColor}"
+                           Margin="13,0,0,0" VerticalAlignment="Center">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Text, ElementName=SearchBox}"
+                                             Value="">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
+
+            <!-- 导入 ZIP + the reference-only explainer. -->
+            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                <Button Style="{StaticResource SettingsButton}" Padding="14,5" FontSize="12.5"
+                        Click="Import_Click"><Button.Content><loc:Loc Key="导入 ZIP…"/></Button.Content></Button>
+                <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="12" TextWrapping="Wrap"
+                           Foreground="{StaticResource InkTertiaryColor}"
+                           Text="{loc:Loc Key='技能由微信流统一管理，场景用 {{skill:id}} 引用，转发时由目标 Agent 直接读取。'}" />
+            </StackPanel>
+
+            <!-- Skill cards. -->
+            <ItemsControl x:Name="SkillList" Margin="0,16,0,0"
+                          ItemTemplate="{StaticResource SkillCardTemplate}" />
+
+            <!-- Empty state, mirroring the puzzlepiece placeholder. -->
+            <StackPanel x:Name="EmptyState" Margin="0,40" Visibility="Collapsed">
+                <TextBlock FontSize="26" HorizontalAlignment="Center"
+                           Foreground="{StaticResource InkTertiaryColor}" Text="◇" />
+                <TextBlock Margin="0,8,0,0" FontSize="13.5" FontWeight="Medium" HorizontalAlignment="Center"
+                           Foreground="{StaticResource InkColor}" Text="{loc:Loc Key='没有找到匹配的技能。'}" />
+            </StackPanel>
+
+            <!-- Inline notice — the port of the macOS Notice banner. -->
+            <Border x:Name="NoticeBar" Margin="0,12,0,0" Padding="12,10" CornerRadius="10"
+                    Background="{StaticResource LiveFillColor}" Visibility="Collapsed">
+                <TextBlock x:Name="NoticeText" FontSize="12" Foreground="{StaticResource LiveInkColor}"
+                           TextWrapping="Wrap" />
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

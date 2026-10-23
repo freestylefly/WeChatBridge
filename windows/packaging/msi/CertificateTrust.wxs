@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <!-- Burn obtains consent before executing this machine-wide prerequisite.
+       The application's MSI and Appx registration stay in the original user. -->
+  <Package Name="微信流分享入口证书" Language="2052" Codepage="936" Version="$(var.MsiVersion)"
+           Manufacturer="微信流" UpgradeCode="{B40B0E74-562A-47D1-A1E4-06E52E687C18}"
+           Scope="perMachine" InstallerVersion="500" Compressed="yes">
+    <MajorUpgrade DowngradeErrorMessage="已安装更新版本的微信流分享入口证书。" />
+    <MediaTemplate EmbedCab="yes" />
+    <Property Id="ARPSYSTEMCOMPONENT" Value="1" />
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="TrustVendorFolder" Name="WeChatBridge">
+        <Directory Id="TrustInstallFolder" Name="InstallerTrust">
+          <Component Id="TrustScript" Guid="*">
+            <File Source="$(var.PayloadDir)\Register-ShareTarget.ps1" KeyPath="yes" />
+          </Component>
+          <Directory Id="TrustCertificateFolder" Name="certs">
+            <Component Id="TrustLeaf" Guid="*">
+              <File Source="$(var.PayloadDir)\certs\WeChatBridge.Windows.Dev.cer" KeyPath="yes" />
+            </Component>
+            <Component Id="TrustRoot" Guid="*">
+              <File Source="$(var.PayloadDir)\certs\WeChatBridge.Windows.Dev.Root.cer" KeyPath="yes" />
+            </Component>
+          </Directory>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+    <Feature Id="Trust" Title="微信分享入口证书" Level="1">
+      <ComponentRef Id="TrustScript" />
+      <ComponentRef Id="TrustLeaf" />
+      <ComponentRef Id="TrustRoot" />
+    </Feature>
+    <SetProperty Id="TrustSigningCertificate" Sequence="execute" Before="TrustSigningCertificate"
+        Value="&quot;[System64Folder]WindowsPowerShell\v1.0\powershell.exe&quot; -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File &quot;[TrustInstallFolder]Register-ShareTarget.ps1&quot; -InstallRoot &quot;[TrustInstallFolder].&quot; -TrustCertificateOnly" />
+    <?if $(sys.BUILDARCH) = arm64 ?>
+    <CustomAction Id="TrustSigningCertificate" BinaryRef="Wix4UtilCA_A64" DllEntry="WixQuietExec64"
+                  Execute="deferred" Impersonate="no" Return="check" />
+    <?else?>
+    <CustomAction Id="TrustSigningCertificate" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec64"
+                  Execute="deferred" Impersonate="no" Return="check" />
+    <?endif?>
+    <InstallExecuteSequence>
+      <Custom Action="TrustSigningCertificate" After="InstallFiles" Condition="NOT REMOVE" />
+    </InstallExecuteSequence>
+  </Package>
+</Wix>

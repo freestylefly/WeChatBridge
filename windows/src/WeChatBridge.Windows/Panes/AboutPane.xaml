@@ -1,0 +1,70 @@
+<UserControl x:Class="WeChatBridge.Windows.Panes.AboutPane"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:WeChatBridge.Windows">
+    <StackPanel>
+        <!-- App header — the macOS AboutPane header: icon, name, version pill, tagline. -->
+        <StackPanel Orientation="Horizontal">
+            <Image x:Name="AppIconImage" Width="76" Height="76"
+                   Source="/WeChatBridge.Windows;component/Assets/AppIcon.png"
+                   Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"
+                   AutomationProperties.Name="{loc:Loc Key='微信流'}" />
+            <StackPanel Margin="20,2,0,0" VerticalAlignment="Top">
+                <TextBlock FontSize="26" FontWeight="SemiBold"
+                           Foreground="{StaticResource InkColor}" Text="{loc:Loc Key='微信流'}" />
+                <Border Margin="0,10,0,0" CornerRadius="9" Padding="9,4"
+                        HorizontalAlignment="Left"
+                        Background="{StaticResource SelectedColor}">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="6" Height="6" VerticalAlignment="Center"
+                                 Fill="{StaticResource NeutralInkColor}" />
+                        <TextBlock x:Name="VersionText" Margin="6,0,0,0" FontSize="11.5"
+                                   FontWeight="SemiBold" VerticalAlignment="Center"
+                                   Foreground="{StaticResource NeutralInkColor}" />
+                    </StackPanel>
+                </Border>
+                <TextBlock Margin="0,10,0,0" FontSize="14"
+                           Foreground="{StaticResource InkSecondaryColor}"
+                           Text="{loc:Loc Key='让微信的内容，流向你需要的地方。'}" />
+            </StackPanel>
+        </StackPanel>
+
+        <Border Height="1" Background="{StaticResource StrokeColor}" Margin="0,24,0,0" />
+
+        <!-- WeChatBridge 做什么 -->
+        <StackPanel Margin="0,24">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="17" Width="26"
+                           Foreground="{StaticResource InkSecondaryColor}" Text="&#xE946;" />
+                <TextBlock FontSize="17.5" FontWeight="SemiBold"
+                           Foreground="{StaticResource InkColor}" Text="{loc:Loc Key='微信流做什么'}" />
+            </StackPanel>
+            <TextBlock Margin="38,14,0,0" FontSize="14" MaxWidth="620"
+                       Foreground="{StaticResource InkSecondaryColor}" TextWrapping="Wrap"
+                       Text="{loc:Loc Key='在微信的转发菜单里，直接把聊天记录送到你要用的地方。'}" />
+        </StackPanel>
+
+        <Border Height="1" Background="{StaticResource StrokeColor}" />
+
+        <!-- 项目与支持 -->
+        <StackPanel Margin="0,24">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="17" Width="26"
+                           Foreground="{StaticResource InkSecondaryColor}" Text="&#xE8A7;" />
+                <TextBlock FontSize="17.5" FontWeight="SemiBold"
+                           Foreground="{StaticResource InkColor}" Text="{loc:Loc Key='项目与支持'}" />
+            </StackPanel>
+            <TextBlock Margin="38,14,0,0" FontSize="14" MaxWidth="620"
+                       Foreground="{StaticResource InkSecondaryColor}" TextWrapping="Wrap"
+                       Text="{loc:Loc Key='在 GitHub 上查看项目，访问官网，或向我们提交建议与问题。'}" />
+            <StackPanel Orientation="Horizontal" Margin="38,14,0,0">
+                <Button Width="150" Style="{StaticResource SettingsButton}"
+                        Click="OpenProject_Click"><Button.Content><loc:Loc Key="访问项目"/></Button.Content></Button>
+                <Button Width="150" Margin="12,0,0,0" Style="{StaticResource SettingsButton}"
+                        Click="OpenWebsite_Click"><Button.Content><loc:Loc Key="访问官网"/></Button.Content></Button>
+                <Button Width="150" Margin="12,0,0,0" Style="{StaticResource SettingsButton}"
+                        Click="OpenIssues_Click"><Button.Content><loc:Loc Key="提交反馈"/></Button.Content></Button>
+            </StackPanel>
+        </StackPanel>
+    </StackPanel>
+</UserControl>

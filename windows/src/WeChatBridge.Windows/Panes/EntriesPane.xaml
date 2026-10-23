@@ -1,0 +1,294 @@
+<UserControl x:Class="WeChatBridge.Windows.Panes.EntriesPane"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:WeChatBridge.Windows"
+             xmlns:panes="clr-namespace:WeChatBridge.Windows.Panes">
+    <UserControl.Resources>
+        <!-- Row-logo plumbing for the two lists below: AppLogos resolves the
+             PNG, these adapt the row types and decide image vs letter badge. -->
+        <panes:RowLogoPathConverter x:Key="RowLogoPath" />
+        <panes:RowLogoVisibilityConverter x:Key="RowLogoVisibility" />
+        <panes:RowLogoInitialConverter x:Key="RowLogoInitial" />
+        <panes:RowGlyphConverter x:Key="RowGlyph" />
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <!-- 分享入口 — the carded ShareEntryList port: one well, hairlines
+                 between rows, a real logo or a tinted letter badge at the left. -->
+            <StackPanel>
+                <TextBlock Style="{StaticResource SectionLabel}" Text="{loc:Loc Key='分享入口'}" />
+                <TextBlock Margin="0,2,0,0" FontSize="12" Foreground="{StaticResource InkSecondaryColor}"
+                           Text="{loc:Loc Key='微信菜单里只有「微⁠信流」一行；下面开启的入口会出现在它的选择器里。'}" />
+                <Border Height="1" Background="{StaticResource StrokeColor}" Margin="0,8,0,10" />
+                <Border Style="{StaticResource Card}" Padding="0">
+                    <ItemsControl ItemsSource="{Binding Entries}" AlternationCount="100000">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel>
+                                    <!-- The row separator, inset past the logo and
+                                         absent on the first row. -->
+                                    <Border Height="1" Margin="52,0,0,0"
+                                            Background="{StaticResource StrokeColor}">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Value="0"
+                                                                 Binding="{Binding Path=(ItemsControl.AlternationIndex), RelativeSource={RelativeSource AncestorType={x:Type ContentPresenter}}}">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                    </Border>
+                                    <Grid MinHeight="48" Margin="12,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid Width="28" Height="28" VerticalAlignment="Center">
+                                            <!-- PNG logo → Segoe glyph → letter badge. -->
+                                            <Border CornerRadius="8"
+                                                    Background="{StaticResource BrandTintColor}"
+                                                    Visibility="{Binding ., Converter={StaticResource RowLogoVisibility}, ConverterParameter=badge}">
+                                                <TextBlock FontSize="12.5" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource BrandColor}"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"
+                                                           Text="{Binding ., Converter={StaticResource RowLogoInitial}}" />
+                                            </Border>
+                                            <TextBlock FontSize="15"
+                                                       FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                                       Foreground="{StaticResource InkSecondaryColor}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       Text="{Binding ., Converter={StaticResource RowGlyph}}"
+                                                       Visibility="{Binding ., Converter={StaticResource RowLogoVisibility}, ConverterParameter=glyph}" />
+                                            <Image Width="24" Height="24"
+                                                   Source="{Binding ., Converter={StaticResource RowLogoPath}}"
+                                                   Visibility="{Binding ., Converter={StaticResource RowLogoVisibility}, ConverterParameter=logo}" />
+                                        </Grid>
+                                        <StackPanel Grid.Column="1" Margin="12,0,0,0"
+                                                    VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Title}" FontSize="15"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{StaticResource InkColor}" />
+                                            <TextBlock Margin="0,3,0,0" FontSize="12"
+                                                       Text="{Binding Detail}"
+                                                       TextTrimming="CharacterEllipsis">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{StaticResource InkSecondaryColor}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding DetailIsWarning}" Value="True">
+                                                                <Setter Property="Foreground" Value="{StaticResource WarnInkColor}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                        <Button Grid.Column="2" VerticalAlignment="Center"
+                                                Margin="10,0,0,0"
+                                                Style="{StaticResource SettingsButton}"
+                                                Padding="10,3" FontSize="11.5"
+                                                Content="{Binding ConfigureTitle}"
+                                                Visibility="{Binding ConfigureTitle, Converter={StaticResource StringToVisibility}}"
+                                                Click="Configure_Click" />
+                                        <CheckBox Grid.Column="3" VerticalAlignment="Center"
+                                                  Margin="12,0,0,0" Style="{StaticResource MacToggle}"
+                                                  IsChecked="{Binding IsEnabled, Mode=OneWay}"
+                                                  Click="EntryCheck_Click" />
+                                    </Grid>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+            </StackPanel>
+
+            <!-- Obsidian 沉淀 -->
+            <StackPanel Margin="0,24,0,0">
+                <TextBlock Style="{StaticResource SectionLabel}" Text="{loc:Loc Key='Obsidian 沉淀'}" />
+                <Border Height="1" Background="{StaticResource StrokeColor}" Margin="0,8,0,10" />
+                <Border x:Name="ObsidianCard" Style="{StaticResource Card}">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock FontSize="13.5" Foreground="{StaticResource InkColor}"
+                                           Text="{loc:Loc Key='知识库文件夹'}" />
+                                <TextBlock Margin="0,3,0,0" FontSize="12"
+                                           TextTrimming="CharacterEllipsis"
+                                           Foreground="{StaticResource InkSecondaryColor}"
+                                           Text="{Binding ObsidianVaultPath, TargetNullValue={loc:Loc Key=尚未选择}}" />
+                            </StackPanel>
+                            <Button Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0"
+                                    Style="{StaticResource SettingsButton}" Padding="10,3"
+                                    FontSize="11.5"
+                                    Visibility="{Binding ObsidianVaultPath, Converter={StaticResource StringToVisibility}}"
+                                    Click="RevealVault_Click"><Button.Content><loc:Loc Key="在文件夹中显示"/></Button.Content></Button>
+                            <Button Grid.Column="2" VerticalAlignment="Center" Margin="8,0,0,0"
+                                    Style="{StaticResource SettingsButton}" Padding="10,3"
+                                    FontSize="11.5" Click="ChooseVault_Click"><Button.Content><loc:Loc Key="选择文件夹…"/></Button.Content></Button>
+                        </Grid>
+                        <Border Height="1" Margin="0,14"
+                                Background="{StaticResource StrokeColor}" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock FontSize="13.5" Foreground="{StaticResource InkColor}"
+                                           Text="{loc:Loc Key='子文件夹'}" />
+                                <TextBlock Margin="0,3,0,0" FontSize="12"
+                                           Foreground="{StaticResource InkSecondaryColor}"
+                                           Text="{loc:Loc Key='聊天 Markdown 与原始 ZIP 会写入这个目录。'}" />
+                            </StackPanel>
+                            <TextBox Grid.Column="1" VerticalAlignment="Center" Width="200"
+                                     Style="{StaticResource MacField}" Margin="12,0,0,0"
+                                     Text="{Binding ObsidianSubfolder, UpdateSourceTrigger=LostFocus}" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            <CheckBox Content="{loc:Loc Key='保存后自动打开 Obsidian 笔记'}" Margin="0,12,0,0"
+                                  Foreground="{StaticResource InkColor}"
+                                  IsChecked="{Binding OpenObsidianAfterDelivery}"/>
+                        </StackPanel>
+
+            <!-- 「发送到自定义」的应用 — the ForwardTargetList port. -->
+            <StackPanel Margin="0,24,0,0">
+                <TextBlock Style="{StaticResource SectionLabel}" Text="{loc:Loc Key='沉淀到文件夹'}" />
+                <Border Height="1" Background="{StaticResource StrokeColor}" Margin="0,8,0,10" />
+                <Border x:Name="FolderCard" Style="{StaticResource Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="{loc:Loc Key='沉淀到文件夹'}" FontSize="16" FontWeight="SemiBold"/>
+                        <TextBlock Text="{loc:Loc Key='生成聊天 Markdown，保存原始 ZIP 和媒体附件；无需安装 Obsidian。'}" TextWrapping="Wrap" Margin="0,6,0,10"/>
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Style="{StaticResource SettingsButton}" Content="{loc:Loc Key='选择文件夹…'}" Click="ChooseDeliveryFolder_Click"/>
+                            <TextBlock Text="{Binding DeliveryFolderPath, TargetNullValue={loc:Loc Key=尚未选择}}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                        </DockPanel>
+                        <TextBlock Text="{loc:Loc Key='子文件夹（支持多级路径）'}" Margin="0,10,0,4"/>
+                        <TextBox Style="{StaticResource MacField}" Text="{Binding DeliverySubfolder, UpdateSourceTrigger=LostFocus}"/>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Style="{StaticResource SectionLabel}" Text="{loc:Loc Key='「发送到自定义」的应用'}" />
+                <Border Height="1" Background="{StaticResource StrokeColor}" Margin="0,8,0,10" />
+                <Border x:Name="CustomCard" Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock x:Name="TargetsEmpty" FontSize="12"
+                                   Foreground="{StaticResource InkSecondaryColor}"
+                                   TextWrapping="Wrap"
+                                   Text="{loc:Loc Key='还没有添加应用。加进来的 App 会出现在「发送到自定义」的面板里。'}" />
+                        <ItemsControl x:Name="TargetList" ItemsSource="{Binding TargetRows}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid MinHeight="38" Margin="0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid Width="24" Height="24" VerticalAlignment="Center">
+                                            <Border CornerRadius="7"
+                                                    Background="{StaticResource BrandTintColor}"
+                                                    Visibility="{Binding ., Converter={StaticResource RowLogoVisibility}, ConverterParameter=badge}">
+                                                <TextBlock FontSize="11" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource BrandColor}"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"
+                                                           Text="{Binding ., Converter={StaticResource RowLogoInitial}}" />
+                                            </Border>
+                                            <TextBlock FontSize="13"
+                                                       FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                                       Foreground="{StaticResource InkSecondaryColor}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       Text="{Binding ., Converter={StaticResource RowGlyph}}"
+                                                       Visibility="{Binding ., Converter={StaticResource RowLogoVisibility}, ConverterParameter=glyph}" />
+                                            <Image Width="22" Height="22"
+                                                   Source="{Binding ., Converter={StaticResource RowLogoPath}}"
+                                                   Visibility="{Binding ., Converter={StaticResource RowLogoVisibility}, ConverterParameter=logo}" />
+                                        </Grid>
+                                        <StackPanel Grid.Column="1" Margin="10,0,0,0"
+                                                    VerticalAlignment="Center">
+                                            <TextBlock FontSize="13.5"
+                                                       Foreground="{StaticResource InkColor}"
+                                                       Text="{Binding DisplayName}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock FontSize="10.5"
+                                                       Foreground="{StaticResource InkTertiaryColor}"
+                                                       Text="{Binding Identifier}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                        <Border Grid.Column="2" VerticalAlignment="Center"
+                                                Margin="8,0,0,0" CornerRadius="9" Padding="8,2"
+                                                Background="{StaticResource WarnFillColor}"
+                                                Visibility="{Binding IsMissing, Converter={StaticResource BoolToVisibility}}">
+                                            <TextBlock FontSize="11"
+                                                       Foreground="{StaticResource WarnInkColor}"
+                                                       Text="{loc:Loc Key='未安装'}" />
+                                        </Border>
+                                        <StackPanel Grid.Column="3" Orientation="Horizontal"
+                                                    VerticalAlignment="Center" Margin="10,0,0,0"
+                                                    ToolTip="{loc:Loc Key='给终端类应用用：粘贴的是带引号的文件路径，跟把文件拖进终端一样。'}">
+                                            <CheckBox Style="{StaticResource MacToggle}"
+                                                      VerticalAlignment="Center"
+                                                      IsChecked="{Binding PastesPathOnly, Mode=OneWay}"
+                                                      Click="PastesPathOnly_Click" />
+                                            <TextBlock Margin="6,0,0,0" VerticalAlignment="Center"
+                                                       FontSize="11"
+                                                       Foreground="{StaticResource InkSecondaryColor}"
+                                                       Text="{loc:Loc Key='只粘贴文件路径'}" />
+                                        </StackPanel>
+                                        <Button Grid.Column="4" VerticalAlignment="Center"
+                                                Margin="8,0,0,0" Style="{StaticResource DangerButton}"
+                                                Padding="6,2" FontSize="11.5"
+                                                Click="RemoveTarget_Click"><Button.Content><loc:Loc Key="移除"/></Button.Content></Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Border Height="1" Margin="0,14"
+                                Background="{StaticResource StrokeColor}" />
+
+                        <!-- Add: a name, then an .exe path or a packaged app's AUMID. -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="NewTargetName" Grid.Column="0"
+                                     Style="{StaticResource MacField}" VerticalAlignment="Center"
+                                     ToolTip="{loc:Loc Key='显示名称（可空，默认取文件名）'}" />
+                            <TextBox x:Name="NewTargetPath" Grid.Column="1" Margin="8,0,0,0"
+                                     Style="{StaticResource MacField}" VerticalAlignment="Center"
+                                     ToolTip="{loc:Loc Key='可执行文件路径或应用 AUMID，例如 Contoso.App_abc123!App'}" />
+                            <Button Grid.Column="2" Margin="8,0,0,0" VerticalAlignment="Center"
+                                    Style="{StaticResource SettingsButton}" Padding="10,3"
+                                    FontSize="11.5" Click="BrowseExe_Click"><Button.Content><loc:Loc Key="浏览…"/></Button.Content></Button>
+                            <Button Grid.Column="3" Margin="8,0,0,0" VerticalAlignment="Center"
+                                    Style="{StaticResource PrimaryButton}" Padding="12,4"
+                                    FontSize="11.5" Click="AddTarget_Click"><Button.Content><loc:Loc Key="添加应用"/></Button.Content></Button>
+                        </Grid>
+                        <TextBlock Margin="0,8,0,0" FontSize="10.5"
+                                   Foreground="{StaticResource InkTertiaryColor}"
+                                   Text="{loc:Loc Key='左栏为显示名称，右栏为 .exe 完整路径或打包应用的 AUMID。'}" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

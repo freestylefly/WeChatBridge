@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, feat/windows-port]
   pull_request:
     branches: [main]
 
@@ -20,10 +20,43 @@ jobs:
         run: swift --version
 
       - name: Run tests
+        working-directory: macos
         run: swift test
 
       - name: Check localizations
+        working-directory: macos
         run: swift Scripts/check-localizations.swift
 
       - name: Check release configuration
-        run: Scripts/check-release-config.sh
+        run: macos/Scripts/check-release-config.sh
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore Windows solution
+        run: dotnet restore windows/WeChatBridge.Windows.sln
+
+      - name: Build Windows solution
+        run: dotnet build windows/WeChatBridge.Windows.sln --configuration Release --no-restore --nologo
+
+      - name: Test Windows solution
+        run: dotnet test windows/WeChatBridge.Windows.sln --configuration Release --no-build --nologo
+
+      - name: Validate sparse MSIX manifest
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path windows/artifacts | Out-Null
+          $makeAppx = Get-ChildItem "${env:ProgramFiles(x86)}/Windows Kits/10/bin/*/x64/makeappx.exe" |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+          if (-not $makeAppx) { throw 'MakeAppx.exe was not found on the runner.' }
+          & $makeAppx.FullName pack /d windows/packaging/SparsePackage /p windows/artifacts/WeChatBridge.ShareTarget.msix /nv
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

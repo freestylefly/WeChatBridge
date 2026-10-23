@@ -219,18 +219,18 @@
 
 | 能力 | 主要实现 |
 |---|---|
-| 十二个分享入口 | `Scripts/share-slots.sh` |
-| Share Extension 接入 | `Sources/WeChatBridgeShare/ShareViewController.swift` |
-| 附件复制与命名 | `Sources/WeChatBridgeShare/AttachmentImporter.swift` |
-| 目标应用定义 | `Sources/WeChatBridgeCore/ShareAction.swift` |
-| 自定义目标 | `Sources/WeChatBridgeCore/ForwardTarget.swift` |
-| 激活和自动粘贴 | `Sources/WeChatBridgeApp/AutoPaste.swift` |
-| 转发执行与兜底 | `Sources/WeChatBridgeApp/ActionRunner.swift` |
-| 场景匹配与快捷键 | `Sources/WeChatBridgeCore/Scene.swift`、`Sources/WeChatBridgeApp/SceneShortcutController.swift` |
-| 技能模型与安装 | `Sources/WeChatBridgeCore/AgentID.swift`、`Sources/WeChatBridgeApp/SkillLibrary.swift` |
-| 技能页面 | `Sources/WeChatBridgeApp/Views/Settings/SkillsPane.swift` |
-| Obsidian 投递 | `Sources/WeChatBridgeApp/KnowledgeDelivery.swift`、`Sources/WeChatBridgeCore/ObsidianNote.swift` |
-| 批次状态 | `Sources/WeChatBridgeCore/BatchState.swift` |
-| 共享目录 | `Sources/WeChatBridgeCore/Inbox.swift` |
-| App 打包和签名 | `Scripts/make-app.sh` |
-| 发布和公证 | `Scripts/release.sh` |
+| 十二个分享入口 | `macos/Scripts/share-slots.sh` |
+| Share Extension 接入 | `macos/Sources/WeChatBridgeShare/ShareViewController.swift` |
+| 附件复制与命名 | `macos/Sources/WeChatBridgeShare/AttachmentImporter.swift` |
+| 目标应用定义 | `macos/Sources/WeChatBridgeCore/ShareAction.swift` |
+| 自定义目标 | `macos/Sources/WeChatBridgeCore/ForwardTarget.swift` |
+| 激活和自动粘贴 | `macos/Sources/WeChatBridgeApp/AutoPaste.swift` |
+| 转发执行与兜底 | `macos/Sources/WeChatBridgeApp/ActionRunner.swift` |
+| 场景匹配与快捷键 | `macos/Sources/WeChatBridgeCore/Scene.swift`、`macos/Sources/WeChatBridgeApp/SceneShortcutController.swift` |
+| 技能模型与安装 | `macos/Sources/WeChatBridgeCore/AgentID.swift`、`macos/Sources/WeChatBridgeApp/SkillLibrary.swift` |
+| 技能页面 | `macos/Sources/WeChatBridgeApp/Views/Settings/SkillsPane.swift` |
+| Obsidian 投递 | `macos/Sources/WeChatBridgeApp/KnowledgeDelivery.swift`、`macos/Sources/WeChatBridgeCore/ObsidianNote.swift` |
+| 批次状态 | `macos/Sources/WeChatBridgeCore/BatchState.swift` |
+| 共享目录 | `macos/Sources/WeChatBridgeCore/Inbox.swift` |
+| App 打包和签名 | `macos/Scripts/make-app.sh` |
+| 发布和公证 | `macos/Scripts/release.sh` |

@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\WeChatBridge.Windows.Core\WeChatBridge.Windows.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- SkillService lives in the WPF assembly (net10.0-windows) which this
+         net10.0 project cannot reference; the file is kept WPF-free on purpose
+         and compiled here too. -->
+    <Compile Include="..\..\src\WeChatBridge.Windows\Services\SkillService.cs"
+             Link="Services\SkillService.cs" />
+  </ItemGroup>
+
+  <!-- SceneService.cs is deliberately free of WPF references (every UI seam is
+       a delegate), so tests compile the same source instead of referencing the
+       WinExe project — net10.0 cannot reference net10.0-windows. -->
+  <ItemGroup>
+    <Compile Include="..\..\src\WeChatBridge.Windows\Services\SceneService.cs"
+             Link="Services\SceneService.cs" />
+  </ItemGroup>
+
+</Project>

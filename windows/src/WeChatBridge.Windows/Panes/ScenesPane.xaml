@@ -1,0 +1,940 @@
+<UserControl x:Class="WeChatBridge.Windows.Panes.ScenesPane"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:WeChatBridge.Windows"
+             xmlns:panes="clr-namespace:WeChatBridge.Windows.Panes">
+    <UserControl.Resources>
+        <panes:AgentLogoConverter x:Key="AgentLogo" />
+
+        <!-- Segmented page buttons — the port of macOS pagePicker. The selected
+             page is a raised white slice with a whisper of shadow, never a
+             green fill. -->
+        <Style x:Key="PageTab" TargetType="Button">
+            <Setter Property="Padding" Value="0,7" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Foreground" Value="{StaticResource InkSecondaryColor}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="fill" CornerRadius="8" Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Foreground" Value="{StaticResource InkColor}" />
+                </Trigger>
+                <Trigger Property="Tag" Value="Selected">
+                    <Setter Property="Foreground" Value="{StaticResource InkColor}" />
+                    <Setter Property="Background" Value="{StaticResource SurfaceColor}" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect BlurRadius="4" ShadowDepth="1" Direction="270"
+                                              Opacity="0.15" Color="#FF000000" />
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- List rows that behave like buttons but keep their own text styling.
+             Rounded pill inset from the card edge; hover = HoverColor,
+             selected = brand tint. -->
+        <Style x:Key="RowItem" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="12,11" />
+            <Setter Property="Margin" Value="6,1" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="row" Padding="{TemplateBinding Padding}"
+                                Background="Transparent" CornerRadius="8">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="row" Property="Background" Value="{StaticResource HoverColor}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="row" Property="Background" Value="{StaticResource BrandTintColor}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Link-style button, e.g. 导入 JSON. -->
+        <Style x:Key="LinkButton" TargetType="Button">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{StaticResource BrandColor}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <!-- Quiet icon-only button — the editor's ⋯ menu. -->
+        <Style x:Key="IconAction" TargetType="Button">
+            <Setter Property="Padding" Value="8,1" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Foreground" Value="{StaticResource InkSecondaryColor}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="fill" CornerRadius="8" Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="fill" Property="Background" Value="{StaticResource HoverColor}" />
+                                <Setter Property="Foreground" Value="{StaticResource InkColor}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- A quiet caption-strong label above a field or section. -->
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Foreground" Value="{StaticResource InkSecondaryColor}" />
+        </Style>
+
+        <!-- 适用 Agent tile: a bordered square holding the real app logo with
+             the name underneath, and a green check badge pinned to the
+             tile's top-right corner when selected — the port of AgentChoice. -->
+        <Style x:Key="AgentTile" TargetType="CheckBox">
+            <Setter Property="MinWidth" Value="96" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid>
+                            <Border x:Name="tile" CornerRadius="8" Padding="12,12,12,10"
+                                    Background="{StaticResource SunkenColor}"
+                                    BorderBrush="{StaticResource StrokeColor}"
+                                    BorderThickness="1">
+                                <StackPanel>
+                                    <Grid Width="30" Height="30" HorizontalAlignment="Center">
+                                        <!-- Letter fallback under the real logo. -->
+                                        <Border CornerRadius="7" Background="{StaticResource BrandSoftColor}">
+                                            <TextBlock FontSize="13" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource BrandColor}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       TextAlignment="Center" Text="{Binding Mark}" />
+                                        </Border>
+                                        <Image Width="30" Height="30"
+                                               Source="{Binding Agent, Converter={StaticResource AgentLogo}}">
+                                            <Image.Clip>
+                                                <RectangleGeometry Rect="0,0,30,30" RadiusX="7" RadiusY="7" />
+                                            </Image.Clip>
+                                        </Image>
+                                    </Grid>
+                                    <TextBlock Margin="0,6,0,0" FontSize="11" MaxWidth="110"
+                                               Foreground="{StaticResource InkColor}"
+                                               HorizontalAlignment="Center" TextAlignment="Center"
+                                               Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Border>
+                            <Border x:Name="badge" Width="18" Height="18" CornerRadius="9"
+                                    HorizontalAlignment="Right" VerticalAlignment="Top"
+                                    Margin="0,-5,-5,0" Visibility="Collapsed"
+                                    IsHitTestVisible="False"
+                                    Background="{StaticResource BrandColor}"
+                                    BorderBrush="{StaticResource SurfaceColor}"
+                                    BorderThickness="1.5">
+                                <TextBlock Text="✓" FontSize="10" FontWeight="Bold"
+                                           Foreground="{StaticResource OnBrandColor}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           TextAlignment="Center" />
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="tile" Property="BorderBrush"
+                                        Value="{StaticResource StrokeStrongColor}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="tile" Property="Background"
+                                        Value="{StaticResource BrandSoftColor}" />
+                                <Setter TargetName="tile" Property="BorderBrush"
+                                        Value="{StaticResource BrandColor}" />
+                                <Setter TargetName="badge" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- The preview-agent dropdown, drawn like the settings chrome: white
+             rounded face, hairline border, chevron, white popup. Scoped here —
+             each pane keeps its own combo style. -->
+        <Style x:Key="MacCombo" TargetType="ComboBox">
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Foreground" Value="{StaticResource InkColor}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <Border x:Name="Chrome"
+                                    Background="{StaticResource SurfaceColor}"
+                                    BorderBrush="{StaticResource ButtonBorderColor}"
+                                    BorderThickness="1" CornerRadius="10" />
+                            <Grid Margin="{TemplateBinding Padding}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <ContentPresenter VerticalAlignment="Center"
+                                                  Content="{TemplateBinding SelectionBoxItem}" />
+                                <TextBlock Grid.Column="1" Margin="10,0,0,0"
+                                           VerticalAlignment="Center" FontSize="11"
+                                           Foreground="{StaticResource InkSecondaryColor}"
+                                           Text="▾" />
+                            </Grid>
+                            <ToggleButton x:Name="DropDownToggle" ClickMode="Press"
+                                          Focusable="False" Background="Transparent"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="Transparent" />
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <Popup Placement="Bottom" Focusable="False" AllowsTransparency="True"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}">
+                                <Border MinWidth="{Binding ActualWidth, ElementName=Chrome}"
+                                        Background="{StaticResource SurfaceColor}"
+                                        BorderBrush="{StaticResource StrokeColor}"
+                                        BorderThickness="1" CornerRadius="10"
+                                        Margin="0,4,0,0" Padding="4">
+                                    <Border.Effect>
+                                        <DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity="0.12" />
+                                    </Border.Effect>
+                                    <ScrollViewer MaxHeight="260" CanContentScroll="False"
+                                                  VerticalScrollBarVisibility="Auto">
+                                        <ItemsPresenter />
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background"
+                                        Value="{StaticResource HoverColor}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ComboBoxItem">
+                        <Setter Property="Padding" Value="10,6" />
+                        <Setter Property="FontSize" Value="12.5" />
+                        <Setter Property="Foreground" Value="{StaticResource InkColor}" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ComboBoxItem">
+                                    <Border x:Name="row" Margin="1" CornerRadius="6"
+                                            Padding="{TemplateBinding Padding}"
+                                            Background="Transparent">
+                                        <ContentPresenter />
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="row" Property="Background"
+                                                    Value="{StaticResource HoverColor}" />
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Foreground"
+                                                    Value="{StaticResource BrandColor}" />
+                                            <Setter TargetName="row" Property="Background"
+                                                    Value="{StaticResource BrandTintColor}" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- The drawn square checkbox macOS uses for the bound-scene list:
+             15px rounded box, brand fill + white tick when on. -->
+        <Style x:Key="MacCheck" TargetType="CheckBox">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="box" Width="15" Height="15" CornerRadius="3.5"
+                                    VerticalAlignment="Center" BorderThickness="1"
+                                    Background="Transparent"
+                                    BorderBrush="{StaticResource StrokeStrongColor}">
+                                <TextBlock x:Name="tick" Text="✓" FontSize="9" FontWeight="Bold"
+                                           Foreground="{StaticResource OnBrandColor}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           TextAlignment="Center" Visibility="Collapsed" />
+                            </Border>
+                            <ContentPresenter Grid.Column="1" Margin="12,0,0,0" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="box" Property="Background"
+                                        Value="{StaticResource BrandColor}" />
+                                <Setter TargetName="box" Property="BorderBrush"
+                                        Value="{StaticResource BrandColor}" />
+                                <Setter TargetName="tick" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="box" Property="BorderBrush"
+                                        Value="{StaticResource BrandColor}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <!-- Outer container is a Grid, not ScrollViewer+StackPanel: the page
+         grids must fill the viewport so their star rows bound the inner
+         lists. A StackPanel measures children with infinite height, which
+         made the scene list claim every item's height and pushed the page
+         past the window. The inner cards scroll themselves; on a very
+         small window the pane can still overflow — MinHeight keeps that sane. -->
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- 场景管理 / 群聊匹配 — the segmented pagePicker: sunken capsule,
+                 radius 10, 2px inset, white raised slice for the active page. -->
+            <Border x:Name="PageTabs" Grid.Row="0" Width="300" Margin="0,4,0,0"
+                    HorizontalAlignment="Center" Padding="2" CornerRadius="10"
+                    Background="{StaticResource SunkenColor}"
+                    BorderBrush="{StaticResource StrokeColor}" BorderThickness="1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="ScenesTab" Content="{loc:Loc Key='场景管理'}" Tag="Selected"
+                            Style="{StaticResource PageTab}" Click="ShowScenesPage_Click" />
+                    <Button x:Name="GroupsTab" Grid.Column="1" Content="{loc:Loc Key='群聊匹配'}"
+                            Style="{StaticResource PageTab}" Click="ShowGroupsPage_Click" />
+                </Grid>
+            </Border>
+
+            <!-- =============== 场景管理 page =============== -->
+            <Grid x:Name="ScenesPage" Grid.Row="1" Margin="0,16,0,0" MinHeight="480">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="250" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Scene list card. -->
+                <Border Grid.Column="0" Style="{StaticResource Card}" Padding="0"
+                        AllowDrop="True" Drop="SceneList_Drop" DragOver="SceneList_DragOver">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Grid Margin="12,12,12,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{loc:Loc Key='场景'}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{StaticResource InkColor}"
+                                       VerticalAlignment="Center" />
+                            <TextBlock x:Name="SceneCount" Grid.Column="1" Margin="6,0,0,0"
+                                       FontSize="12" Foreground="{StaticResource InkTertiaryColor}"
+                                       VerticalAlignment="Center" />
+                            <Button Grid.Column="2" Style="{StaticResource PrimaryButton}"
+                                    Padding="12,4" FontSize="12" Content="{loc:Loc Key='+ 新建'}"
+                                    Click="AddScene_Click" />
+                        </Grid>
+
+                        <Grid Grid.Row="1" Margin="12,0,12,10">
+                            <TextBox x:Name="SceneSearch" Style="{StaticResource MacField}"
+                                     Padding="8,5" FontSize="12"
+                                     TextChanged="SceneSearch_TextChanged" />
+                            <TextBlock Text="{loc:Loc Key='搜索场景'}" FontSize="12" IsHitTestVisible="False"
+                                       Foreground="{StaticResource InkTertiaryColor}"
+                                       Margin="11,0,0,0" VerticalAlignment="Center"
+                                       Visibility="Collapsed">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Text, ElementName=SceneSearch}"
+                                                         Value="">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+                        <Border Grid.Row="2" Height="1" Background="{StaticResource StrokeColor}" />
+
+                        <ListBox x:Name="SceneList" Grid.Row="3" BorderThickness="0"
+                                 Background="Transparent" MinHeight="240"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                 ItemContainerStyle="{StaticResource RowItem}"
+                                 SelectionChanged="SceneList_SelectionChanged">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Ellipse Width="7" Height="7" Margin="2,6,0,0"
+                                                 VerticalAlignment="Top"
+                                                 Fill="{StaticResource DisabledColor}">
+                                            <Ellipse.Style>
+                                                <Style TargetType="Ellipse">
+                                                    <Setter Property="Fill" Value="{StaticResource DisabledColor}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Enabled}" Value="True">
+                                                            <Setter Property="Fill" Value="{StaticResource BrandColor}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Ellipse.Style>
+                                        </Ellipse>
+                                        <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                            <TextBlock Text="{Binding NameText}" FontSize="13.5"
+                                                       FontWeight="Medium"
+                                                       Foreground="{StaticResource InkColor}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Margin="0,3,0,0" Text="{Binding SummaryText}"
+                                                       FontSize="12"
+                                                       Foreground="{StaticResource InkSecondaryColor}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="2" Margin="8,0,0,0"
+                                                   VerticalAlignment="Center" FontSize="11"
+                                                   Foreground="{StaticResource InkTertiaryColor}"
+                                                   Text="{Binding Hotkey}"
+                                                   Visibility="{Binding Hotkey, Converter={StaticResource StringToVisibility}}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <StackPanel Grid.Row="4" Margin="12,10,12,12">
+                            <Button Content="{loc:Loc Key='导入 JSON'}" Style="{StaticResource LinkButton}"
+                                    HorizontalAlignment="Left" Click="Import_Click" />
+                            <TextBlock Margin="0,6,0,0" FontSize="11" TextWrapping="Wrap"
+                                       Foreground="{StaticResource InkTertiaryColor}"
+                                       Text="{loc:Loc Key='快捷键：Ctrl+Alt+1–9 把对应的启用场景用于下次转发；可把场景包 JSON 拖进此列表导入。'}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Scene detail — the embedded port of macOS SceneEditor. -->
+                <Border Grid.Column="1" Margin="8,0,0,0" Style="{StaticResource Card}">
+                    <Grid>
+                        <StackPanel x:Name="EditorEmpty" VerticalAlignment="Center"
+                                    HorizontalAlignment="Center">
+                            <TextBlock Text="{loc:Loc Key='选择一个场景'}" FontSize="13.5" FontWeight="Medium"
+                                       Foreground="{StaticResource InkColor}"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock Margin="0,6,0,0" FontSize="12" TextWrapping="Wrap"
+                                       Foreground="{StaticResource InkSecondaryColor}"
+                                       Text="{loc:Loc Key='在左侧选择场景后，可以查看说明、启停和编辑。'}"
+                                       TextAlignment="Center" />
+                        </StackPanel>
+
+                        <ScrollViewer x:Name="EditorContent" Visibility="Collapsed"
+                                      VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock x:Name="EditorTitle" FontSize="17"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource InkColor}" />
+                                        <TextBlock x:Name="EditorStatus" Margin="0,3,0,0"
+                                                   FontSize="12"
+                                                   Foreground="{StaticResource InkTertiaryColor}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                                VerticalAlignment="Center" Margin="8,0,0,0">
+                                        <TextBlock Text="{loc:Loc Key='启用'}" FontSize="12" VerticalAlignment="Center"
+                                                   Foreground="{StaticResource InkColor}" />
+                                        <CheckBox x:Name="EnableBox" Margin="8,0,0,0"
+                                                  VerticalAlignment="Center"
+                                                  Style="{StaticResource MacToggle}"
+                                                  Click="Enable_Click" />
+                                    </StackPanel>
+                                    <Button x:Name="EditorMenu" Grid.Column="2"
+                                            VerticalAlignment="Center" Margin="8,0,0,0"
+                                            Style="{StaticResource IconAction}"
+                                            Content="⋯" ToolTip="{loc:Loc Key='更多'}" Click="EditorMenu_Click" />
+                                </Grid>
+
+                                <!-- Editable fields for user scenes. -->
+                                <StackPanel x:Name="EditFields" Margin="0,16,0,0">
+                                    <TextBlock Text="{loc:Loc Key='名称'}" Style="{StaticResource FieldLabel}" />
+                                    <TextBox x:Name="EditName" Margin="0,5,0,0"
+                                             Style="{StaticResource MacField}"
+                                             LostFocus="EditField_LostFocus" />
+                                    <TextBlock Margin="0,16,0,0" Text="{loc:Loc Key='说明'}"
+                                               Style="{StaticResource FieldLabel}" />
+                                    <TextBox x:Name="EditSummary" Margin="0,5,0,0"
+                                             Style="{StaticResource MacField}"
+                                             LostFocus="EditField_LostFocus" />
+                                    <Grid Margin="0,16,0,0">
+                                        <TextBlock Text="{loc:Loc Key='提示词'}" VerticalAlignment="Center"
+                                                   Style="{StaticResource FieldLabel}" />
+                                        <!-- Not focusable: the prompt keeps focus and its caret. -->
+                                        <Button x:Name="InsertSkillButton" HorizontalAlignment="Right"
+                                                Style="{StaticResource SettingsButton}" Focusable="False"
+                                                Padding="10,2" FontSize="11.5" Content="{loc:Loc Key='插入技能'}"
+                                                ToolTip="{loc:Loc Key='在光标处插入 {{skill:id}} 技能引用'}"
+                                                Click="InsertSkill_Click" />
+                                    </Grid>
+                                    <TextBox x:Name="EditPrompt" Margin="0,5,0,0" Padding="10,8"
+                                             Style="{StaticResource MacField}" FontSize="12.5"
+                                             MinHeight="120" AcceptsReturn="True"
+                                             TextWrapping="Wrap"
+                                             VerticalScrollBarVisibility="Auto"
+                                             TextChanged="EditPrompt_TextChanged"
+                                             SelectionChanged="EditPrompt_SelectionChanged"
+                                             LostFocus="EditField_LostFocus" />
+                                </StackPanel>
+
+                                <!-- Official templates stay read-only. -->
+                                <StackPanel x:Name="ReadFields" Visibility="Collapsed"
+                                            Margin="0,16,0,0">
+                                    <TextBlock Text="{loc:Loc Key='名称'}" Style="{StaticResource FieldLabel}" />
+                                    <Border Margin="0,5,0,0" Padding="10,8" CornerRadius="8"
+                                            Background="{StaticResource SunkenColor}">
+                                        <TextBlock x:Name="ReadName" FontSize="13.5"
+                                                   Foreground="{StaticResource InkColor}" />
+                                    </Border>
+                                    <TextBlock Margin="0,16,0,0" Text="{loc:Loc Key='说明'}"
+                                               Style="{StaticResource FieldLabel}" />
+                                    <Border Margin="0,5,0,0" Padding="10,8" CornerRadius="8"
+                                            Background="{StaticResource SunkenColor}">
+                                        <TextBlock x:Name="ReadSummary" FontSize="13.5"
+                                                   TextWrapping="Wrap"
+                                                   Foreground="{StaticResource InkColor}" />
+                                    </Border>
+                                    <TextBlock Margin="0,16,0,0" Text="{loc:Loc Key='提示词'}"
+                                               Style="{StaticResource FieldLabel}" />
+                                    <Border Margin="0,5,0,0" Padding="10,8" CornerRadius="8"
+                                            Background="{StaticResource SunkenColor}">
+                                        <!-- Read-only TextBox: selectable text like macOS .textSelection(.enabled). -->
+                                        <TextBox x:Name="ReadPrompt" FontSize="13" IsReadOnly="True"
+                                                 TextWrapping="Wrap" BorderThickness="0"
+                                                 Background="Transparent" Padding="0"
+                                                 Foreground="{StaticResource InkColor}" />
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- 引用的技能 + 提示词预览: how each {{skill:id}}
+                                     reaches the chosen agent, and the exact text it gets. -->
+                                <StackPanel x:Name="SkillPanel" Margin="0,16,0,0" Visibility="Collapsed">
+                                    <TextBlock Text="{loc:Loc Key='引用的技能'}" Style="{StaticResource FieldLabel}" />
+                                    <TextBlock x:Name="SkillRefsText" Margin="0,5,0,0" FontSize="12"
+                                               TextWrapping="Wrap"
+                                               Foreground="{StaticResource InkSecondaryColor}" />
+                                    <Border x:Name="SkillWarnBar" Margin="0,8,0,0" Padding="10,6"
+                                            CornerRadius="8" Background="{StaticResource WarnFillColor}"
+                                            Visibility="Collapsed">
+                                        <TextBlock x:Name="SkillWarnText" FontSize="12" TextWrapping="Wrap"
+                                                   Foreground="{StaticResource WarnInkColor}" />
+                                    </Border>
+
+                                    <Grid Margin="0,16,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{loc:Loc Key='提示词预览'}" VerticalAlignment="Center"
+                                                   Style="{StaticResource FieldLabel}" />
+                                        <ComboBox x:Name="PreviewAgentBox" Grid.Column="1" Width="190"
+                                                  Style="{StaticResource MacCombo}"
+                                                  SelectionChanged="PreviewAgent_Changed" />
+                                    </Grid>
+                                    <TextBlock Margin="0,3,0,8" FontSize="12"
+                                               Foreground="{StaticResource InkTertiaryColor}"
+                                               Text="{loc:Loc Key='转发到所选目标时，粘贴在文件之前的提示词（不含续聊要求）。'}" />
+                                    <Border Padding="10,8" CornerRadius="8"
+                                            Background="{StaticResource SunkenColor}">
+                                        <TextBox x:Name="PreviewPrompt" FontSize="12.5" IsReadOnly="True"
+                                                 TextWrapping="Wrap" BorderThickness="0"
+                                                 Background="Transparent" Padding="0"
+                                                 Foreground="{StaticResource InkColor}" />
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- 适用 Agent — real app-logo tiles with a green
+                                     check badge pinned to the corner when on. -->
+                                <StackPanel Margin="0,20,0,0">
+                                    <TextBlock Text="{loc:Loc Key='适用 Agent'}" Style="{StaticResource FieldLabel}" />
+                                    <TextBlock Margin="0,3,0,10" FontSize="12"
+                                               Foreground="{StaticResource InkTertiaryColor}"
+                                               Text="{loc:Loc Key='仅在转发到已选择的 Agent 时使用这个提示词。'}" />
+                                    <ItemsControl x:Name="AgentGrid">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <CheckBox Margin="0,0,8,8"
+                                                          Style="{StaticResource AgentTile}"
+                                                          IsChecked="{Binding IsSelected, Mode=OneWay}"
+                                                          IsEnabled="{Binding Editable}"
+                                                          Click="AgentCheck_Click" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
+                                <Grid x:Name="OfficialHint" Margin="0,12,0,0" Visibility="Collapsed">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock FontSize="12" VerticalAlignment="Center"
+                                               Foreground="{StaticResource InkSecondaryColor}"
+                                               Text="{loc:Loc Key='官方模板保持只读，复制后可以修改。'}" />
+                                    <Button Grid.Column="1" Style="{StaticResource PrimaryButton}"
+                                            Padding="12,4" FontSize="12" Content="{loc:Loc Key='复制并编辑'}"
+                                            Click="Duplicate_Click" />
+                                </Grid>
+
+                                <!-- Bottom action row: 复制 / 删除 / 保存更改. -->
+                                <StackPanel x:Name="EditorActions" Orientation="Horizontal"
+                                            HorizontalAlignment="Right" Margin="0,16,0,0">
+                                    <Button Style="{StaticResource SettingsButton}"
+                                            Padding="12,4" FontSize="12.5" Content="{loc:Loc Key='复制'}"
+                                            Click="Duplicate_Click" />
+                                    <Button Margin="8,0,0,0" Style="{StaticResource DangerButton}"
+                                            Padding="12,4" FontSize="12.5" Content="{loc:Loc Key='删除'}"
+                                            Click="Delete_Click" />
+                                    <Button Margin="8,0,0,0" Style="{StaticResource PrimaryButton}"
+                                            Padding="14,5" FontSize="12.5" Content="{loc:Loc Key='保存更改'}"
+                                            Click="Save_Click" />
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- =============== 群聊匹配 page =============== -->
+            <Grid x:Name="GroupsPage" Grid.Row="1" Margin="0,16,0,0" MinHeight="480" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Group list card. -->
+                <Border Grid.Column="0" Style="{StaticResource Card}" Padding="0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Margin="12,12,12,10" Orientation="Horizontal">
+                            <TextBlock Text="{loc:Loc Key='群聊'}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{StaticResource InkColor}"
+                                       VerticalAlignment="Center" />
+                            <TextBlock x:Name="GroupCount" Margin="6,0,0,0" FontSize="12"
+                                       Foreground="{StaticResource InkTertiaryColor}"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <Grid Grid.Row="1" Margin="12,0,12,10">
+                            <TextBox x:Name="GroupSearch" Style="{StaticResource MacField}"
+                                     Padding="8,5" FontSize="12"
+                                     TextChanged="GroupSearch_TextChanged" />
+                            <TextBlock Text="{loc:Loc Key='搜索群聊'}" FontSize="12" IsHitTestVisible="False"
+                                       Foreground="{StaticResource InkTertiaryColor}"
+                                       Margin="11,0,0,0" VerticalAlignment="Center">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Text, ElementName=GroupSearch}"
+                                                         Value="">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+                        <Border Grid.Row="2" Height="1" Background="{StaticResource StrokeColor}" />
+
+                        <ScrollViewer x:Name="GroupList" Grid.Row="3" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="0,4,0,8">
+                                <TextBlock x:Name="BoundHeader" Margin="12,8,12,4" FontSize="12"
+                                           Foreground="{StaticResource InkTertiaryColor}"
+                                           Text="{loc:Loc Key='已绑定'}" />
+                                <ItemsControl x:Name="BoundGroupList">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button HorizontalContentAlignment="Stretch"
+                                                    HorizontalAlignment="Stretch"
+                                                    Margin="6,1" Padding="0"
+                                                    Background="Transparent" BorderThickness="0"
+                                                    Cursor="Hand" Tag="{Binding Selected}"
+                                                    Click="GroupRow_Click">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="row" Padding="10,10"
+                                                                CornerRadius="8"
+                                                                Background="Transparent">
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="3" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <Border x:Name="mark" Width="3"
+                                                                        CornerRadius="1.5" Margin="0,4"
+                                                                        Background="{StaticResource BrandColor}"
+                                                                        Visibility="Collapsed" />
+                                                                <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                                                    <TextBlock Text="{Binding NameText}"
+                                                                               FontSize="13.5" FontWeight="Medium"
+                                                                               Foreground="{StaticResource InkColor}"
+                                                                               TextTrimming="CharacterEllipsis" />
+                                                                    <TextBlock Margin="0,3,0,0" FontSize="12"
+                                                                               Foreground="{StaticResource InkSecondaryColor}"
+                                                                               Text="{Binding BindingText}"
+                                                                               TextTrimming="CharacterEllipsis" />
+                                                                </StackPanel>
+                                                            </Grid>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="row" Property="Background" Value="{StaticResource HoverColor}" />
+                                                            </Trigger>
+                                                            <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" Value="True">
+                                                                <Setter TargetName="row" Property="Background" Value="{StaticResource BrandTintColor}" />
+                                                                <Setter TargetName="mark" Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock x:Name="UnboundHeader" Margin="12,8,12,4" FontSize="12"
+                                           Foreground="{StaticResource InkTertiaryColor}"
+                                           Text="{loc:Loc Key='尚未绑定'}" />
+                                <ItemsControl x:Name="UnboundGroupList">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button HorizontalContentAlignment="Stretch"
+                                                    HorizontalAlignment="Stretch"
+                                                    Margin="6,1" Padding="0"
+                                                    Background="Transparent" BorderThickness="0"
+                                                    Cursor="Hand" Tag="{Binding Selected}"
+                                                    Click="GroupRow_Click">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="row" Padding="10,10"
+                                                                CornerRadius="8"
+                                                                Background="Transparent">
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="3" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <Border x:Name="mark" Width="3"
+                                                                        CornerRadius="1.5" Margin="0,4"
+                                                                        Background="{StaticResource BrandColor}"
+                                                                        Visibility="Collapsed" />
+                                                                <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                                                    <TextBlock Text="{Binding NameText}"
+                                                                               FontSize="13.5" FontWeight="Medium"
+                                                                               Foreground="{StaticResource InkColor}"
+                                                                               TextTrimming="CharacterEllipsis" />
+                                                                    <TextBlock Margin="0,3,0,0" FontSize="12"
+                                                                               Foreground="{StaticResource InkSecondaryColor}"
+                                                                               Text="{Binding BindingText}"
+                                                                               TextTrimming="CharacterEllipsis" />
+                                                                </StackPanel>
+                                                            </Grid>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="row" Property="Background" Value="{StaticResource HoverColor}" />
+                                                            </Trigger>
+                                                            <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" Value="True">
+                                                                <Setter TargetName="row" Property="Background" Value="{StaticResource BrandTintColor}" />
+                                                                <Setter TargetName="mark" Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+                <!-- Binding editor — the port of GroupBindingEditor. -->
+                <Border Grid.Column="1" Margin="8,0,0,0" Style="{StaticResource Card}">
+                    <Grid>
+                        <StackPanel x:Name="GroupEmpty" VerticalAlignment="Center"
+                                    HorizontalAlignment="Center">
+                            <TextBlock Text="{loc:Loc Key='还没有群聊记录'}" FontSize="13.5" FontWeight="Medium"
+                                       Foreground="{StaticResource InkColor}"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock Margin="0,6,0,0" FontSize="12" TextWrapping="Wrap"
+                                       Foreground="{StaticResource InkSecondaryColor}"
+                                       Text="{loc:Loc Key='从微信转发一次后，就可以在这里为群聊绑定场景。'}"
+                                       TextAlignment="Center" />
+                        </StackPanel>
+
+                        <ScrollViewer x:Name="GroupEditor" Visibility="Collapsed"
+                                      VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock x:Name="GroupTitle" FontSize="17" FontWeight="SemiBold"
+                                           Foreground="{StaticResource InkColor}" />
+                                <TextBlock x:Name="GroupBoundCount" Margin="0,3,0,0" FontSize="12"
+                                           Foreground="{StaticResource InkSecondaryColor}" />
+
+                                <Border Margin="0,16,0,0" Padding="12,10" CornerRadius="10"
+                                        Background="{StaticResource SunkenColor}">
+                                    <TextBlock FontSize="12" TextWrapping="Wrap"
+                                               Foreground="{StaticResource InkSecondaryColor}"
+                                               Text="{loc:Loc Key='每次转发只加载其中一个场景；不适用当前 Agent 的场景会自动跳过。'}" />
+                                </Border>
+
+                                <TextBlock Margin="0,16,0,0" Text="{loc:Loc Key='可选场景'}" FontSize="14"
+                                           FontWeight="SemiBold" Foreground="{StaticResource InkColor}" />
+                                <TextBlock Margin="0,3,0,10" FontSize="12"
+                                           Foreground="{StaticResource InkSecondaryColor}"
+                                           Text="{loc:Loc Key='勾选这个群聊可使用的场景；转发时再选择其中一个。'}" />
+
+                                <!-- The checkbox list sits inside one stroked
+                                     rounded container with hairline dividers,
+                                     like the macOS overlay. -->
+                                <Border CornerRadius="10" Padding="0"
+                                        BorderBrush="{StaticResource StrokeColor}"
+                                        BorderThickness="1">
+                                    <ItemsControl x:Name="BoundSceneList">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid>
+                                                    <CheckBox Style="{StaticResource MacCheck}"
+                                                              Padding="12,10"
+                                                              Click="BoundSceneCheck_Click"
+                                                              IsChecked="{Binding IsBound, Mode=OneWay}">
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding NameText}" FontSize="13.5"
+                                                                       FontWeight="Medium"
+                                                                       Foreground="{StaticResource InkColor}" />
+                                                            <TextBlock Margin="0,3,0,0" FontSize="12"
+                                                                       Text="{Binding SummaryText}"
+                                                                       Foreground="{StaticResource InkSecondaryColor}"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Margin="0,2,0,0" FontSize="11"
+                                                                       Text="{Binding AgentsText}"
+                                                                       Foreground="{StaticResource InkTertiaryColor}"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                        </StackPanel>
+                                                    </CheckBox>
+                                                    <Border Height="1" Margin="39,0,0,0"
+                                                            VerticalAlignment="Bottom"
+                                                            IsHitTestVisible="False"
+                                                            Background="{StaticResource StrokeSoftColor}"
+                                                            Visibility="{Binding IsLast, Converter={StaticResource InvertBoolToVisibility}}" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Border>
+
+                                <StackPanel x:Name="DisabledScenesNote" Margin="0,16,0,0"
+                                            Visibility="Collapsed">
+                                    <TextBlock Text="{loc:Loc Key='已关闭的场景'}" FontSize="11.5"
+                                               FontWeight="Medium"
+                                               Foreground="{StaticResource InkColor}" />
+                                    <TextBlock x:Name="DisabledSceneNames" Margin="0,3,0,0"
+                                               FontSize="12" TextWrapping="Wrap"
+                                               Foreground="{StaticResource InkSecondaryColor}" />
+                                    <TextBlock Margin="0,2,0,0" FontSize="12"
+                                               Foreground="{StaticResource InkTertiaryColor}"
+                                               Text="{loc:Loc Key='启用后才能绑定到群聊。'}" />
+                                </StackPanel>
+
+                                <Button x:Name="ClearBindingButton" Margin="0,16,0,0"
+                                        Style="{StaticResource DangerButton}" Padding="8,4"
+                                        FontSize="12.5" Content="{loc:Loc Key='取消绑定'}"
+                                        HorizontalAlignment="Right"
+                                        Click="ClearBinding_Click" />
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- Notice bar — the macOS SceneNotice line. -->
+            <Border x:Name="NoticeBar" Grid.Row="2" Margin="0,16,0,0" Padding="12,10" CornerRadius="10"
+                    Background="{StaticResource LiveFillColor}" Visibility="Collapsed">
+                <TextBlock x:Name="NoticeText" FontSize="12" TextWrapping="Wrap"
+                           Foreground="{StaticResource LiveInkColor}" />
+            </Border>
+    </Grid>
+</UserControl>

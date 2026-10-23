@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Burn bootstrapper for the framework-dependent build: checks for a .NET desktop
+  runtime under %ProgramFiles%\dotnet\shared (works for both installer- and
+  SDK-installed runtimes, unlike the registry keys), downloads .NET 10 desktop
+  runtime on demand via RemotePayload, then runs the embedded MSI which registers
+  the sparse package. Elevates only when the runtime actually needs installing.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal"
+     xmlns:netfx="http://wixtoolset.org/schemas/v4/wxs/netfx"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+
+  <Bundle Name="微信流" Compressed="yes" Version="$(var.BundleVersion)" Manufacturer="微信流"
+          UpgradeCode="{7E2C1F44-9B51-4F2C-8C1F-8C1D5B8C6E61}"
+          IconSourceFile="$(var.IconFile)">
+
+    <BootstrapperApplication>
+      <bal:WixStandardBootstrapperApplication Theme="hyperlinkLicense"
+          LicenseUrl=""
+          LogoFile="$(var.LogoFile)"
+          ThemeFile="$(var.ThemeFile)"
+          LocalizationFile="$(var.LocalizationFile)"
+          SuppressOptionsUI="yes" SupportCacheOnly="yes"
+          LaunchTarget="[LocalAppDataFolder]WeChatBridge\App\WeChatBridge.Windows.exe"
+          ShowVersion="yes" />
+      <Payload SourceFile="$(var.IconFile)" Name="AppIcon.ico" />
+    </BootstrapperApplication>
+
+    <?if $(var.SelfContained) != yes ?>
+    <!-- Latest installed version of the matching desktop runtime (major 10);
+         the variable stays unset when no .NET 10 desktop runtime exists, which
+         makes the DetectCondition below evaluate false and fetch the runtime. -->
+    <netfx:DotNetCoreSearch Id="DesktopRuntimeSearch"
+        Variable="DesktopRuntimeVersion"
+        RuntimeType="desktop" MajorVersion="10"
+        Platform="$(var.RuntimePlatform)" />
+
+    <?endif?>
+
+    <Chain>
+      <?ifdef CertificateTrustMsiPath ?>
+      <MsiPackage Id="CertificateTrustMsi" SourceFile="$(var.CertificateTrustMsiPath)"
+          DisplayName="准备微信分享入口" Vital="yes" Visible="no" Permanent="yes" />
+      <?endif?>
+      <?if $(var.SelfContained) != yes ?>
+      <ExePackage Id="NetDesktopRuntime"
+          DisplayName="Microsoft .NET Desktop Runtime 10"
+          Description="Microsoft .NET Desktop Runtime"
+          InstallArguments="/install /quiet /norestart"
+          RepairArguments="/repair /quiet /norestart"
+          UninstallArguments="/uninstall /quiet /norestart"
+          PerMachine="yes" Vital="yes" Cache="remove"
+          DetectCondition="DesktopRuntimeVersion >= v10.0.0">
+        <ExePackagePayload Name="$(var.RuntimeName)"
+            DownloadUrl="$(var.RuntimeUrl)"
+            Description="Microsoft .NET Desktop Runtime"
+            ProductName="Microsoft .NET Desktop Runtime"
+            Hash="$(var.RuntimeHash)" Size="$(var.RuntimeSize)" Version="$(var.RuntimeVersion)" />
+      </ExePackage>
+      <?endif?>
+      <MsiPackage Id="WeChatBridgeMsi" SourceFile="$(var.MsiPath)" Vital="yes" Visible="yes" />
+    </Chain>
+  </Bundle>
+</Wix>

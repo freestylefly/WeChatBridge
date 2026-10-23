@@ -13,7 +13,7 @@
 2. 在微信中多选聊天记录，使用「合并转发」→「转发到其他应用」。
 3. 在列表里点选目标，例如「发给 Codex」。微信流会激活目标应用，写入聊天归档，并把场景提示词和内容粘贴进去。
 
-![微信「转发到其他应用」菜单中的微信流入口](Resources/Screenshots/usage-wechat-share-menu.png)
+![微信「转发到其他应用」菜单中的微信流入口](shared/Screenshots/usage-wechat-share-menu.png)
 
 这排入口由微信流提供，和微信原有的隔空投送、信息、邮件排在同一个菜单里，选中即完成一次投递。
 
@@ -21,13 +21,13 @@
 
 十二个入口覆盖主流 Agent、笔记软件和剪贴板，随时可以用开关收窄或放开。
 
-![入口设置页](Resources/Screenshots/usage-entries.png)
+![入口设置页](shared/Screenshots/usage-entries.png)
 
 「入口」页里每个条目都会显示当前状态：未安装的应用会标注出来，Obsidian 会提示是否已选择知识库，自定义入口会提示已添加几个应用。开关关掉之后，对应入口立刻从微信菜单里消失。
 
 支持的 Agent 图标：
 
-![支持的 Agent](Resources/Screenshots/usage-supported-agents.png)
+![支持的 Agent](shared/Screenshots/usage-supported-agents.png)
 
 - 发给 Codex / Claude / 豆包 / 千问办公 / WorkBuddy / WeSight：激活目标应用并粘贴聊天归档。
 - 沉淀到 Obsidian：生成 Markdown 笔记，同时保存微信导出的原始压缩包；通过通知打开笔记。
@@ -39,17 +39,17 @@
 
 场景是一段提示词加上它适用的 Agent。写好之后，每次转发只需要挑一个场景，整理要求自动跟着聊天记录一起送过去。
 
-![场景管理](Resources/Screenshots/usage-scenes.png)
+![场景管理](shared/Screenshots/usage-scenes.png)
 
 场景里可以写清输出规范，例如「先提取客户需求、承诺和风险，再给出下一步」。每个场景还能限定只在某些 Agent 上启用，转发到其他应用时自动跳过。
 
 群聊可以绑定多个场景，做到一个群一套说法。
 
-![群聊匹配](Resources/Screenshots/usage-group-scenes.png)
+![群聊匹配](shared/Screenshots/usage-group-scenes.png)
 
 绑定之后，转发时会弹出场景选择框，挑一个再发出去；也可以跳过选择直接转发。
 
-![转发时选择场景](Resources/Screenshots/usage-scene-picker.png)
+![转发时选择场景](shared/Screenshots/usage-scene-picker.png)
 
 典型的用法是把客户群配成「客户复盘」、项目群配成「项目周会」、资讯群配成「日常摘要」，之后不用每次再解释一遍要 Agent 做什么。
 
@@ -57,33 +57,33 @@
 
 技能是安装到 Agent 侧的 `SKILL.md` 能力包。场景负责说明要什么，技能负责让 Agent 真的会做。
 
-![技能中心](Resources/Screenshots/usage-skills.png)
+![技能中心](shared/Screenshots/usage-skills.png)
 
 以群聊里常见的公众号链接为例。群里一天分享好几篇文章，逐个点开太费时间。
 
-![群聊里的公众号链接](Resources/Screenshots/usage-skill-input.png)
+![群聊里的公众号链接](shared/Screenshots/usage-skill-input.png)
 
 转发时带上「公众号文章提取」技能，Agent 会先抓取正文再输出摘要，你挑感兴趣的继续深读。
 
-![技能执行过程](Resources/Screenshots/usage-skill-run.png)
+![技能执行过程](shared/Screenshots/usage-skill-run.png)
 
-![技能执行结果](Resources/Screenshots/usage-skill-result.png)
+![技能执行结果](shared/Screenshots/usage-skill-result.png)
 
 ## 沉淀到 Obsidian
 
 选择「沉淀到 Obsidian」后，微信流按聊天名生成笔记，记录来源和原始归档，聊天内容按时间顺序展开。
 
-![Obsidian 笔记结构](Resources/Screenshots/usage-obsidian-note.png)
+![Obsidian 笔记结构](shared/Screenshots/usage-obsidian-note.png)
 
 附件按微信聊天界面的样式渲染，图片、文件、链接都能直接看出原来长什么样，翻笔记的时候不用再去对照原始压缩包。
 
-![附件展示](Resources/Screenshots/usage-obsidian-attachments.png)
+![附件展示](shared/Screenshots/usage-obsidian-attachments.png)
 
 ## 记录
 
 「记录」页保存每一次转发的批次，显示目标应用和送达状态，方便确认文件到底有没有送到。
 
-![记录页](Resources/Screenshots/usage-history.png)
+![记录页](shared/Screenshots/usage-history.png)
 
 一个批次可以重新发送到其他应用，也可以复制、在访达中定位或清理。默认保留 7 天。
 

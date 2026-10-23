@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <Product>微信流</Product>
+    <AssemblyTitle>微信流</AssemblyTitle>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ApplicationManifest>..\..\app.manifest</ApplicationManifest>
+    <!-- The exe and package use the same full-size rounded square artwork. -->
+    <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishReadyToRun>true</PublishReadyToRun>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WeChatBridge.Windows.Core\WeChatBridge.Windows.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Embed the same artwork used by the Windows package so About works in
+       both development builds and installed apps, without a filesystem fallback. -->
+  <ItemGroup>
+    <Resource Include="..\..\packaging\SparsePackage\Assets\Square150x150Logo.png"
+              Link="Assets\AppIcon.png" />
+  </ItemGroup>
+
+  <!-- The shared skill catalog ships next to the exe so
+       SkillService.FindResourcesRoot resolves <out>/Resources/Skills at
+       runtime — the same catalog.json macOS reads from its bundle. -->
+  <ItemGroup>
+    <None Include="..\..\..\shared\Skills\**"
+          Link="Resources\Skills\%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+    <!-- shared/AppLogos is the single source — AppLogos.PathFor resolves
+         <out>/Assets/AppLogos, so keep the linked layout identical. -->
+    <None Include="..\..\..\shared\AppLogos\*.png"
+          Link="Assets\AppLogos\%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+    <None Include="Assets\**" Exclude="Assets\AppLogos\**"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

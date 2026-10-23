@@ -1,0 +1,109 @@
+<Window x:Class="WeChatBridge.Windows.Onboarding.OnboardingWindow"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:loc="clr-namespace:WeChatBridge.Windows" xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+ Title="{loc:Loc Key='设置微信流'}" Width="780" Height="620" WindowStyle="None"
+ Background="{StaticResource SurfaceColor}" ResizeMode="NoResize" WindowStartupLocation="CenterOwner"
+ FontFamily="Microsoft YaHei UI, Segoe UI" UseLayoutRounding="True" SnapsToDevicePixels="True"
+ TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType"
+ Icon="/WeChatBridge.Windows;component/Assets/AppIcon.png">
+ <shell:WindowChrome.WindowChrome><shell:WindowChrome CaptionHeight="52" CornerRadius="12" GlassFrameThickness="0"
+ ResizeBorderThickness="0" UseAeroCaptionButtons="False"/></shell:WindowChrome.WindowChrome>
+ <Window.Resources>
+ <Style x:Key="WizardButton" TargetType="Button" BasedOn="{StaticResource SettingsButton}">
+ <Setter Property="MinHeight" Value="40"/><Setter Property="MinWidth" Value="96"/><Setter Property="FontSize" Value="14"/></Style>
+ <Style x:Key="WizardPrimary" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+ <Setter Property="MinHeight" Value="40"/><Setter Property="MinWidth" Value="112"/><Setter Property="FontSize" Value="14"/></Style>
+ <Style x:Key="Heading" TargetType="TextBlock"><Setter Property="FontSize" Value="26"/><Setter Property="FontWeight" Value="SemiBold"/>
+ <Setter Property="Foreground" Value="{StaticResource InkColor}"/><Setter Property="TextWrapping" Value="Wrap"/></Style>
+ <Style x:Key="Body" TargetType="TextBlock"><Setter Property="FontSize" Value="14"/><Setter Property="LineHeight" Value="23"/>
+ <Setter Property="Foreground" Value="{StaticResource InkSecondaryColor}"/><Setter Property="TextWrapping" Value="Wrap"/></Style>
+ <Style x:Key="WizardCard" TargetType="Border"><Setter Property="Padding" Value="18"/><Setter Property="CornerRadius" Value="12"/>
+ <Setter Property="BorderThickness" Value="1"/><Setter Property="BorderBrush" Value="{StaticResource StrokeColor}"/>
+ <Setter Property="Background" Value="{StaticResource SurfaceColor}"/></Style>
+ </Window.Resources>
+ <Border BorderBrush="{StaticResource StrokeColor}" BorderThickness="1" CornerRadius="12"><Grid>
+ <Grid.RowDefinitions><RowDefinition Height="52"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+ <Grid MouseLeftButtonDown="OnDragMove" Margin="20,0,12,0">
+ <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+ <Image Source="/WeChatBridge.Windows;component/Assets/AppIcon.png" Width="28" Height="28"/>
+ <TextBlock Text="{loc:Loc Key='设置微信流'}" FontSize="15" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center"/>
+ </StackPanel>
+ <Button Width="32" Height="32" MinHeight="32" MinWidth="0" Padding="0" HorizontalAlignment="Right" Content="×" FontSize="22"
+ Style="{StaticResource WizardButton}" Background="Transparent" ToolTip="{loc:Loc Key='关闭'}" IsCancel="True"
+ Click="OnCloseClicked" shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
+ </Grid>
+ <Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition Width="168"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+ <Border Background="{StaticResource SunkenColor}" BorderBrush="{StaticResource StrokeColor}" BorderThickness="0,1,1,0">
+ <Grid Margin="16,24"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+ <TextBlock x:Name="StepCount" FontSize="12" Foreground="{StaticResource InkSecondaryColor}" Margin="10,0,0,18"/>
+ <ListBox x:Name="StepList" Grid.Row="1" BorderThickness="0" Background="Transparent" IsHitTestVisible="False" Focusable="False" FontSize="14">
+ <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem">
+ <Setter Property="Padding" Value="12,14"/><Setter Property="Margin" Value="0,0,0,8"/><Setter Property="Foreground" Value="{StaticResource InkSecondaryColor}"/>
+ <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
+ <Border x:Name="Card" CornerRadius="10" Background="Transparent" Padding="{TemplateBinding Padding}"><ContentPresenter/></Border>
+ <ControlTemplate.Triggers><Trigger Property="IsSelected" Value="True">
+ <Setter TargetName="Card" Property="Background" Value="{StaticResource BrandSoftColor}"/>
+ <Setter Property="Foreground" Value="{StaticResource LiveInkColor}"/><Setter Property="FontWeight" Value="SemiBold"/>
+ </Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style></ListBox.ItemContainerStyle>
+ <ListBoxItem Content="{loc:Loc Key='01  认识微信流'}"/><ListBoxItem Content="{loc:Loc Key='02  选择目标'}"/>
+ <ListBoxItem Content="{loc:Loc Key='03  启动偏好'}"/><ListBoxItem Content="{loc:Loc Key='04  准备开始'}"/>
+ </ListBox>
+ <TextBlock Grid.Row="2" Style="{StaticResource Body}" FontSize="12" Text="{loc:Loc Key='每一步都可以返回修改。关闭后，下次继续设置。'}"/>
+ </Grid></Border>
+ <Grid Grid.Column="1"><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="84"/></Grid.RowDefinitions>
+ <ScrollViewer x:Name="PageScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+ <Grid Margin="30,28,30,20">
+<StackPanel x:Name="StepWelcome">
+<TextBlock Style="{StaticResource Heading}" Text="{loc:Loc Key='让聊天记录，去你需要的地方'}" />
+<TextBlock Style="{StaticResource Body}" Text="{loc:Loc Key='先转发到微信流，再选择应用。也可以分批收齐，一次发送。'}" Margin="0,10,0,24"/>
+<Border Style="{StaticResource WizardCard}" Background="{StaticResource BrandSoftColor}"><StackPanel><TextBlock Style="{StaticResource Body}" Text="{loc:Loc Key='聊天记录  →  微信流  →  目标应用'}" FontWeight="SemiBold" Foreground="{StaticResource InkColor}"/><TextBlock Style="{StaticResource Body}" Text="{loc:Loc Key='在微信多选消息 → 转发到其他应用 → 微信流。目标应用在下一步选择，不会重复挤进微信菜单。'}" Margin="0,10,0,0"/></StackPanel></Border>
+<Border Style="{StaticResource WizardCard}" Margin="0,20,0,0"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="30"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+<TextBlock x:Name="RegistrationMark" Text="…" FontSize="22" Foreground="{StaticResource BrandColor}"/>
+<StackPanel Grid.Column="1">
+<TextBlock x:Name="RegistrationTitle" FontSize="15" FontWeight="SemiBold"/>
+<TextBlock x:Name="RegistrationDetail" Style="{StaticResource Body}" Margin="0,6,0,12"/>
+<Button x:Name="RefreshButton" Content="{loc:Loc Key='重新检测'}" Style="{StaticResource WizardButton}" Click="OnRefreshClicked" HorizontalAlignment="Left"/>
+</StackPanel></Grid></Border>
+</StackPanel>
+<StackPanel x:Name="StepEntries" Visibility="Collapsed">
+<TextBlock Style="{StaticResource Heading}" Text="{loc:Loc Key='选择你要用的目标'}" />
+<TextBlock Style="{StaticResource Body}" Text="{loc:Loc Key='只开启用得到的。未安装的应用会标明原因，安装后可在「入口」页开启。'}" Margin="0,10,0,16"/>
+<TextBlock x:Name="SelectionCount" FontSize="13" Foreground="{StaticResource LiveInkColor}" Margin="0,0,0,10"/>
+<ItemsControl x:Name="EntriesList"><ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+<ItemsControl.ItemTemplate><DataTemplate>
+<Border Style="{StaticResource WizardCard}" Padding="12" Margin="0,0,8,8" MinHeight="106">
+<Grid><Grid.RowDefinitions><RowDefinition Height="32"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+<Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="44"/></Grid.ColumnDefinitions>
+<TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
+<CheckBox Grid.Column="1" Style="{StaticResource MacToggle}" IsChecked="{Binding Enabled, Mode=TwoWay}" IsEnabled="{Binding Available}" AutomationProperties.Name="{Binding Title}" VerticalAlignment="Center"/>
+<TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Detail}" Style="{StaticResource Body}" FontSize="12" LineHeight="19" Margin="0,6,0,0"/>
+</Grid></Border>
+</DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+<TextBlock Style="{StaticResource Body}" Text="{loc:Loc Key='保存路径和自定义应用，可以稍后在「入口」页设置。'}" FontSize="12"/>
+</StackPanel>
+<StackPanel x:Name="StepResidency" Visibility="Collapsed">
+<TextBlock Style="{StaticResource Heading}" Text="{loc:Loc Key='按你的习惯启动'}" />
+<TextBlock Style="{StaticResource Body}" Text="{loc:Loc Key='后台运行时，关闭设置窗口不会退出微信流；可从托盘菜单退出。'}" Margin="0,10,0,24"/>
+<Border Style="{StaticResource WizardCard}" ><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="44"/></Grid.ColumnDefinitions>
+<StackPanel Margin="0,0,16,0"><TextBlock Style="{StaticResource Body}" Text="{loc:Loc Key='登录 Windows 后自动运行'}" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource InkColor}"/><TextBlock Style="{StaticResource Body}" Text="{loc:Loc Key='只在后台准备，不会自动打开设置窗口。关闭后，也可以按需要启动。'}" Margin="0,8,0,0"/></StackPanel>
+<CheckBox x:Name="StartupToggle" Grid.Column="1" Style="{StaticResource MacToggle}" Click="OnStartupClicked" AutomationProperties.Name="{loc:Loc Key='登录 Windows 后自动运行'}" VerticalAlignment="Center"/>
+</Grid></Border>
+<TextBlock x:Name="StartupFeedback" Style="{StaticResource Body}" Margin="0,14,0,0" Text="{loc:Loc Key='这个开关与「通用」页同步，随时可以调整。'}"/>
+</StackPanel>
+<StackPanel x:Name="StepDone" Visibility="Collapsed">
+<TextBlock Style="{StaticResource Heading}" Text="{loc:Loc Key='配置已准备好'}" />
+<TextBlock Style="{StaticResource Body}" Text="{loc:Loc Key='最后确认一下，然后去微信转发一小段记录试试。'}" Margin="0,10,0,24"/>
+<Border Style="{StaticResource WizardCard}" ><StackPanel><TextBlock Style="{StaticResource Body}" Text="{loc:Loc Key='已开启的目标'}" FontSize="13"/>
+<TextBlock x:Name="SelectedSummary" Style="{StaticResource Body}" Foreground="{StaticResource InkColor}" Margin="0,6,0,18"/>
+<TextBlock Style="{StaticResource Body}" Text="{loc:Loc Key='启动方式'}" FontSize="13"/><TextBlock x:Name="SummaryStartup" FontSize="14" Margin="0,6,0,18"/>
+<TextBlock Style="{StaticResource Body}" Text="{loc:Loc Key='分享入口'}" FontSize="13"/><TextBlock x:Name="SummaryRegistration" Style="{StaticResource Body}" Margin="0,6,0,0"/>
+</StackPanel></Border>
+<Border Style="{StaticResource WizardCard}" Background="{StaticResource BrandSoftColor}" Margin="0,16,0,0"><TextBlock Style="{StaticResource Body}" Text="{loc:Loc Key='微信多选消息 → 转发到其他应用 → 微信流。若没有看到入口，先彻底退出并重新打开微信，再运行分享入口诊断工具。'}" Foreground="{StaticResource InkColor}"/></Border>
+</StackPanel>
+ </Grid></ScrollViewer>
+ <Border Grid.Row="1" BorderBrush="{StaticResource StrokeColor}" BorderThickness="0,1,0,0" Padding="30,20"><Grid>
+ <Button x:Name="BackButton" Style="{StaticResource WizardButton}" HorizontalAlignment="Left" Content="{loc:Loc Key='上一步'}" Click="OnBackClicked"/>
+ <Button x:Name="NextButton" Style="{StaticResource WizardPrimary}" HorizontalAlignment="Right" IsDefault="True" Click="OnNextClicked"/>
+ </Grid></Border>
+ </Grid></Grid></Grid></Border>
+</Window>

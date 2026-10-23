@@ -1,0 +1,215 @@
+<UserControl x:Class="WeChatBridge.Windows.Panes.GeneralPane"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:WeChatBridge.Windows">
+    <UserControl.Resources>
+        <!-- The retention dropdown, drawn like the rest of the settings
+             chrome: white rounded face, hairline border, chevron, white popup.
+             Scoped here because 通用 is the only pane with a combo. -->
+        <Style x:Key="MacCombo" TargetType="ComboBox">
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Foreground" Value="{StaticResource InkColor}" />
+            <Setter Property="Width" Value="150" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <Border x:Name="Chrome"
+                                    Background="{StaticResource SurfaceColor}"
+                                    BorderBrush="{StaticResource ButtonBorderColor}"
+                                    BorderThickness="1" CornerRadius="10" />
+                            <Grid Margin="{TemplateBinding Padding}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <ContentPresenter VerticalAlignment="Center"
+                                                  Content="{TemplateBinding SelectionBoxItem}" />
+                                <TextBlock Grid.Column="1" Margin="10,0,0,0"
+                                           VerticalAlignment="Center" FontSize="11"
+                                           Foreground="{StaticResource InkSecondaryColor}"
+                                           Text="▾" />
+                            </Grid>
+                            <ToggleButton x:Name="DropDownToggle" ClickMode="Press"
+                                          Focusable="False" Background="Transparent"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="Transparent" />
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <Popup Placement="Bottom" Focusable="False" AllowsTransparency="True"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}">
+                                <Border MinWidth="{Binding ActualWidth, ElementName=Chrome}"
+                                        Background="{StaticResource SurfaceColor}"
+                                        BorderBrush="{StaticResource StrokeColor}"
+                                        BorderThickness="1" CornerRadius="10"
+                                        Margin="0,4,0,0" Padding="4">
+                                    <Border.Effect>
+                                        <DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity="0.12" />
+                                    </Border.Effect>
+                                    <ScrollViewer MaxHeight="260" CanContentScroll="False"
+                                                  VerticalScrollBarVisibility="Auto">
+                                        <ItemsPresenter />
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background"
+                                        Value="{StaticResource HoverColor}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ComboBoxItem">
+                        <Setter Property="Padding" Value="10,6" />
+                        <Setter Property="FontSize" Value="12.5" />
+                        <Setter Property="Foreground" Value="{StaticResource InkColor}" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ComboBoxItem">
+                                    <Border x:Name="row" Margin="1" CornerRadius="6"
+                                            Padding="{TemplateBinding Padding}"
+                                            Background="Transparent">
+                                        <ContentPresenter />
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="row" Property="Background"
+                                                    Value="{StaticResource HoverColor}" />
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Foreground"
+                                                    Value="{StaticResource BrandColor}" />
+                                            <Setter TargetName="row" Property="Background"
+                                                    Value="{StaticResource BrandTintColor}" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <StackPanel>
+        <!-- 运行状态 — the one real card: a block, not a settings row. -->
+        <StackPanel>
+            <TextBlock Style="{StaticResource SectionLabel}" Text="{loc:Loc Key='运行状态'}" />
+            <Border Height="1" Background="{StaticResource StrokeColor}" Margin="0,8,0,10" />
+            <Border Style="{StaticResource Card}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock FontSize="12" Foreground="{StaticResource InkSecondaryColor}"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding InboxRoot, StringFormat='Inbox：{0}'}" />
+                        <TextBlock Margin="0,4,0,0" FontSize="12"
+                                   Foreground="{StaticResource InkSecondaryColor}"
+                                   Text="{Binding SummaryText}" />
+                    </StackPanel>
+                    <Button Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0"
+                            Style="{StaticResource SettingsButton}" Click="RevealInbox_Click"><Button.Content><loc:Loc Key="打开 Inbox 文件夹"/></Button.Content></Button>
+                </Grid>
+            </Border>
+        </StackPanel>
+
+        <!-- 应用行为 -->
+        <StackPanel Margin="0,24,0,0">
+            <TextBlock Style="{StaticResource SectionLabel}" Text="{loc:Loc Key='应用行为'}" />
+            <Border Height="1" Background="{StaticResource StrokeColor}" Margin="0,8,0,10" />
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock FontSize="13.5" Foreground="{StaticResource InkColor}"
+                               Text="{loc:Loc Key='开机自动启动'}" />
+                    <TextBlock Margin="0,3,0,0" FontSize="12"
+                               Foreground="{StaticResource InkSecondaryColor}" TextWrapping="Wrap"
+                               Text="{loc:Loc Key='登录后后台驻留，分享进来时几乎立即转发；关掉则每次分享要冷启动。'}" />
+                </StackPanel>
+                <CheckBox Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0"
+                          Style="{StaticResource MacToggle}"
+                          IsChecked="{Binding AutoStartEnabled, Mode=TwoWay}" />
+            </Grid>
+            <Grid Margin="0,16,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock FontSize="13.5" Foreground="{StaticResource InkColor}"
+                               Text="{loc:Loc Key='记录保留时间'}" />
+                    <TextBlock Margin="0,3,0,0" FontSize="12"
+                               Foreground="{StaticResource InkSecondaryColor}" TextWrapping="Wrap"
+                               Text="{loc:Loc Key='到期的记录会移入回收站；回收站里的内容仍可以恢复。'}" />
+                </StackPanel>
+                <ComboBox Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0"
+                          Style="{StaticResource MacCombo}"
+                          SelectedIndex="{Binding RetentionIndex, Mode=TwoWay}">
+                    <ComboBoxItem><ComboBoxItem.Content><loc:Loc Key="永久保留"/></ComboBoxItem.Content></ComboBoxItem>
+                    <ComboBoxItem><ComboBoxItem.Content><loc:Loc Key="保留 7 天"/></ComboBoxItem.Content></ComboBoxItem>
+                    <ComboBoxItem><ComboBoxItem.Content><loc:Loc Key="保留 30 天"/></ComboBoxItem.Content></ComboBoxItem>
+                </ComboBox>
+            </Grid>
+        </StackPanel>
+
+        <DockPanel Margin="0,20,0,0">
+            <ComboBox DockPanel.Dock="Right" Width="150" Style="{StaticResource MacCombo}" SelectedIndex="{Binding LanguageIndex}">
+                <ComboBoxItem Content="{loc:Loc Key='跟随系统'}"/><ComboBoxItem Content="{loc:Loc Key='简体中文'}"/><ComboBoxItem Content="English"/>
+            </ComboBox>
+            <TextBlock Text="{loc:Loc Key='界面语言（重启后生效）'}" Foreground="{StaticResource InkColor}" VerticalAlignment="Center"/>
+        </DockPanel>
+
+        <!-- 软件与帮助 -->
+        <StackPanel Margin="0,24,0,0">
+            <TextBlock Style="{StaticResource SectionLabel}" Text="{loc:Loc Key='软件与帮助'}" />
+            <Border Height="1" Background="{StaticResource StrokeColor}" Margin="0,8,0,10" />
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock FontSize="13.5" Foreground="{StaticResource InkColor}"
+                               Text="{loc:Loc Key='当前版本'}" />
+                    <TextBlock x:Name="VersionText" Margin="0,3,0,0" FontSize="12"
+                               Foreground="{StaticResource InkSecondaryColor}" />
+                </StackPanel>
+                <Button Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0"
+                        Style="{StaticResource SettingsButton}" Click="OpenProject_Click"><Button.Content><loc:Loc Key="访问项目"/></Button.Content></Button>
+            </Grid>
+            <Border Height="1" Background="{StaticResource StrokeSoftColor}" Margin="0,14" />
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock FontSize="13.5" Foreground="{StaticResource InkColor}"
+                               Text="{loc:Loc Key='重新运行设置向导'}" />
+                    <TextBlock Margin="0,3,0,0" FontSize="12"
+                               Foreground="{StaticResource InkSecondaryColor}" TextWrapping="Wrap"
+                               Text="{loc:Loc Key='再走一遍欢迎、入口和驻留说明，不改动已设置的偏好。'}" />
+                </StackPanel>
+                <Button Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0"
+                        Style="{StaticResource SettingsButton}" Click="RestartOnboarding_Click"><Button.Content><loc:Loc Key="重新运行"/></Button.Content></Button>
+            </Grid>
+        </StackPanel>
+    </StackPanel>
+</UserControl>

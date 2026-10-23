@@ -1,0 +1,151 @@
+<Window x:Class="WeChatBridge.Windows.TargetPickerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:WeChatBridge.Windows"
+        Title="{loc:Loc Key='发给…'}" Width="280" SizeToContent="Height"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Opacity="0" ShowInTaskbar="False" Topmost="True" ResizeMode="NoResize"
+        WindowStartupLocation="Manual" Loaded="OnLoaded">
+    <!-- The FloatingCapsule port: Radius.panel=14 over SurfaceColor, a 1px
+         stroke and the capsule's soft shadow. The margin leaves room for the
+         blur; the Border is the panel, the window is only its frame. -->
+    <Border x:Name="Root" Margin="14" Padding="0" CornerRadius="14"
+            Background="{StaticResource SurfaceColor}"
+            BorderBrush="{StaticResource StrokeColor}" BorderThickness="1">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="26" ShadowDepth="4" Opacity="0.20" />
+        </Border.Effect>
+        <StackPanel>
+            <Grid Margin="14,12,10,9">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Border Width="30" Height="30" CornerRadius="8"
+                        Background="{StaticResource BrandTintColor}"
+                        VerticalAlignment="Top">
+                    <TextBlock Text="&#xE724;" FontSize="14"
+                               FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                               Foreground="{StaticResource BrandColor}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <StackPanel Grid.Column="1" Margin="10,0,8,0" VerticalAlignment="Center">
+                    <TextBlock Text="{loc:Loc Key='发给…'}" FontWeight="SemiBold" FontSize="13"
+                               Foreground="{StaticResource InkColor}" />
+                    <TextBlock x:Name="ContextText" FontSize="10.5" Margin="0,1,0,0"
+                               Foreground="{StaticResource InkTertiaryColor}"
+                               Text="{Binding ContextLine, RelativeSource={RelativeSource AncestorType=Window}}"
+                               TextTrimming="CharacterEllipsis"
+                               Visibility="{Binding ContextLine, RelativeSource={RelativeSource AncestorType=Window},
+                                             Converter={StaticResource StringToVisibility}}" />
+                </StackPanel>
+                <Button x:Name="CloseButton" Grid.Column="2" VerticalAlignment="Top"
+                        Style="{StaticResource PickerCloseButton}" Click="OnCloseClicked" />
+            </Grid>
+            <ListBox x:Name="TargetList" MaxHeight="280" Margin="6,0,6,2" BorderThickness="0"
+                     Background="Transparent" SelectionMode="Single"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto">
+                <ListBox.ItemContainerStyle>
+                    <!-- Radius.row=9: the highlight is the row's own rounded
+                         rect, the way the macOS panel draws it. -->
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="Padding" Value="0" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ListBoxItem">
+                                    <Border x:Name="row" CornerRadius="9" Padding="9,0"
+                                            Background="Transparent">
+                                        <ContentPresenter VerticalAlignment="Center" />
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="row" Property="Background"
+                                                    Value="{StaticResource HoverColor}" />
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="row" Property="Background"
+                                                    Value="{StaticResource BrandTintColor}" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                        <EventSetter Event="MouseLeftButtonUp" Handler="OnRowClicked" />
+                    </Style>
+                </ListBox.ItemContainerStyle>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Height="38">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Border Width="30" Height="30" CornerRadius="8"
+                                    VerticalAlignment="Center"
+                                    Background="{StaticResource SunkenColor}">
+                                <Grid Width="20" Height="20">
+                                    <!-- The app's mark where AppLogos has one; a
+                                         letter badge where it does not. -->
+                                    <Border x:Name="Badge" CornerRadius="5" Visibility="Collapsed"
+                                            Background="{StaticResource BrandTintColor}">
+                                        <TextBlock Text="{Binding Initial}" FontSize="10"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource BrandColor}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" />
+                                    </Border>
+                                    <Image Width="20" Height="20" Source="{Binding Logo}"
+                                           Visibility="{Binding Logo, Converter={StaticResource StringToVisibility}}" />
+                                </Grid>
+                            </Border>
+                            <TextBlock Grid.Column="1" Margin="10,0,0,0"
+                                       Text="{Binding DisplayName}" FontSize="12.5"
+                                       FontWeight="SemiBold" VerticalAlignment="Center"
+                                       Foreground="{StaticResource InkColor}"
+                                       TextTrimming="CharacterEllipsis" />
+                            <Border Grid.Column="2" Margin="10,0,0,0"
+                                    Style="{StaticResource ShortcutChip}"
+                                    Visibility="{Binding Shortcut, Converter={StaticResource StringToVisibility}}">
+                                <TextBlock Text="{Binding Shortcut}" FontSize="10"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource InkTertiaryColor}"
+                                           HorizontalAlignment="Center" />
+                            </Border>
+                        </Grid>
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding Logo}" Value="{x:Null}">
+                                <Setter TargetName="Badge" Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+            <Border Margin="0,2,0,0" Padding="14,7"
+                    BorderBrush="{StaticResource StrokeSoftColor}"
+                    BorderThickness="0,1,0,0">
+                <StackPanel Orientation="Horizontal">
+                    <Border Style="{StaticResource KeycapChip}">
+                        <TextBlock Text="Esc" FontSize="9.5" FontWeight="SemiBold"
+                                   Foreground="{StaticResource InkSecondaryColor}" />
+                    </Border>
+                    <TextBlock Text="{loc:Loc Key='取消'}" FontSize="10.5" Margin="4,0,10,0"
+                               VerticalAlignment="Center"
+                               Foreground="{StaticResource InkTertiaryColor}" />
+                    <Border Style="{StaticResource KeycapChip}">
+                        <TextBlock Text="1–9" FontSize="9.5" FontWeight="SemiBold"
+                                   Foreground="{StaticResource InkSecondaryColor}" />
+                    </Border>
+                    <TextBlock Text="{loc:Loc Key='直选'}" FontSize="10.5" Margin="4,0,10,0"
+                               VerticalAlignment="Center"
+                               Foreground="{StaticResource InkTertiaryColor}" />
+                    <TextBlock Text="{loc:Loc Key='90 秒内有效'}" FontSize="10.5"
+                               VerticalAlignment="Center"
+                               Foreground="{StaticResource InkTertiaryColor}" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </Border>
+</Window>

@@ -13,7 +13,7 @@ This document walks through each feature in the order you will actually use it.
 2. In WeChat, select messages and use “Merge forward” → “Forward to other apps”.
 3. Pick a destination, for example “Send to Codex”. WeChatBridge activates the target app, writes the archive, and pastes the conversation with its scene prompt.
 
-![WeChatBridge entries in the WeChat "Forward to other apps" menu](Resources/Screenshots/usage-wechat-share-menu.png)
+![WeChatBridge entries in the WeChat "Forward to other apps" menu](shared/Screenshots/usage-wechat-share-menu.png)
 
 These entries come from WeChatBridge and sit in the same menu as AirDrop, Messages, and Mail.
 
@@ -21,13 +21,13 @@ These entries come from WeChatBridge and sit in the same menu as AirDrop, Messag
 
 Twelve entries cover mainstream agents, note-taking apps, and the clipboard. You can narrow or widen the list at any time.
 
-![Entries settings](Resources/Screenshots/usage-entries.png)
+![Entries settings](shared/Screenshots/usage-entries.png)
 
 Each row shows its current state: missing apps are flagged, Obsidian reports whether a vault is selected, and the custom entry reports how many apps you added. Turning a switch off removes that entry from the WeChat menu immediately.
 
 Supported agents:
 
-![Supported agents](Resources/Screenshots/usage-supported-agents.png)
+![Supported agents](shared/Screenshots/usage-supported-agents.png)
 
 - Send to Codex / Claude / Doubao / QwenWork / WorkBuddy / WeSight: activate the target app and paste the archive.
 - Save to Obsidian: create a Markdown note and keep the original WeChat export.
@@ -38,17 +38,17 @@ Supported agents:
 
 A scene is a prompt plus the agents it applies to. Write it once, and each hand-off only needs a scene choice.
 
-![Scene management](Resources/Screenshots/usage-scenes.png)
+![Scene management](shared/Screenshots/usage-scenes.png)
 
 A scene can specify the output format, for example “extract customer requests, commitments, and risks, then list next steps”. Each scene also lists the agents it applies to; destinations outside that list are skipped.
 
 Groups can bind several scenes, giving every chat its own set of instructions.
 
-![Group matching](Resources/Screenshots/usage-group-scenes.png)
+![Group matching](shared/Screenshots/usage-group-scenes.png)
 
 At forward time a picker appears so you can choose one scene, or skip the picker and forward directly.
 
-![Choosing a scene while forwarding](Resources/Screenshots/usage-scene-picker.png)
+![Choosing a scene while forwarding](shared/Screenshots/usage-scene-picker.png)
 
 A common setup maps customer groups to “Customer review”, project groups to “Project standup”, and news groups to “Daily digest”, so you stop re-explaining the task.
 
@@ -56,33 +56,33 @@ A common setup maps customer groups to “Customer review”, project groups to 
 
 Skills are `SKILL.md` packages installed into supported agents. Scenes describe what you want; skills make sure the agent can actually do it.
 
-![Skill Center](Resources/Screenshots/usage-skills.png)
+![Skill Center](shared/Screenshots/usage-skills.png)
 
 Take the article links that show up in group chats. A busy group shares several articles a day, and opening each one is slow.
 
-![Article links in a group chat](Resources/Screenshots/usage-skill-input.png)
+![Article links in a group chat](shared/Screenshots/usage-skill-input.png)
 
 Forward with the “Article extraction” skill installed, and the agent fetches the full text before summarizing, so you can read further only where it matters.
 
-![Skill execution](Resources/Screenshots/usage-skill-run.png)
+![Skill execution](shared/Screenshots/usage-skill-run.png)
 
-![Skill result](Resources/Screenshots/usage-skill-result.png)
+![Skill result](shared/Screenshots/usage-skill-result.png)
 
 ## Saving to Obsidian
 
 “Save to Obsidian” creates one note per chat name, records the source and the original archive, and lays the conversation out in time order.
 
-![Obsidian note structure](Resources/Screenshots/usage-obsidian-note.png)
+![Obsidian note structure](shared/Screenshots/usage-obsidian-note.png)
 
 Attachments are rendered the way they appear in WeChat, so images, files, and links keep their original shape and you can read the note without opening the original ZIP.
 
-![Attachment rendering](Resources/Screenshots/usage-obsidian-attachments.png)
+![Attachment rendering](shared/Screenshots/usage-obsidian-attachments.png)
 
 ## History
 
 The History pane keeps every hand-off batch with its destination and delivery state, so you can confirm what actually arrived.
 
-![History pane](Resources/Screenshots/usage-history.png)
+![History pane](shared/Screenshots/usage-history.png)
 
 A batch can be sent again to another app, copied, revealed in Finder, or cleaned up. Batches are kept for 7 days by default.
 

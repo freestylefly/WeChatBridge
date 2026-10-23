@@ -17,7 +17,7 @@ Copyright (c) 2026 qzz0518
 
 微信流使用原版 Sparkle framework 提供签名更新检查与安装。Sparkle 的 MIT 许可、
 版权声明及其所含外部组件声明完整保存在
-`Resources/Licenses/Sparkle-LICENSE.txt`，并随 App 一同分发。
+`macos/Resources/Licenses/Sparkle-LICENSE.txt`，并随 App 一同分发。
 
 项目主页：<https://github.com/sparkle-project/Sparkle>
 

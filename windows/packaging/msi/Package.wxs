@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Per-user MSI for the sparse-package install. The real payload lives outside
+  the MSIX (AllowExternalContent), so the MSI just drops files under
+  %LOCALAPPDATA%\WeChatBridge\App and registers the signed sparse MSIX against
+  that external location via deferred QuietExec custom actions. No admin needed;
+  HKCU + LocalAppDataFolder only.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+
+  <Package Name="微信流" Language="1033" Codepage="936" Version="$(var.MsiVersion)"
+           Manufacturer="微信流" UpgradeCode="{9D8B6223-A1B3-4E46-95C9-9C500833E4CA}"
+           Scope="perUser" InstallerVersion="500" Compressed="yes">
+
+    <MajorUpgrade DowngradeErrorMessage="已安装更新版本的微信流。" />
+    <MediaTemplate EmbedCab="yes" />
+
+    <ui:WixUI Id="WixUI_InstallDir" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.PayloadDir)\LICENSE.rtf" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+
+    <Icon Id="AppIcon.ico" SourceFile="$(var.PayloadDir)\Assets\AppIcon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+
+    <!-- Command lines consumed by the deferred QuietExec CAs below. Each property
+         is named after its CA so WixQuietExec picks it up from CustomActionData. -->
+    <SetProperty Id="KillRunningInstances" Sequence="execute" Before="KillRunningInstances"
+        Value="&quot;[System64Folder]WindowsPowerShell\v1.0\powershell.exe&quot; -NoProfile -NonInteractive -WindowStyle Hidden -Command &quot;Get-Process -Name 'WeChatBridge.ShareTarget','WeChatBridge.Windows' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue&quot;" />
+    <SetProperty Id="RegisterShareTarget" Sequence="execute" Before="RegisterShareTarget"
+        Value="&quot;[System64Folder]WindowsPowerShell\v1.0\powershell.exe&quot; -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File &quot;[INSTALLFOLDER]Register-ShareTarget.ps1&quot; -CertificateTrustPrepared" />
+    <SetProperty Id="UnregisterShareTarget" Sequence="execute" Before="UnregisterShareTarget"
+        Value="&quot;[System64Folder]WindowsPowerShell\v1.0\powershell.exe&quot; -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File &quot;[INSTALLFOLDER]Unregister-ShareTarget.ps1&quot;" />
+
+    <Feature Id="Main" Title="微信流" Level="1" AllowAdvertise="no">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+  </Package>
+
+  <Fragment>
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="WeChatBridgeRoot" Name="WeChatBridge">
+        <Directory Id="INSTALLFOLDER" Name="App" />
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="WeChatBridgeProgramsFolder" Name="微信流" />
+    </StandardDirectory>
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
+      <Files Include="$(var.PayloadDir)\**" />
+    </ComponentGroup>
+  </Fragment>
+
+  <Fragment>
+    <DirectoryRef Id="WeChatBridgeProgramsFolder">
+      <Component Id="StartMenuShortcut" Guid="{27836C97-D2EB-4891-AB2B-88F388DE7FA7}">
+        <Shortcut Id="WeChatBridgeShortcut" Name="微信流"
+                  Target="[INSTALLFOLDER]WeChatBridge.Windows.exe"
+                  WorkingDirectory="INSTALLFOLDER" Icon="AppIcon.ico" />
+        <RegistryValue Root="HKCU" Key="Software\WeChatBridge" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+        <RemoveFolder Id="WeChatBridgeProgramsFolderCleanup" Directory="WeChatBridgeProgramsFolder" On="uninstall" />
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+
+  <Fragment>
+    <?if $(sys.BUILDARCH) = arm64 ?>
+    <CustomAction Id="KillRunningInstances"    BinaryRef="Wix4UtilCA_A64" DllEntry="WixQuietExec64" Execute="deferred" Impersonate="no"  Return="ignore" />
+    <CustomAction Id="RegisterShareTarget"     BinaryRef="Wix4UtilCA_A64" DllEntry="WixQuietExec64" Execute="deferred" Impersonate="yes" Return="check"  />
+    <CustomAction Id="UnregisterShareTarget"   BinaryRef="Wix4UtilCA_A64" DllEntry="WixQuietExec64" Execute="deferred" Impersonate="yes" Return="ignore" />
+    <?else?>
+    <CustomAction Id="KillRunningInstances"    BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec64" Execute="deferred" Impersonate="no"  Return="ignore" />
+    <CustomAction Id="RegisterShareTarget"     BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec64" Execute="deferred" Impersonate="yes" Return="check"  />
+    <CustomAction Id="UnregisterShareTarget"   BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec64" Execute="deferred" Impersonate="yes" Return="ignore" />
+    <?endif?>
+    <InstallExecuteSequence>
+      <!-- keep the keeper mutex free and drop file locks before we touch files -->
+      <Custom Action="KillRunningInstances" After="InstallInitialize" />
+      <Custom Action="UnregisterShareTarget" Before="RemoveFiles" Condition="Installed AND REMOVE" />
+      <Custom Action="RegisterShareTarget" After="InstallFiles" Condition="NOT REMOVE" />
+    </InstallExecuteSequence>
+  </Fragment>
+</Wix>

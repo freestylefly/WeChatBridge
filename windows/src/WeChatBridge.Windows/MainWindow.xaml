@@ -1,0 +1,174 @@
+<Window x:Class="WeChatBridge.Windows.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:WeChatBridge.Windows"
+        xmlns:panes="clr-namespace:WeChatBridge.Windows.Panes"
+        Icon="/WeChatBridge.Windows;component/Assets/AppIcon.png"
+        Title="{loc:Loc Key='微信流'}" Height="640" Width="780"
+        MinHeight="640" MinWidth="780"
+        Background="{StaticResource BackgroundColor}"
+        FontFamily="Microsoft YaHei UI, Segoe UI" UseLayoutRounding="True" SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <!-- The navigation column runs the full height of the window, like the macOS settings window. -->
+            <ColumnDefinition Width="176" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Sidebar: the macOS sunken column — grey-green ground, icon + label
+             rows, selection as a soft brand-green block rather than a bar. -->
+        <Border Grid.Column="0" Background="{StaticResource SunkenColor}">
+            <ListBox x:Name="NavList" Margin="10,14,10,16" Padding="0"
+                     BorderThickness="0" Background="Transparent"
+                     SelectionChanged="NavList_SelectionChanged">
+                <ListBox.Resources>
+                    <!-- Row glyph: Segoe Fluent Icons with MDL2 as the Windows 10
+                         fallback. Follows the brand colour while selected,
+                         secondary ink otherwise — as on macOS. -->
+                    <Style x:Key="NavIcon" TargetType="TextBlock">
+                        <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets" />
+                        <Setter Property="FontSize" Value="13" />
+                        <Setter Property="Width" Value="18" />
+                        <Setter Property="TextAlignment" Value="Center" />
+                        <Setter Property="VerticalAlignment" Value="Center" />
+                        <Setter Property="Foreground" Value="{StaticResource InkSecondaryColor}" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"
+                                         Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource BrandColor}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                    <!-- The label takes the item's own foreground, so the
+                         selected/unselected trigger above styles it. -->
+                    <Style x:Key="NavLabel" TargetType="TextBlock">
+                        <Setter Property="Margin" Value="10,0,0,0" />
+                        <Setter Property="VerticalAlignment" Value="Center" />
+                    </Style>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="MinHeight" Value="34" />
+                        <Setter Property="Padding" Value="11,0" />
+                        <Setter Property="Margin" Value="0,1" />
+                        <Setter Property="FontSize" Value="13.5" />
+                        <Setter Property="Foreground" Value="{StaticResource InkSecondaryColor}" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ListBoxItem">
+                                    <Border x:Name="row" CornerRadius="8"
+                                            Padding="{TemplateBinding Padding}"
+                                            Background="Transparent">
+                                        <ContentPresenter VerticalAlignment="Center" />
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="IsMouseOver" Value="True" />
+                                                <Condition Property="IsSelected" Value="False" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="row" Property="Background" Value="{StaticResource HoverColor}" />
+                                        </MultiTrigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="row" Property="Background" Value="{StaticResource BrandTintColor}" />
+                                            <Setter Property="Foreground" Value="{StaticResource InkColor}" />
+                                            <Setter Property="FontWeight" Value="SemiBold" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ListBox.Resources>
+                <!-- macOS sidebar order: 通用 场景 技能 入口 权限 记录 关于 —
+                     权限 has no Windows counterpart, so it is omitted. -->
+                <ListBoxItem Tag="General">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource NavIcon}" Text="&#xE713;" />
+                        <TextBlock Style="{StaticResource NavLabel}" Text="{loc:Loc Key='通用'}" />
+                    </StackPanel>
+                </ListBoxItem>
+                <ListBoxItem Tag="Scenes">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource NavIcon}" Text="&#xE8A5;" />
+                        <TextBlock Style="{StaticResource NavLabel}" Text="{loc:Loc Key='场景'}" />
+                    </StackPanel>
+                </ListBoxItem>
+                <ListBoxItem Tag="Skills">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource NavIcon}" Text="&#xE8EF;" />
+                        <TextBlock Style="{StaticResource NavLabel}" Text="{loc:Loc Key='技能'}" />
+                    </StackPanel>
+                </ListBoxItem>
+                <ListBoxItem Tag="Entries">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource NavIcon}" Text="&#xE72D;" />
+                        <TextBlock Style="{StaticResource NavLabel}" Text="{loc:Loc Key='入口'}" />
+                    </StackPanel>
+                </ListBoxItem>
+                <ListBoxItem Tag="History">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource NavIcon}" Text="&#xE81C;" />
+                        <TextBlock Style="{StaticResource NavLabel}" Text="{loc:Loc Key='记录'}" />
+                    </StackPanel>
+                </ListBoxItem>
+                <ListBoxItem Tag="About">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource NavIcon}" Text="&#xE946;" />
+                        <TextBlock Style="{StaticResource NavLabel}" Text="{loc:Loc Key='关于'}" />
+                    </StackPanel>
+                </ListBoxItem>
+            </ListBox>
+        </Border>
+
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- Page header lives inside the content area: paneTitle over a
+                 one-line caption, matching the macOS settings pages. -->
+            <StackPanel Grid.Row="0" Margin="24,22,24,0">
+                <TextBlock x:Name="PaneTitle" FontSize="21" FontWeight="SemiBold"
+                           Foreground="{StaticResource InkColor}" Text="{loc:Loc Key='记录'}" />
+                <TextBlock x:Name="PaneCaption" Margin="0,4,0,0" FontSize="12"
+                           Foreground="{StaticResource InkSecondaryColor}"
+                           Text="{loc:Loc Key='每一批转发的去向与结果'}" />
+            </StackPanel>
+
+            <Border Grid.Row="1" Margin="24,14,24,24">
+                <!-- ContentControl defaults to Left/Top alignment: panes would
+                     keep their desired width and leave dead space on a wide
+                     window — stretch them to fill instead. -->
+                <ContentControl x:Name="PaneHost"
+                                HorizontalContentAlignment="Stretch"
+                                VerticalContentAlignment="Stretch" />
+            </Border>
+
+            <!-- Transient status capsule — the in-window port of ToastPresenter:
+                 a dark pill that drops 6 px and fades in, rather than a card. -->
+            <Border x:Name="Toast" Grid.RowSpan="2"
+                    HorizontalAlignment="Right" VerticalAlignment="Top"
+                    Margin="0,14,18,0" Padding="14,9" CornerRadius="18"
+                    Background="#E61D1D1F"
+                    Visibility="Collapsed" Opacity="0" MaxWidth="380"
+                    MouseEnter="Toast_MouseEnter" MouseLeave="Toast_MouseLeave">
+                <Border.RenderTransform>
+                    <TranslateTransform x:Name="ToastShift" Y="0" />
+                </Border.RenderTransform>
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="16" ShadowDepth="2" Opacity="0.28" />
+                </Border.Effect>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock x:Name="ToastText" VerticalAlignment="Center" FontSize="12"
+                               Foreground="{StaticResource OnBrandColor}" TextWrapping="Wrap"
+                               MaxWidth="300" />
+                    <Button x:Name="ToastAction" Margin="10,0,0,0" Padding="6,2" FontSize="12"
+                            FontWeight="SemiBold"
+                            Foreground="{StaticResource OnBrandColor}" Background="Transparent"
+                            BorderThickness="0" Cursor="Hand" Click="ToastAction_Click" />
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

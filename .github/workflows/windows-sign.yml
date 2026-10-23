@@ -1,0 +1,105 @@
+name: Windows signed package
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'MSIX version, for example 0.1.0.0'
+        required: true
+        default: '0.1.0.0'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  sign:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Validate SignPath configuration
+        shell: pwsh
+        env:
+          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          SIGNPATH_PROJECT_SLUG: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          SIGNPATH_SIGNING_POLICY_SLUG: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          SIGNPATH_ARTIFACT_CONFIGURATION_SLUG: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
+          SIGNPATH_MSIX_PUBLISHER: ${{ vars.SIGNPATH_MSIX_PUBLISHER }}
+        run: |
+          $required = @(
+            'SIGNPATH_API_TOKEN',
+            'SIGNPATH_ORGANIZATION_ID',
+            'SIGNPATH_PROJECT_SLUG',
+            'SIGNPATH_SIGNING_POLICY_SLUG',
+            'SIGNPATH_ARTIFACT_CONFIGURATION_SLUG',
+            'SIGNPATH_MSIX_PUBLISHER'
+          )
+          foreach ($name in $required) {
+            if ([string]::IsNullOrWhiteSpace((Get-Item "env:$name").Value)) {
+              throw "Missing SignPath secret or repository variable: $name"
+            }
+          }
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build and test
+        run: |
+          dotnet restore windows/WeChatBridge.Windows.sln
+          dotnet build windows/WeChatBridge.Windows.sln --configuration Release --no-restore --nologo
+          dotnet test windows/WeChatBridge.Windows.sln --configuration Release --no-build --nologo
+
+      - name: Publish external binaries
+        run: |
+          New-Item -ItemType Directory -Force -Path windows/artifacts/release/share-target | Out-Null
+          dotnet publish windows/src/WeChatBridge.Windows/WeChatBridge.Windows.csproj --configuration Release --runtime win-x64 --self-contained false --output windows/artifacts/release --nologo
+          dotnet publish windows/src/WeChatBridge.ShareTarget/WeChatBridge.ShareTarget.csproj --configuration Release --runtime win-x64 --self-contained false --output windows/artifacts/release/share-target --nologo
+
+      - name: Create unsigned MSIX
+        shell: pwsh
+        env:
+          SIGNPATH_MSIX_PUBLISHER: ${{ vars.SIGNPATH_MSIX_PUBLISHER }}
+        run: |
+          New-Item -ItemType Directory -Force -Path windows/artifacts | Out-Null
+          ./windows/scripts/pack-msix.ps1 `
+            -Publisher $env:SIGNPATH_MSIX_PUBLISHER `
+            -Version '${{ inputs.version }}' `
+            -OutputPath windows/artifacts/release/WeChatBridge.ShareTarget.msix
+
+      - name: Create unsigned release bundle
+        shell: pwsh
+        run: |
+          Compress-Archive -Path windows/artifacts/release/* -DestinationPath windows/artifacts/WeChatBridge.Windows-${{ inputs.version }}.zip -Force
+
+      - name: Upload unsigned release bundle
+        id: upload-unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: WeChatBridge.Windows-unsigned
+          path: windows/artifacts/WeChatBridge.Windows-${{ inputs.version }}.zip
+          archive: false
+
+      - name: Submit to SignPath Foundation
+        id: signpath
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
+          github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: windows/artifacts/signed
+          skip-decompress: true
+
+      - name: Upload signed MSIX
+        uses: actions/upload-artifact@v4
+        with:
+          name: WeChatBridge.Windows-signed-${{ inputs.version }}
+          path: windows/artifacts/signed

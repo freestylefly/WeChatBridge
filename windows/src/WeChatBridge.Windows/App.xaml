@@ -1,0 +1,15 @@
+﻿<Application x:Class="WeChatBridge.Windows.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:WeChatBridge.Windows">
+    <Application.Resources>
+        <!-- The whole theme lives in Themes/AppTheme.xaml so the share-target
+             helper can link the same file: the palette and picker styles must
+             not fork between the main app and the helper's own panel. -->
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/AppTheme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

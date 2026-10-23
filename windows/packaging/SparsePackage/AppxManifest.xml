@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap10="http://schemas.microsoft.com/appx/manifest/uap/windows10/10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap10 rescap">
+  <Identity Name="WeChatBridge.Windows.ShareTarget" Publisher="CN=WeChatBridge Windows Dev" Version="1.0.8.0" ProcessorArchitecture="neutral" />
+  <Properties>
+    <DisplayName>微⁠信流 Windows</DisplayName>
+    <PublisherDisplayName>WeChatBridge</PublisherDisplayName>
+    <Logo>Assets\Square150x150Logo.png</Logo>
+    <uap10:AllowExternalContent>true</uap10:AllowExternalContent>
+  </Properties>
+  <Resources>
+    <Resource Language="zh-cn" />
+    <Resource Language="en-us" />
+  </Resources>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+    <rescap:Capability Name="unvirtualizedResources" />
+  </Capabilities>
+  <!--
+    One Application total — earlier revisions declared one per share entry
+    and WeChat enumerated all of them; the share menu now shows only「微信流」
+    and the app asks for the destination itself once the files are durable.
+    DisplayNames must never contain a contiguous 微信/WeChat/Weixin
+    substring — WeChat hides those targets. The package DisplayName keeps
+    微<U+2060>信流 above.
+  -->
+  <Applications>
+    <!--
+      A single entry is the whole menu architecture now: WeChat sees 「微信流」
+      and nothing else, and the app asks which destination after the files are
+      durable — so the 入口 pane's switches take effect in the share menu
+      immediately, without repacking the MSIX. The DisplayName keeps the
+      微<U+2060>信流 word-joiner spelling: a contiguous 微信/WeChat/Weixin
+      substring is still hidden by WeChat's filter.
+    -->
+    <Application Id="Share.Hub" Executable="share-target\WeChatBridge.ShareTarget.exe" uap10:TrustLevel="mediumIL" uap10:RuntimeBehavior="win32App">
+      <uap:VisualElements AppListEntry="none" DisplayName="微⁠信流" Description="将聊天归档交给微⁠信流选择目标" BackgroundColor="transparent" Square44x44Logo="Assets\Square44x44Logo.png" Square150x150Logo="Assets\Square150x150Logo.png" />
+      <Extensions>
+        <uap:Extension Category="windows.shareTarget">
+          <uap:ShareTarget Description="微⁠信流">
+            <!--
+              Broad declaration is enumeration-visibility only: the Weixin share
+              host drops targets whose SupportedFileTypes is narrow (e.g. only
+              ".zip") or that declare a single DataFormat — the same shape
+              Tencent's own WeixinShare/WorkBuddyShareTarget manifests use.
+              The helper still validates the real payload at runtime.
+            -->
+            <uap:SupportedFileTypes><uap:SupportsAnyFileType /></uap:SupportedFileTypes>
+            <uap:DataFormat>StorageItems</uap:DataFormat>
+            <uap:DataFormat>Text</uap:DataFormat>
+            <uap:DataFormat>URI</uap:DataFormat>
+            <uap:DataFormat>Bitmap</uap:DataFormat>
+          </uap:ShareTarget>
+        </uap:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+</Package>

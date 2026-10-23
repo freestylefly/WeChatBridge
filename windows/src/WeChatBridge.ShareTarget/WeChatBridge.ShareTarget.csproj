@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <Product>微信流</Product>
+    <AssemblyTitle>微信流分享入口</AssemblyTitle>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ApplicationManifest>..\..\share-target.manifest</ApplicationManifest>
+    <!-- The share menu reads this module's icon, not the package logo:
+         the same mark the main app carries. -->
+    <ApplicationIcon>..\WeChatBridge.Windows\Assets\AppIcon.ico</ApplicationIcon>
+    <PublishSingleFile>false</PublishSingleFile>
+    <!-- The helper is on the critical path of every share — WeChat's own ZIP
+         work already makes the user wait, so the process that asks 「发送到…」
+         must not add JIT time on top. -->
+    <PublishReadyToRun>true</PublishReadyToRun>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WeChatBridge.Windows.Core\WeChatBridge.Windows.Core.csproj" />
+  </ItemGroup>
+
+  <!-- The Hub entry asks 「发送到…」 inside this process — the picker, its
+       theme, the option catalog and everything they touch are linked from the
+       main app's project so both hosts render and order the panel identically.
+       The pack URI each page lands under must match what the code requests:
+       AppTheme.xaml stays under Themes/ because EntryPickerWindow.ThemeSource
+       resolves it relative to the running assembly. -->
+  <ItemGroup>
+    <Compile Include="..\WeChatBridge.Windows\Localization\LocExtension.cs" Link="Shared\LocExtension.cs" />
+    <Compile Include="..\WeChatBridge.Windows\AppLogos.cs" Link="Shared\AppLogos.cs" />
+    <Compile Include="..\WeChatBridge.Windows\AppSettings.cs" Link="Shared\AppSettings.cs" />
+    <Compile Include="..\WeChatBridge.Windows\Converters.cs" Link="Shared\Converters.cs" />
+    <Compile Include="..\WeChatBridge.Windows\HistoryLabels.cs" Link="Shared\HistoryLabels.cs" />
+    <Compile Include="..\WeChatBridge.Windows\EntryPickerWindow.xaml.cs" Link="Shared\EntryPickerWindow.xaml.cs" />
+    <Compile Include="..\WeChatBridge.Windows\Services\ShareEntryCatalog.cs" Link="Shared\ShareEntryCatalog.cs" />
+    <Compile Include="..\WeChatBridge.Windows\Services\WeChatUiTitleReader.cs" Link="Shared\WeChatUiTitleReader.cs" />
+    <Compile Include="..\WeChatBridge.Windows\Services\WeChatOcrTitleReader.cs" Link="Shared\WeChatOcrTitleReader.cs" />
+    <Page Include="..\WeChatBridge.Windows\EntryPickerWindow.xaml" Link="EntryPickerWindow.xaml" />
+    <Page Include="..\WeChatBridge.Windows\Themes\AppTheme.xaml" Link="Themes\AppTheme.xaml" />
+  </ItemGroup>
+
+</Project>

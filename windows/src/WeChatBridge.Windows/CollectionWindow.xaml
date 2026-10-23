@@ -1,0 +1,64 @@
+<Window x:Class="WeChatBridge.Windows.CollectionWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:WeChatBridge.Windows"
+        xmlns:c="clr-namespace:WeChatBridge.Windows.Components"
+        Title="{loc:Loc Key='分批收集到微信流'}" Width="400" MinWidth="320" SizeToContent="Height"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ShowInTaskbar="False" ShowActivated="False" Topmost="True" ResizeMode="NoResize"
+        WindowStartupLocation="Manual" PreviewKeyDown="Window_PreviewKeyDown">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="Components/CollectionComponents.xaml"/></ResourceDictionary.MergedDictionaries>
+            <Style TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource InkColor}"/><Setter Property="FontSize" Value="12"/></Style>
+        </ResourceDictionary>
+    </Window.Resources>
+    <c:CollectionCard Margin="14" CornerRadius="22" Background="{DynamicResource SurfaceColor}"
+            BorderBrush="{DynamicResource StrokeColor}" BorderThickness="1">
+        <c:CollectionCard.Effect><DropShadowEffect BlurRadius="28" ShadowDepth="5" Opacity="0.12"/></c:CollectionCard.Effect>
+        <StackPanel>
+            <Grid Margin="20,18,14,0" Background="Transparent" MouseLeftButtonDown="Header_MouseLeftButtonDown" Cursor="SizeAll">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <Border Width="36" Height="36" CornerRadius="11" Background="{DynamicResource BrandSoftColor}">
+                    <Path Data="{StaticResource CollectionFolderIcon}" Stroke="{DynamicResource BrandColor}" StrokeThickness="1.5" Width="23" Height="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel Grid.Column="1" Margin="10,0,8,0" VerticalAlignment="Center">
+                    <TextBlock Text="{loc:Loc Key='分批收集'}" FontSize="15" FontWeight="SemiBold"/>
+                    <Border Background="{DynamicResource BrandSoftColor}" CornerRadius="6" Padding="6,2" Margin="0,5,0,0" HorizontalAlignment="Left">
+                        <TextBlock x:Name="Status" FontSize="10" Foreground="{DynamicResource BrandColor}"/>
+                    </Border>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top">
+                    <c:CollectionButton x:Name="MoreButton" Kind="Icon" AutomationProperties.Name="{loc:Loc Key=更多}" Content="···" FontSize="17"
+                            ToolTip="{loc:Loc Key='更多'}" Click="More_Click" Padding="7,1" Margin="0,0,3,0"/>
+                    <c:CollectionButton x:Name="CloseButton" Kind="Icon" AutomationProperties.Name="{loc:Loc Key=关闭}"
+                            ToolTip="{loc:Loc Key='隐藏浮条，保留收集'}" Click="Close_Click" Cursor="Hand">
+                        <Path Data="{StaticResource CollectionCloseIcon}" Stroke="{DynamicResource InkSecondaryColor}" StrokeThickness="1.4" Width="14" Height="14"/>
+                    </c:CollectionButton>
+                </StackPanel>
+            </Grid>
+            <TextBlock x:Name="SummaryText" Margin="20,18,20,14" FontSize="21" FontWeight="SemiBold" TextWrapping="Wrap"/>
+            <Border x:Name="RecentPanel" Margin="18,0,18,0" Padding="12,10" CornerRadius="12" Background="{DynamicResource SunkenColor}">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock x:Name="RecentChat" FontWeight="Medium" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock x:Name="RecentBatch" Grid.Column="1" FontSize="10" Foreground="{DynamicResource InkSecondaryColor}" Margin="8,0,0,0"/>
+                    </Grid>
+                    <TextBlock x:Name="LastRange" FontSize="10.5" Foreground="{DynamicResource InkSecondaryColor}" Margin="0,5,0,0" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+            <TextBlock x:Name="Hint" Margin="18,10,18,0" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource InkSecondaryColor}"/>
+            <TextBlock x:Name="Message" TextWrapping="Wrap" Margin="18,10,18,0" FontSize="11" Foreground="{DynamicResource WarnInkColor}"
+                       Visibility="{Binding Text, RelativeSource={RelativeSource Self}, Converter={StaticResource StringToVisibility}}"/>
+            <WrapPanel Margin="18,8,18,0">
+                <c:CollectionButton x:Name="ResumeButton" Kind="Ghost" Content="{loc:Loc Key='继续收集'}" Click="Resume_Click" Margin="0,0,6,0"/>
+            </WrapPanel>
+            <Grid Margin="18,8,18,16">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <c:CollectionButton x:Name="ManageButton" Kind="Ghost" Content="{loc:Loc Key='批次详情'}" Click="Manage_Click" HorizontalAlignment="Left" Padding="0,8"/>
+                <c:CollectionButton x:Name="DeliverButton" Grid.Column="1" Kind="Primary" Content="{loc:Loc Key='选择去向…'}" Click="Deliver_Click" Padding="18,10" FontSize="12"/>
+            </Grid>
+        </StackPanel>
+    </c:CollectionCard>
+</Window>

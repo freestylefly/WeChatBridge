@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <zip-file>
+    <pe-file path="WeChatBridge.Windows.exe"><authenticode-sign /></pe-file>
+    <pe-file path="WeChatBridge.Windows.dll"><authenticode-sign /></pe-file>
+    <pe-file path="WeChatBridge.Windows.Core.dll"><authenticode-sign /></pe-file>
+    <directory path="share-target">
+      <pe-file path="WeChatBridge.ShareTarget.exe"><authenticode-sign /></pe-file>
+      <pe-file path="WeChatBridge.ShareTarget.dll"><authenticode-sign /></pe-file>
+      <pe-file path="WeChatBridge.Windows.Core.dll"><authenticode-sign /></pe-file>
+    </directory>
+    <msix-file path="WeChatBridge.ShareTarget.msix">
+      <authenticode-sign />
+    </msix-file>
+  </zip-file>
+</artifact-configuration>

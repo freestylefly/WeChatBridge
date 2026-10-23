@@ -1,0 +1,386 @@
+<UserControl x:Class="WeChatBridge.Windows.Panes.HistoryPane"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:WeChatBridge.Windows"
+             xmlns:local="clr-namespace:WeChatBridge.Windows">
+    <UserControl.Resources>
+        <!-- ReadyItem (or a row's item list) → the shell's own file icon. -->
+        <local:FileIconConverter x:Key="FileIcon" />
+
+        <!-- The 「···」 trigger — macOS SettingsMoreActionsButton is a 28×28
+             borderless circle that only tints on hover. -->
+        <Style x:Key="MoreActionsButton" TargetType="Button">
+            <Setter Property="Width" Value="28" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="{StaticResource InkSecondaryColor}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="hit" CornerRadius="14" Background="Transparent">
+                            <TextBlock Text="···" FontSize="14" FontWeight="SemiBold"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="hit" Property="Background" Value="{StaticResource HoverColor}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- The little disclosure triangle that opens a row's file list. -->
+        <Style x:Key="DisclosureButton" TargetType="Button">
+            <Setter Property="Padding" Value="2,0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="hit" CornerRadius="4" Background="Transparent"
+                                Padding="{TemplateBinding Padding}">
+                            <TextBlock FontSize="9" Foreground="{StaticResource InkTertiaryColor}"
+                                       Text="{Binding IsExpanded, Converter={StaticResource ExpandGlyph}}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="hit" Property="Background" Value="{StaticResource SelectedColor}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Status text next to the dot: ink follows the same Tone binding. -->
+        <Style x:Key="StatusText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource NeutralInkColor}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Tone}" Value="Live">
+                    <Setter Property="Foreground" Value="{StaticResource LiveInkColor}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Tone}" Value="Warn">
+                    <Setter Property="Foreground" Value="{StaticResource WarnInkColor}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- One history row: icon, title + subtitle, clock, status, actions.
+             Ported from macOS HistoryPane.row — sunken card, radius 8,
+             hover tint, 12pt of side padding. -->
+        <DataTemplate x:Key="BatchRowTemplate" DataType="{x:Type local:BatchRow}">
+            <Border x:Name="card" CornerRadius="12" Margin="0,0,0,8" Padding="12,10"
+                    MouseLeftButtonUp="Row_Click">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="{StaticResource SunkenColor}" />
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{StaticResource HoverColor}" />
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <Button Grid.Column="0" VerticalAlignment="Center" Margin="0,0,4,0"
+                                Style="{StaticResource DisclosureButton}"
+                                Click="ToggleDetail_Click" ToolTip="{loc:Loc Key='展开详情'}" />
+
+                        <!-- The shell icon of the first file — macOS asks Launch
+                             Services; FileIcons asks SHGetFileInfo. -->
+                        <Grid Grid.Column="1" Width="32" Height="32" VerticalAlignment="Center">
+                            <Image Source="{Binding Items, Converter={StaticResource FileIcon}}"
+                                   Width="32" Height="32" />
+                        </Grid>
+
+                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="12,0,0,0">
+                            <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{StaticResource InkColor}"
+                                       TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding Subtitle}" FontSize="12" Margin="0,2,0,0"
+                                       Foreground="{StaticResource InkSecondaryColor}"
+                                       TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+
+                        <!-- The clock in tabular digits so the column never reflows. -->
+                        <TextBlock Grid.Column="3" VerticalAlignment="Center" Margin="12,0,0,0"
+                                   FontFamily="Consolas" FontSize="11.5"
+                                   Foreground="{StaticResource InkTertiaryColor}"
+                                   Text="{Binding Clock}" />
+
+                        <Border Grid.Column="4" Margin="12,0,0,0" VerticalAlignment="Center"
+                                Style="{StaticResource StatusPill}" Padding="9,3">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Style="{StaticResource StatusDot}" VerticalAlignment="Center" />
+                                <TextBlock Style="{StaticResource StatusText}" Margin="6,0,0,0"
+                                           VerticalAlignment="Center" Text="{Binding StatusText}" />
+                            </StackPanel>
+                        </Border>
+
+                        <Button Grid.Column="5" VerticalAlignment="Center" Margin="12,0,0,0"
+                                Style="{StaticResource SettingsButton}" MinWidth="72" Height="28"
+                                FontWeight="Medium" Click="Forward_Click" ToolTip="{loc:Loc Key='选择要发到的应用'}"><Button.Content><loc:Loc Key="发给…"/></Button.Content></Button>
+                        <Button Grid.Column="6" VerticalAlignment="Center" Margin="8,0,0,0"
+                                Style="{StaticResource MoreActionsButton}"
+                                Click="More_Click" ToolTip="{loc:Loc Key='更多操作'}" />
+                    </Grid>
+
+                    <!-- Item detail: the whole row is the toggle, the chevron
+                         just says so out loud. -->
+                    <StackPanel x:Name="DetailPanel"
+                                Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibility}}">
+                        <Border Height="1" Background="{StaticResource StrokeSoftColor}" Margin="0,9,0,7" />
+                        <TextBox Text="{Binding BoundaryText, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0"
+                                 Background="Transparent" Foreground="{StaticResource InkSecondaryColor}" Margin="0,0,0,8"/>
+                        <ItemsControl ItemsSource="{Binding Items}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Image Grid.Column="0" VerticalAlignment="Center" Width="16" Height="16"
+                                               Source="{Binding ., Converter={StaticResource FileIcon}, ConverterParameter=Small}" />
+                                        <TextBlock Grid.Column="1" VerticalAlignment="Center" Margin="8,0,0,0"
+                                                   FontSize="12" Foreground="{StaticResource InkColor}"
+                                                   Text="{Binding DisplayName}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="2" VerticalAlignment="Center" Margin="10,0,0,0"
+                                                   FontSize="11" Foreground="{StaticResource InkTertiaryColor}"
+                                                   Text="{Binding ByteCount, Converter={StaticResource ByteCountText}}" />
+                                        <Button Grid.Column="3" VerticalAlignment="Center" Margin="8,0,0,0"
+                                                Style="{StaticResource SettingsButton}" Padding="8,2" FontSize="11"
+                                                Click="RevealItem_Click"><Button.Content><loc:Loc Key="在文件夹中显示"/></Button.Content></Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Margin="0,6,0,0" FontSize="11" Foreground="{StaticResource InkTertiaryColor}"
+                                   Text="{Binding Destination, StringFormat='入口：{0}'}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Header: summary caption | search | reveal | ··· menu.
+             The pane's big title lives in MainWindow, same as every pane. -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="12"
+                       Foreground="{StaticResource InkSecondaryColor}"
+                       Text="{Binding SummaryText}" />
+
+            <!-- macOS HistorySearchField: sunken fill, input-stroke hairline,
+                 magnifier inside, radius 8, height 28. -->
+            <Border Grid.Column="2" Width="240" Height="28" VerticalAlignment="Center"
+                    Margin="0,0,8,0" CornerRadius="8"
+                    Background="{StaticResource SunkenColor}"
+                    BorderBrush="{StaticResource InputStrokeColor}" BorderThickness="1">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Style.Triggers>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter Property="BorderBrush" Value="{StaticResource InkColor}" />
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Canvas Width="12" Height="12" Margin="10,0,0,0"
+                            HorizontalAlignment="Left" VerticalAlignment="Center"
+                            IsHitTestVisible="False">
+                        <Ellipse Width="7.5" Height="7.5"
+                                 Stroke="{StaticResource InkTertiaryColor}" StrokeThickness="1.3" />
+                        <Line X1="6.4" Y1="6.4" X2="10.8" Y2="10.8"
+                              Stroke="{StaticResource InkTertiaryColor}" StrokeThickness="1.3"
+                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                    </Canvas>
+                    <TextBox x:Name="SearchBox" VerticalAlignment="Center"
+                             Margin="27,0,26,0" Padding="0" FontSize="12"
+                             Foreground="{StaticResource InkColor}"
+                             Background="Transparent" BorderThickness="0"
+                             CaretBrush="{StaticResource BrandColor}"
+                             Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBlock VerticalAlignment="Center" Margin="29,0,26,0" FontSize="12"
+                               Foreground="{StaticResource InkTertiaryColor}" IsHitTestVisible="False"
+                               Text="{loc:Loc Key='搜索群聊、场景或文件名'}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value="">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <Button HorizontalAlignment="Right" VerticalAlignment="Center"
+                            Width="18" Height="18" Margin="0,0,5,0" FontSize="11"
+                            Foreground="{StaticResource InkTertiaryColor}" Cursor="Hand"
+                            Click="ClearSearch_Click" ToolTip="{loc:Loc Key='清除搜索'}">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="hit" CornerRadius="9" Background="Transparent">
+                                                <TextBlock Text="✕" FontSize="9"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="hit" Property="Background" Value="{StaticResource SelectedColor}" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value="">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <Button Grid.Column="3" VerticalAlignment="Center" Height="28" MinWidth="104"
+                    Style="{StaticResource SettingsButton}" FontWeight="Medium"
+                    Click="RevealInbox_Click"><Button.Content><loc:Loc Key="在文件夹中显示"/></Button.Content></Button>
+            <Button x:Name="ClearButton" Grid.Column="4" VerticalAlignment="Center"
+                    Margin="8,0,0,0" Style="{StaticResource MoreActionsButton}"
+                    Click="HeaderMore_Click" ToolTip="{loc:Loc Key='更多操作'}" />
+        </Grid>
+
+        <Border Grid.Row="1" Margin="0,10,0,0" Padding="12,10" CornerRadius="10"
+                Background="{StaticResource WarnFillColor}"
+                Visibility="{Binding InboxFailure, Converter={StaticResource StringToVisibility}}">
+            <TextBlock FontSize="12" Foreground="{StaticResource WarnInkColor}"
+                       Text="{Binding InboxFailure}" TextWrapping="Wrap" />
+        </Border>
+
+        <Grid Grid.Row="2" Margin="0,16,0,0">
+            <!-- Empty states, macOS style: a tertiary glyph, one strong line, one quiet line. -->
+            <StackPanel x:Name="EmptyAll" VerticalAlignment="Center" Visibility="Collapsed">
+                <Path Width="30" Height="30" Stretch="Uniform" HorizontalAlignment="Center"
+                      Stroke="{StaticResource InkTertiaryColor}" StrokeThickness="1.5"
+                      Fill="Transparent" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                      Data="M 7 6 L 23 6 L 27 15 M 3 15 L 7 6 M 3 15 L 10.5 15 L 13 18 L 17 18 L 19.5 15 L 27 15 L 27 22 A 3 3 0 0 1 24 25 L 6 25 A 3 3 0 0 1 3 22 Z" />
+                <TextBlock FontSize="13.5" FontWeight="Medium" Margin="0,10,0,0"
+                           HorizontalAlignment="Center" Foreground="{StaticResource InkColor}"
+                           Text="{loc:Loc Key='还没有记录'}" />
+                <TextBlock FontSize="12" Margin="0,5,0,0" HorizontalAlignment="Center"
+                           Foreground="{StaticResource InkSecondaryColor}"
+                           Text="{loc:Loc Key='从微信转发到任意一个微信流入口后，这里会列出来。'}" />
+            </StackPanel>
+            <StackPanel x:Name="EmptyFilter" VerticalAlignment="Center" Visibility="Collapsed">
+                <Canvas Width="26" Height="26" HorizontalAlignment="Center">
+                    <Ellipse Width="15" Height="15"
+                             Stroke="{StaticResource InkTertiaryColor}" StrokeThickness="1.6" />
+                    <Line X1="12.8" Y1="12.8" X2="22" Y2="22"
+                          Stroke="{StaticResource InkTertiaryColor}" StrokeThickness="1.6"
+                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                </Canvas>
+                <TextBlock FontSize="13.5" FontWeight="Medium" Margin="0,10,0,0"
+                           HorizontalAlignment="Center" Foreground="{StaticResource InkColor}"
+                           Text="{loc:Loc Key='没有匹配的记录'}" />
+                <TextBlock FontSize="12" Margin="0,5,0,0" HorizontalAlignment="Center"
+                           Foreground="{StaticResource InkSecondaryColor}"
+                           Text="{loc:Loc Key='试试按群聊、场景或文件名搜索。'}" />
+            </StackPanel>
+
+            <ScrollViewer x:Name="RecordList" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                <ItemsControl ItemsSource="{Binding CollectionRows}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right" Content="{loc:Loc Key='修改名称'}" FontSize="11"
+                                                Style="{StaticResource SettingsButton}" Padding="8,5"
+                                                ToolTip="{loc:Loc Key='修改名称'}" Click="CollectionRename_Click" Margin="6,0,0,0"/>
+                                        <Button DockPanel.Dock="Right" Content="{loc:Loc Key='查看 / 恢复收集…'}" Click="OpenCollection_Click"
+                                                Style="{StaticResource SettingsButton}" Padding="8,5" FontSize="11"/>
+                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                    </DockPanel>
+                                    <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                    <TextBlock Text="{Binding Latest.Range}" TextWrapping="Wrap" Margin="0,6,0,0" Foreground="{StaticResource InkSecondaryColor}"/>
+                                    <WrapPanel Margin="0,8,0,0">
+                                        <Button Content="{loc:Loc Key='选择去向…'}" Click="CollectionDeliver_Click" Style="{StaticResource SettingsButton}" Margin="0,0,6,6"/>
+                                        <Button Content="{loc:Loc Key='更多'}" Click="CollectionMore_Click" Style="{StaticResource SettingsButton}" Margin="0,0,0,6"/>
+                                    </WrapPanel>
+                                    <Expander Header="{loc:Loc Key='查看批次'}" Margin="0,6,0,0">
+                                        <ItemsControl ItemsSource="{Binding Batches}" ItemTemplate="{StaticResource BatchRowTemplate}"/>
+                                    </Expander>
+                                    <StackPanel x:Name="CollectionRenamePanel" Visibility="Collapsed" Margin="0,10,0,0">
+                                        <TextBox x:Name="CollectionName" Style="{StaticResource MacField}"
+                                                 ToolTip="{loc:Loc Key='收集名称'}"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                            <Button Content="{loc:Loc Key='保存'}" Click="CollectionRenameSave_Click" Margin="0,0,6,0"
+                                                    Style="{StaticResource SettingsButton}"/>
+                                            <Button Content="{loc:Loc Key='取消'}" Click="CollectionRenameCancel_Click"
+                                                    Style="{StaticResource SettingsButton}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <ItemsControl x:Name="Groups" ItemsSource="{Binding Groups}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="0,0,0,12">
+                                <TextBlock Style="{StaticResource SectionLabel}"
+                                           Text="{Binding Title}" Margin="4,0,0,8" />
+                                <ItemsControl ItemsSource="{Binding Rows}"
+                                              ItemTemplate="{StaticResource BatchRowTemplate}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>
