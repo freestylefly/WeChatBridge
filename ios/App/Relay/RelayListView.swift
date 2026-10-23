@@ -92,7 +92,8 @@ struct RelayListView: View {
                         }
                         .disabled(selection.isEmpty)
                         Spacer()
-                        Text("已选 \(selection.count) 条").font(.footnote).foregroundStyle(.secondary)
+                        // Bar items get a tight width; without this the count truncates to "已选…".
+                        Text("已选 \(selection.count) 条").font(.footnote).foregroundStyle(.secondary).fixedSize()
                         Spacer()
                         Button("删除", role: .destructive) {
                             store.delete(selection)
@@ -103,6 +104,8 @@ struct RelayListView: View {
                     }
                 }
             }
+            // The tab bar would cover the edit actions in the bottom bar.
+            .toolbar(editMode.isEditing ? .hidden : .visible, for: .tabBar)
             .environment(\.editMode, $editMode)
             .refreshable { store.reload() }
             .safeAreaInset(edge: .bottom) {

@@ -24,6 +24,9 @@ struct DeliverySheet: View {
     @State private var toast: String?
     @State private var hint: String?
     @State private var savedNote: URL?
+    /// Taken once on open: recording a delivery moves its target to the front,
+    /// and the tile the user just tapped must not jump away mid-sheet.
+    @State private var targets: [TargetProfile] = []
 
     private var entries: [RelayEntry] { store.entries(selection.batchIDs) }
     private var summaries: [RelaySummary] { entries.compactMap(\.summary) }
@@ -75,7 +78,7 @@ struct DeliverySheet: View {
 
     private var targetGrid: some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 76), spacing: 12)], spacing: 12) {
-            ForEach(preferences.targets) { profile in
+            ForEach(targets) { profile in
                 Button { target = profile } label: {
                     VStack(spacing: 6) {
                         Image(systemName: profile.symbol)
@@ -160,6 +163,8 @@ struct DeliverySheet: View {
 
     private var sendTitle: String {
         guard let package, nextGroup > 0 else { return "发送" }
+        // Past the last group the counter would read "2/1".
+        if nextGroup >= package.shares.count { return "已发送" }
         return "继续发送第 \(nextGroup + 1)/\(package.shares.count) 组"
     }
 
@@ -172,7 +177,8 @@ struct DeliverySheet: View {
     // MARK: - Planning
 
     private func setUp() {
-        target = preferences.targets.first
+        targets = preferences.targets
+        target = targets.first
         let resolution = SceneResolver.resolve(
             groupName: chatName,
             settings: preferences.scenes,

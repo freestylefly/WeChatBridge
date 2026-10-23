@@ -20,7 +20,10 @@ struct SettingsView: View {
                 Section {
                     LabeledContent("Obsidian 库", value: FolderBookmark.name(of: preferences.obsidianBookmark) ?? "未选择")
                     Button("选择 Obsidian 库") { picking = .obsidian }
-                    TextField("子文件夹", text: $preferences.obsidianSubfolder)
+                    // A bare TextField shows only its value, which reads as a stray "微信流" row.
+                    LabeledContent("子文件夹") {
+                        TextField("子文件夹", text: $preferences.obsidianSubfolder).multilineTextAlignment(.trailing)
+                    }
                 } header: {
                     Text("Obsidian")
                 } footer: {
@@ -29,7 +32,9 @@ struct SettingsView: View {
                 Section("默认文件夹") {
                     LabeledContent("文件夹", value: FolderBookmark.name(of: preferences.folderBookmark) ?? "未选择")
                     Button("选择默认文件夹") { picking = .folder }
-                    TextField("子文件夹", text: $preferences.folderSubfolder)
+                    LabeledContent("子文件夹") {
+                        TextField("子文件夹", text: $preferences.folderSubfolder).multilineTextAlignment(.trailing)
+                    }
                 }
                 Section("投递目标") {
                     NavigationLink("调整目标") { TargetSettingsView() }
