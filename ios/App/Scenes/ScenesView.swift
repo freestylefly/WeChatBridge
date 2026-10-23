@@ -69,12 +69,13 @@ struct ScenesView: View {
     }
 
     private func enabled(_ scene: WeChatScene) -> Binding<Bool> {
+        // Not scene(id:) / replace(_:): the first only finds enabled scenes and
+        // the second keeps the stored switch, so neither can flip it.
         Binding {
-            preferences.scenes.scene(id: scene.id)?.enabled ?? false
+            preferences.scenes.scenes.first { $0.id == scene.id }?.enabled ?? false
         } set: { on in
-            var updated = scene
-            updated.enabled = on
-            preferences.scenes.replace(updated)
+            guard let index = preferences.scenes.scenes.firstIndex(where: { $0.id == scene.id }) else { return }
+            preferences.scenes.scenes[index].enabled = on
         }
     }
 
@@ -88,12 +89,11 @@ struct ScenesView: View {
                 let decoder = ScenePackage.decoder()
                 let packages = try (try? decoder.decode([ScenePackage].self, from: data)) ?? [decoder.decode(ScenePackage.self, from: data)]
                 for package in packages {
-                    var scene = package.scene
-                    scene.enabled = true
-                    if preferences.scenes.scene(id: scene.id) != nil {
-                        preferences.scenes.replace(scene)
-                    } else {
-                        preferences.scenes.add(scene)
+                    // replace(_:) adds when missing but keeps a stored switch,
+                    // so an import turns the scene on afterwards.
+                    preferences.scenes.replace(package.scene)
+                    if let index = preferences.scenes.scenes.firstIndex(where: { $0.id == package.scene.id }) {
+                        preferences.scenes.scenes[index].enabled = true
                     }
                     count += 1
                 }
