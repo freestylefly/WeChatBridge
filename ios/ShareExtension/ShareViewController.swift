@@ -72,6 +72,11 @@ final class ShareViewController: UIViewController {
             case .success(let imported):
                 manifestItems.append(imported.manifestItem)
                 diagnostics.append(imported.diagnostic)
+                // WeChat never exports an empty file; one arriving means the
+                // export failed upstream, and an empty card would only hide it.
+                if imported.manifestItem.byteCount == 0 {
+                    failure = EmptyFile(name: imported.manifestItem.displayName)
+                }
             case .failure(let error):
                 if let rejection = error as? ImportRejection {
                     diagnostics.append(rejection.diagnostic)
@@ -177,4 +182,9 @@ final class ShareViewController: UIViewController {
     private static var bundleVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
     }
+}
+
+private struct EmptyFile: LocalizedError {
+    let name: String
+    var errorDescription: String? { "「\(name)」是空文件，没有存入。请回到微信重新导出。" }
 }
