@@ -8,7 +8,7 @@
 //   -Xlinker -rpath -Xlinker "$folder_test_sdk/Library/PrivateFrameworks" \
 //   -Xlinker -rpath -Xlinker "$folder_test_sdk/usr/lib" \
 //   .build/debug/WeChatBridgeCore.build/DisplayName.swift.o .build/debug/WeChatBridgeCore.build/L10n.swift.o \
-//   Sources/WeChatBridgeApp/FolderDelivery.swift Tests/FolderDeliveryTests.swift \
+//   Sources/WeChatBridgeCore/FolderDelivery.swift Tests/FolderDeliveryTests.swift \
 //   -o "$folder_test_output/runner"
 // "$folder_test_output/runner"
 import Foundation

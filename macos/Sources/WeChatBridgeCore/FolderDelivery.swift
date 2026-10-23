@@ -1,13 +1,12 @@
 import Darwin
-import WeChatBridgeCore
 import Foundation
 
-enum FolderDelivery {
-    enum Failure: LocalizedError {
+public enum FolderDelivery {
+    public enum Failure: LocalizedError {
         case invalidFolder, invalidSource
         case cleanupFailed(Error)
 
-        var errorDescription: String? {
+        public var errorDescription: String? {
             switch self {
             case .invalidFolder: return L10n.text("请选择一个可写入的文件夹。")
             case .invalidSource: return L10n.text("待保存的文件无法读取，请重新导出。")
@@ -16,7 +15,7 @@ enum FolderDelivery {
         }
     }
 
-    static func validateFolder(_ folder: URL) throws {
+    public static func validateFolder(_ folder: URL) throws {
         guard folder.isFileURL else { throw Failure.invalidFolder }
         let resolved = folder.resolvingSymlinksInPath()
         let values = try resolved.resourceValues(forKeys: [.isDirectoryKey])
@@ -28,7 +27,7 @@ enum FolderDelivery {
     /// Copy first, then publish complete files with exclusive renames. On
     /// cancellation or failure only this call's files are rolled back; inbox
     /// originals and every pre-existing destination remain untouched.
-    static func save(_ urls: [URL], to folder: URL, checkCancellation: () throws -> Void) throws -> [URL] {
+    public static func save(_ urls: [URL], to folder: URL, checkCancellation: () throws -> Void) throws -> [URL] {
         try checkCancellation()
         let scoped = folder.startAccessingSecurityScopedResource()
         defer { if scoped { folder.stopAccessingSecurityScopedResource() } }
