@@ -29,20 +29,20 @@ struct OnboardingView: View {
                     ]
                 )
                 .tag(1)
-                VStack(spacing: 20) {
-                    step(
-                        symbol: "diamond",
-                        title: "可选：选择 Obsidian 库",
-                        lines: [
-                            "选好后，聊天记录可以直接写成 Obsidian 笔记。",
-                            "以后也可以在「设置」里选择或更换。",
-                        ]
-                    )
+                step(
+                    symbol: "diamond",
+                    title: "可选：选择 Obsidian 库",
+                    lines: [
+                        "选好后，聊天记录可以直接写成 Obsidian 笔记。",
+                        "以后也可以在「设置」里选择或更换。",
+                    ]
+                ) {
                     Button(FolderBookmark.name(of: preferences.obsidianBookmark).map { "已选择：\($0)" } ?? "选择 Obsidian 库") {
                         picking = true
                     }
                     .buttonStyle(.bordered)
-                    Spacer()
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 8)
                 }
                 .tag(2)
             }
@@ -68,7 +68,8 @@ struct OnboardingView: View {
         }
     }
 
-    private func step(symbol: String, title: String, lines: [String]) -> some View {
+    // The accessory sits above the step's spacer so it never slides under the page dots.
+    private func step(symbol: String, title: String, lines: [String], @ViewBuilder accessory: () -> some View = { EmptyView() }) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             Image(systemName: symbol)
                 .font(.system(size: 56))
@@ -82,6 +83,7 @@ struct OnboardingView: View {
                     Text(line)
                 }
             }
+            accessory()
             Spacer()
         }
         .padding(24)

@@ -35,7 +35,9 @@ struct RelayListView: View {
 
     var body: some View {
         NavigationStack {
-            List(selection: $selection) {
+            // Bound only while editing: a live selection swallows taps that
+            // should push the detail view.
+            List(selection: editMode.isEditing ? $selection : nil) {
                 if !store.failures.isEmpty {
                     FailureBanner(failures: store.failures) { store.failures = [] }
                 }
