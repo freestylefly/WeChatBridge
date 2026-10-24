@@ -43,6 +43,19 @@ struct TargetProfile: Identifiable, Hashable, Codable {
         }
     }
 
+    static let pasteHint = "提示词已复制，在输入框长按粘贴"
+
+    /// Seen on device to drop the text in a share (R2, 2026-10-24): the prompt
+    /// reaches these apps only through the clipboard.
+    var dropsSharedText: Bool { id == "doubao" }
+
+    /// What to show before the share sheet; the paste line only when there is
+    /// a prompt the target will not receive.
+    func sendHint(hasPrompt: Bool) -> String {
+        guard hasPrompt, dropsSharedText, !hint.isEmpty else { return hint }
+        return "\(hint)\n\(Self.pasteHint)"
+    }
+
     /// Order is the default grid order. Formats follow the device tests of
     /// 2026-10-24: ChatGPT and WorkBuddy took the ZIP, 豆包 and 千问 refused it
     /// but took text and images. Claude and DeepSeek are untested and start on

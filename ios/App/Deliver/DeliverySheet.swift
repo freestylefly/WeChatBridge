@@ -62,6 +62,7 @@ struct DeliverySheet: View {
                 if let hint {
                     Text(hint)
                         .font(.title3.weight(.semibold))
+                        .multilineTextAlignment(.center)
                         .padding(24)
                         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
                 }
@@ -234,9 +235,11 @@ struct DeliverySheet: View {
             }
             let group = package.shares[nextGroup]
             busy = true
-            withAnimation { hint = target.hint.isEmpty ? nil : target.hint }
+            let message = target.sendHint(hasPrompt: !text.isEmpty)
+            withAnimation { hint = message.isEmpty ? nil : message }
             Task {
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                // Long enough to read the second line when there is one.
+                try? await Task.sleep(nanoseconds: message.contains("\n") ? 2_500_000_000 : 1_000_000_000)
                 withAnimation { hint = nil }
                 let items: [Any] = (nextGroup == 0 && !text.isEmpty ? [text] : []) + group
                 ActivitySheet.present(items: items) { result in
@@ -259,7 +262,8 @@ struct DeliverySheet: View {
         if nextGroup == 0 { recordDelivery(target: target, detail: "\(target.format.label) · \(result.activityType ?? "未知去向")") }
         nextGroup += 1
         if nextGroup >= package.shares.count {
-            toast = "已交给分享面板"
+            let hasPrompt = !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            toast = hasPrompt && target.dropsSharedText ? TargetProfile.pasteHint : "已交给分享面板"
         }
     }
 

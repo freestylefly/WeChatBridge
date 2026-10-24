@@ -19,6 +19,14 @@ final class TargetProfileTests: XCTestCase {
         XCTAssertEqual(TargetProfile.builtIn.first { $0.id == "obsidian" }?.hint, "")
     }
 
+    func testPasteHintOnlyForTextDroppersWithPrompt() throws {
+        let doubao = try XCTUnwrap(TargetProfile.builtIn.first { $0.id == "doubao" })
+        XCTAssertEqual(doubao.sendHint(hasPrompt: true), "请在下一屏选择「豆包」\n提示词已复制，在输入框长按粘贴")
+        XCTAssertEqual(doubao.sendHint(hasPrompt: false), "请在下一屏选择「豆包」")
+        let chatgpt = try XCTUnwrap(TargetProfile.builtIn.first { $0.id == "chatgpt" })
+        XCTAssertEqual(chatgpt.sendHint(hasPrompt: true), chatgpt.hint)
+    }
+
     func testArrangedAppliesOrderHiddenOverridesAndLastUsed() {
         let arranged = TargetProfile.arranged(
             TargetProfile.builtIn,
