@@ -48,12 +48,6 @@ final class DeliveryPlannerTests: XCTestCase {
         XCTAssertFalse(try String(contentsOf: urls[0], encoding: .utf8).contains("提示"))
     }
 
-    func testQwenGetsTranscriptInItsOwnShareBeforeImages() throws {
-        let qwen = try XCTUnwrap(TargetProfile.builtIn.first { $0.id == "qwen" })
-        let package = try plan([try fixtures.batch("group-a.zip")], qwen)
-        XCTAssertEqual(package.shares.map { $0.map(\.lastPathComponent) }, [["聊天记录.txt"], ["微信图片_20261020_1.png"]])
-    }
-
     func testMergeRenamesConflictingImageAndRewritesReference() throws {
         let package = try plan([try fixtures.batch("group-a.zip"), try fixtures.batch("group-a-later.zip")], target(.transcriptAndImages))
         let urls = try XCTUnwrap(package.shares.first)

@@ -55,10 +55,6 @@ struct TargetProfile: Identifiable, Hashable, Codable {
     /// reaches these apps only through the clipboard.
     var dropsSharedText: Bool { id == "doubao" }
 
-    /// Seen on device to keep only the images when a share mixes them with
-    /// the TXT: the transcript goes out in a share of its own first.
-    var sendsTranscriptAlone: Bool { id == "qwen" }
-
     /// What to show before the share sheet; the paste line only when there is
     /// a prompt the target will not receive.
     func sendHint(hasPrompt: Bool) -> String {
