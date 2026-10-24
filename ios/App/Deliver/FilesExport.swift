@@ -26,8 +26,9 @@ enum FilesExport {
         return "\(clean) \(formatter.string(from: date))"
     }
 
-    /// One flat folder per chat: the transcript and every file the ZIP held,
-    /// under their own names. Exporting the same chat again replaces it.
+    /// One flat folder per chat: the transcript (a PDF with the images inline
+    /// when there are any) and every other file the ZIP held, under their own
+    /// names. Exporting the same chat again replaces it.
     static func export(_ batch: ReadyBatch, name: String, into root: URL = root, fileManager: FileManager = .default) throws -> URL {
         let folder = root.appendingPathComponent(name, isDirectory: true)
         try? fileManager.removeItem(at: folder)
@@ -42,20 +43,34 @@ enum FilesExport {
         for item in batch.items {
             guard item.url.pathExtension.lowercased() == "zip",
                   let data = try? Data(contentsOf: item.url, options: .mappedIfSafe),
-                  (try? WeChatNativeArchive.transcript(data)) != nil else {
+                  let transcript = try? WeChatNativeArchive.transcript(data) else {
                 // Not a WeChat export: the file itself is what the user has.
                 try place(item.url, as: item.displayName)
                 continue
             }
             let unpacked = staging.appendingPathComponent(item.id.uuidString, isDirectory: true)
             try fileManager.createDirectory(at: unpacked, withIntermediateDirectories: true)
-            for path in try WeChatNativeArchive.extract(data, to: unpacked) {
+            var images: [URL] = []
+            for path in try WeChatNativeArchive.extract(data, to: unpacked) where path != transcript.path {
                 let leaf = (path as NSString).lastPathComponent
                 var isDirectory: ObjCBool = false
                 let file = unpacked.appendingPathComponent(path)
                 guard !leaf.hasPrefix("."), !path.contains("__MACOSX"),
                       fileManager.fileExists(atPath: file.path, isDirectory: &isDirectory), !isDirectory.boolValue else { continue }
-                try place(file, as: leaf)
+                if DeliveryPlanner.isImage(leaf) {
+                    images.append(file)
+                } else {
+                    try place(file, as: leaf)
+                }
+            }
+            // 千问's file picker greys out images, so they ride inside the
+            // transcript PDF; select-all then sends the whole chat at once.
+            let text = unpacked.appendingPathComponent(transcript.path)
+            if images.isEmpty {
+                try place(text, as: (transcript.path as NSString).lastPathComponent)
+            } else {
+                let pdf = try TranscriptPDF.make(transcript: text, images: images)
+                try place(pdf, as: pdf.lastPathComponent)
             }
         }
         return folder

@@ -135,7 +135,7 @@ struct RelayListView: View {
             .alert("已放到「文件」", isPresented: Binding(get: { exported != nil }, set: { if !$0 { exported = nil } })) {
                 Button("好") { exported = nil }
             } message: {
-                Text("在千问等 App 里点「添加文件」→ 我的iPhone → 微信流 →「\(exported ?? "")」，勾选要发的文件。")
+                Text("在千问等 App 里点「添加文件」→ 我的iPhone → 微信流 →「\(exported ?? "")」，图片已放进「聊天记录.pdf」，点「全选」一次发出。")
             }
             .sheet(item: $delivering) { selection in
                 DeliverySheet(selection: selection)

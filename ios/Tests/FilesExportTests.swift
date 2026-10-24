@@ -1,3 +1,4 @@
+import CoreGraphics
 import WeChatBridgeCore
 import XCTest
 @testable import WeChatBridgeiOS
@@ -17,11 +18,17 @@ final class FilesExportTests: XCTestCase {
         fixtures = nil
     }
 
-    func testExportsTranscriptAndEveryFileFlat() throws {
+    func testImagesFoldIntoTranscriptPDFBesideTheOtherFiles() throws {
         let batch = try fixtures.batch("group-a.zip")
         let folder = try FilesExport.export(batch, name: "甲等3人的聊天", into: root)
         let names = try FileManager.default.contentsOfDirectory(atPath: folder.path).sorted()
-        XCTAssertEqual(names, ["录屏_1.mp4", "微信图片_20261020_1.png", "聊天记录.txt", "需求文档.pdf"].sorted())
+        XCTAssertEqual(names, ["录屏_1.mp4", "聊天记录.pdf", "需求文档.pdf"].sorted())
+        XCTAssertNotNil(CGPDFDocument(folder.appendingPathComponent("聊天记录.pdf") as CFURL))
+    }
+
+    func testTextWithoutImagesStaysText() throws {
+        let folder = try FilesExport.export(try fixtures.batch("text-note.zip"), name: "资料", into: root)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: folder.path), ["资料合集.txt"])
     }
 
     func testExportingAgainReplacesTheFolder() throws {
