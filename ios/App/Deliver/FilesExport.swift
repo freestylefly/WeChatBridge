@@ -14,7 +14,7 @@ enum FilesExport {
     /// that never exported, the user would find no folder to open.
     static func placeGuide(in root: URL = root) {
         let guide = root.appendingPathComponent("使用说明.txt")
-        let text = "投递到豆包、千问时，聊天记录 TXT 直接发过去；里面的图片和视频存到「照片」，其他附件放进这里以聊天命名的文件夹。\n需要时在对方 App 里点「相册」选图片和视频，点「添加文件」→ 我的iPhone → 微信流 选附件。也可以在中转站长按一条聊天，选「存图片和附件」。\n"
+        let text = "投递到豆包、千问时，聊天记录发过去（PDF 里带图片，或只发 TXT，可在「设置」里选）；视频存到「照片」，其他附件放进这里以聊天命名的文件夹。\n需要时在对方 App 里点「相册」选图片和视频，点「添加文件」→ 我的iPhone → 微信流 选附件。也可以在中转站长按一条聊天，选「存图片和附件」。\n"
         // Rewritten when the wording changes, so an older guide never lingers.
         guard (try? Data(contentsOf: guide)) != Data(text.utf8) else { return }
         try? Data(text.utf8).write(to: guide)
@@ -48,7 +48,7 @@ enum FilesExport {
     /// names; the TXT itself goes out by share. With `mediaInto`, images and
     /// videos land there instead, for Photos. Exporting again replaces the folder.
     @discardableResult
-    static func export(_ batch: ReadyBatch, name: String, into root: URL = root, mediaInto mediaRoot: URL? = nil, fileManager: FileManager = .default) throws -> Exported {
+    static func export(_ batch: ReadyBatch, name: String, into root: URL = root, mediaInto mediaRoot: URL? = nil, includeImages: Bool = true, fileManager: FileManager = .default) throws -> Exported {
         let folder = root.appendingPathComponent(name, isDirectory: true)
         try? fileManager.removeItem(at: folder)
         let staging = fileManager.temporaryDirectory.appendingPathComponent("export-\(UUID().uuidString)", isDirectory: true)
@@ -58,6 +58,7 @@ enum FilesExport {
         var usedMedia: Set<String> = []
         var media: [URL] = []
         func place(_ file: URL, as leaf: String) throws {
+            if !includeImages, DeliveryPlanner.isImage(leaf) { return }
             if let mediaRoot, isMedia(leaf) {
                 try fileManager.createDirectory(at: mediaRoot, withIntermediateDirectories: true)
                 let destination = mediaRoot.appendingPathComponent(DeliveryPlanner.uniqueName(leaf, used: &usedMedia))
@@ -110,13 +111,13 @@ enum FilesExport {
     }
 
     /// Images and videos into Photos, everything else into 「微信流」 folders.
-    static func exportForPicking(_ jobs: [(batch: ReadyBatch, name: String)]) async throws -> Summary {
+    static func exportForPicking(_ jobs: [(batch: ReadyBatch, name: String)], includeImages: Bool = true) async throws -> Summary {
         let mediaRoot = FileManager.default.temporaryDirectory.appendingPathComponent("media-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: mediaRoot) }
         var summary = Summary()
         var media: [URL] = []
         for job in jobs {
-            let exported = try export(job.batch, name: job.name, mediaInto: mediaRoot)
+            let exported = try export(job.batch, name: job.name, mediaInto: mediaRoot, includeImages: includeImages)
             if let folder = exported.folder { summary.folders.append(folder.lastPathComponent) }
             media += exported.media
         }

@@ -55,6 +55,16 @@ struct SettingsView: View {
                 Section("投递目标") {
                     NavigationLink("调整目标") { TargetSettingsView() }
                 }
+                Section {
+                    Picker("图片怎么发", selection: $preferences.imagesInPDF) {
+                        Text("和文字合成一个 PDF").tag(true)
+                        Text("只发 TXT，图片存到「照片」").tag(false)
+                    }
+                } header: {
+                    Text("豆包、千问等")
+                } footer: {
+                    Text("PDF：聊天记录和图片一次发过去，图片插在对应的消息下面。\nTXT：对方收到纯文字，图片和视频存到「照片」，需要时在对方 App 里点「相册」再加。\n两种方式下，视频存到「照片」，其他附件都放到「文件 › 我的iPhone › 微信流」。")
+                }
                 Section("历史") {
                     Picker("保留已收到的记录", selection: $preferences.retentionDays) {
                         Text("1 天").tag(1)

@@ -13,7 +13,7 @@ enum DeliveryFormat: String, Codable, CaseIterable {
     var label: String {
         switch self {
         case .archive: "发送 ZIP"
-        case .transcriptAndImages: "发送 TXT，图片和附件放到「文件」"
+        case .transcriptAndImages: "发送聊天记录和图片"
         case .knowledgeNote: "写入 Obsidian"
         case .folder: "写入文件夹"
         }

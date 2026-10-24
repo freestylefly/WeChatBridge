@@ -20,6 +20,7 @@ final class Preferences: ObservableObject {
         static let lastTarget = "com.xiangming.wechatbridge.ios.lastTarget"
         static let onboardingDone = "com.xiangming.wechatbridge.ios.onboardingDone"
         static let liveActivity = "com.xiangming.wechatbridge.ios.liveActivity"
+        static let imagesInPDF = "com.xiangming.wechatbridge.ios.imagesInPDF"
     }
 
     static let defaultRetentionDays = 7
@@ -42,6 +43,10 @@ final class Preferences: ObservableObject {
     @Published var quickDeliver: Bool { didSet { defaults.set(quickDeliver, forKey: QuickDeliver.enabledKey) } }
     /// 「投递时显示在灵动岛」.
     @Published var liveActivity: Bool { didSet { defaults.set(liveActivity, forKey: Key.liveActivity) } }
+    /// TXT targets get one PDF with the images inline; off, the TXT alone and
+    /// the images go to Photos. 千问 takes images from neither a TXT share nor
+    /// its file picker, so the PDF is the only one-step way (2026-10-24).
+    @Published var imagesInPDF: Bool { didSet { defaults.set(imagesInPDF, forKey: Key.imagesInPDF) } }
     @Published var onboardingDone: Bool { didSet { defaults.set(onboardingDone, forKey: Key.onboardingDone) } }
 
     init(defaults: UserDefaults = Preferences.sharedDefaults) {
@@ -62,6 +67,7 @@ final class Preferences: ObservableObject {
         onboardingDone = defaults.bool(forKey: Key.onboardingDone)
         quickDeliver = QuickDeliver.isEnabled(defaults)
         liveActivity = defaults.object(forKey: Key.liveActivity) as? Bool ?? true
+        imagesInPDF = defaults.object(forKey: Key.imagesInPDF) as? Bool ?? true
         publishQuickTargets()
     }
 

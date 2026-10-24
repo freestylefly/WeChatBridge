@@ -242,10 +242,12 @@ struct DeliverySheet: View {
         }
         planning = true
         let request = DeliveryRequest(batches: entries.map(\.batch), target: target, prompt: nil)
+        let imagesInPDF = preferences.imagesInPDF
         Task {
             let result = await Task.detached(priority: .userInitiated) { Result {
                 let package = try DeliveryPlanner.plan(request)
-                return request.target.format == .transcriptAndImages ? package.transcriptOnly() : package
+                guard request.target.format == .transcriptAndImages else { return package }
+                return imagesInPDF ? try package.foldedIntoPDF() : package.transcriptOnly()
             } }.value
             // A newer choice may have replaced this one while it ran.
             guard effectiveTarget == target else {
@@ -284,7 +286,8 @@ struct DeliverySheet: View {
             ))
         }
         do {
-            let summary = try await FilesExport.exportForPicking(jobs)
+            // In PDF mode the images already ride inside it.
+            let summary = try await FilesExport.exportForPicking(jobs, includeImages: !preferences.imagesInPDF)
             exportNote = summary.isEmpty ? nil : summary.message
         } catch {
             exportNote = "图片和附件没能存下：\(error.localizedDescription)"

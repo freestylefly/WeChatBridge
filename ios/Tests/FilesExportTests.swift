@@ -31,6 +31,12 @@ final class FilesExportTests: XCTestCase {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: folder.path), ["需求文档.pdf"])
     }
 
+    func testPDFModeLeavesImagesOut() throws {
+        let media = root.appendingPathComponent("media", isDirectory: true)
+        let exported = try FilesExport.export(try fixtures.batch("group-a.zip"), name: "聊天", into: root, mediaInto: media, includeImages: false)
+        XCTAssertEqual(exported.media.map(\.lastPathComponent), ["录屏_1.mp4"])
+    }
+
     func testSideNoteSaysWhereEachGoes() {
         XCTAssertEqual(
             DeliverySheet.sideNote(["a.png", "b.mp4", "c.docx"]),
