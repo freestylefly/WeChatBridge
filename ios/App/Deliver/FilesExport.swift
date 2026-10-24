@@ -1,9 +1,12 @@
 import Foundation
+import Photos
+import UniformTypeIdentifiers
 import WeChatBridgeCore
 
-/// Copies a chat into the app's Documents folder, which Files shows as
-/// 「我的iPhone › 微信流」. Apps that add attachments through the file picker
-/// (千问) can then take the original files, which a share cannot carry to them.
+/// Copies a chat's attachments into the app's Documents folder, which Files
+/// shows as 「我的iPhone › 微信流」, and its images and videos into Photos.
+/// 千问 takes documents only from its file picker and media only from 相册,
+/// and neither through a share beside the TXT.
 enum FilesExport {
     static var root: URL { URL.documentsDirectory }
 
@@ -11,7 +14,7 @@ enum FilesExport {
     /// that never exported, the user would find no folder to open.
     static func placeGuide(in root: URL = root) {
         let guide = root.appendingPathComponent("使用说明.txt")
-        let text = "投递到豆包、千问时，聊天记录 TXT 直接发过去，里面提到的图片和附件会放进这里以聊天命名的文件夹。\n需要时在对方 App 里点「添加文件」→ 我的iPhone → 微信流，进文件夹勾选。也可以在中转站长按一条聊天，选「放到「文件」」。\n"
+        let text = "投递到豆包、千问时，聊天记录 TXT 直接发过去；里面的图片和视频存到「照片」，其他附件放进这里以聊天命名的文件夹。\n需要时在对方 App 里点「相册」选图片和视频，点「添加文件」→ 我的iPhone → 微信流 选附件。也可以在中转站长按一条聊天，选「存图片和附件」。\n"
         // Rewritten when the wording changes, so an older guide never lingers.
         guard (try? Data(contentsOf: guide)) != Data(text.utf8) else { return }
         try? Data(text.utf8).write(to: guide)
@@ -27,18 +30,41 @@ enum FilesExport {
         return "\(clean) \(formatter.string(from: date))"
     }
 
-    /// One flat folder per chat with the images and attachments its TXT
-    /// names, under their own names; the TXT itself goes out by share. nil
-    /// when the chat has nothing beside its text. Exporting again replaces it.
+    struct Exported {
+        /// The chat's folder under 「微信流」; nil when no document went there.
+        var folder: URL?
+        /// Images and videos, when the caller asked for them apart.
+        var media: [URL] = []
+    }
+
+    /// Photos takes these; 千问's file picker greys them out and its 相册
+    /// picker is the only way they reach it.
+    static func isMedia(_ name: String) -> Bool {
+        guard let type = UTType(filenameExtension: (name as NSString).pathExtension) else { return false }
+        return type.conforms(to: .image) || type.conforms(to: .movie)
+    }
+
+    /// One flat folder per chat with the files its TXT names, under their own
+    /// names; the TXT itself goes out by share. With `mediaInto`, images and
+    /// videos land there instead, for Photos. Exporting again replaces the folder.
     @discardableResult
-    static func export(_ batch: ReadyBatch, name: String, into root: URL = root, fileManager: FileManager = .default) throws -> URL? {
+    static func export(_ batch: ReadyBatch, name: String, into root: URL = root, mediaInto mediaRoot: URL? = nil, fileManager: FileManager = .default) throws -> Exported {
         let folder = root.appendingPathComponent(name, isDirectory: true)
         try? fileManager.removeItem(at: folder)
         let staging = fileManager.temporaryDirectory.appendingPathComponent("export-\(UUID().uuidString)", isDirectory: true)
         defer { try? fileManager.removeItem(at: staging) }
 
         var used: Set<String> = []
+        var usedMedia: Set<String> = []
+        var media: [URL] = []
         func place(_ file: URL, as leaf: String) throws {
+            if let mediaRoot, isMedia(leaf) {
+                try fileManager.createDirectory(at: mediaRoot, withIntermediateDirectories: true)
+                let destination = mediaRoot.appendingPathComponent(DeliveryPlanner.uniqueName(leaf, used: &usedMedia))
+                try fileManager.copyItem(at: file, to: destination)
+                media.append(destination)
+                return
+            }
             try fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
             try fileManager.copyItem(at: file, to: folder.appendingPathComponent(DeliveryPlanner.uniqueName(leaf, used: &used)))
         }
@@ -61,6 +87,74 @@ enum FilesExport {
                 try place(file, as: leaf)
             }
         }
-        return fileManager.fileExists(atPath: folder.path) ? folder : nil
+        return Exported(folder: fileManager.fileExists(atPath: folder.path) ? folder : nil, media: media)
+    }
+
+    /// What one 「存图片和附件」 did, in the words the user reads.
+    struct Summary {
+        var folders: [String] = []
+        var savedMedia = 0
+        var failedMedia = 0
+        var photosDenied = false
+
+        var isEmpty: Bool { folders.isEmpty && savedMedia == 0 && failedMedia == 0 && !photosDenied }
+
+        var message: String {
+            var lines: [String] = []
+            if savedMedia > 0 { lines.append("\(savedMedia) 个图片/视频已存到「照片」，在千问等 App 里点「相册」选取。") }
+            if photosDenied { lines.append("没有添加照片的权限，图片和视频没存。可在「设置 › 微信流 › 照片」里打开。") }
+            if failedMedia > 0 { lines.append("\(failedMedia) 个图片/视频「照片」不收，没存。") }
+            if !folders.isEmpty { lines.append("其他附件在「我的iPhone › 微信流 › \(folders.joined(separator: "、"))」，点「添加文件」选取。") }
+            return lines.isEmpty ? "这条聊天只有文字，没有图片或附件。" : lines.joined(separator: "\n")
+        }
+    }
+
+    /// Images and videos into Photos, everything else into 「微信流」 folders.
+    static func exportForPicking(_ jobs: [(batch: ReadyBatch, name: String)]) async throws -> Summary {
+        let mediaRoot = FileManager.default.temporaryDirectory.appendingPathComponent("media-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: mediaRoot) }
+        var summary = Summary()
+        var media: [URL] = []
+        for job in jobs {
+            let exported = try export(job.batch, name: job.name, mediaInto: mediaRoot)
+            if let folder = exported.folder { summary.folders.append(folder.lastPathComponent) }
+            media += exported.media
+        }
+        if !media.isEmpty {
+            switch await PhotosSaver.save(media) {
+            case .denied: summary.photosDenied = true
+            case .saved(let saved, let failed):
+                summary.savedMedia = saved
+                summary.failedMedia = failed
+            }
+        }
+        return summary
+    }
+}
+
+enum PhotosSaver {
+    enum Outcome { case denied, saved(Int, failed: Int) }
+
+    /// Add-only access is enough to save and asks less of the user; the
+    /// assets land at the top of 最近项目, where a picker opens.
+    static func save(_ files: [URL]) async -> Outcome {
+        let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+        guard status == .authorized || status == .limited else { return .denied }
+        var saved = 0
+        // One change each: a format Photos refuses must not sink the rest.
+        for file in files {
+            do {
+                try await PHPhotoLibrary.shared().performChanges {
+                    let options = PHAssetResourceCreationOptions()
+                    options.originalFilename = file.lastPathComponent
+                    let type: PHAssetResourceType = DeliveryPlanner.isImage(file.lastPathComponent) ? .photo : .video
+                    PHAssetCreationRequest.forAsset().addResource(with: type, fileURL: file, options: options)
+                }
+                saved += 1
+            } catch {
+                continue
+            }
+        }
+        return .saved(saved, failed: files.count - saved)
     }
 }

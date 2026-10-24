@@ -171,11 +171,14 @@ struct ToastView: View {
                 .font(.subheadline)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                .background(.regularMaterial, in: Capsule())
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+                .padding(.horizontal)
                 .padding(.top, 8)
                 .transition(.move(edge: .top).combined(with: .opacity))
                 .task(id: text) {
-                    try? await Task.sleep(nanoseconds: 2_000_000_000)
+                    // Two seconds for a short line; a few-line report needs reading time.
+                    let seconds = max(2, Double(text.count) / 12)
+                    try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
                     withAnimation { self.text = nil }
                 }
         }

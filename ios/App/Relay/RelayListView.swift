@@ -28,7 +28,7 @@ struct RelayListView: View {
     @ObservedObject private var router = QuickDeliverRouter.shared
     @EnvironmentObject private var preferences: Preferences
     @State private var path: [UUID] = []
-    /// Folder name of the last 「放到「文件」」, for the confirmation.
+    /// What the last 「存图片和附件」 did, for the confirmation.
     @State private var exported: String?
 
     private var rows: [RelayEntry] {
@@ -132,10 +132,10 @@ struct RelayListView: View {
             } message: {
                 Text(store.lastError ?? "")
             }
-            .alert("已放到「文件」", isPresented: Binding(get: { exported != nil }, set: { if !$0 { exported = nil } })) {
+            .alert("存图片和附件", isPresented: Binding(get: { exported != nil }, set: { if !$0 { exported = nil } })) {
                 Button("好") { exported = nil }
             } message: {
-                Text("在千问等 App 里点「添加文件」→ 我的iPhone → 微信流 →「\(exported ?? "")」，勾选要发的图片或附件。")
+                Text(exported ?? "")
             }
             .sheet(item: $delivering) { selection in
                 DeliverySheet(selection: selection)
@@ -173,25 +173,24 @@ struct RelayListView: View {
                 Label("选择目标…", systemImage: "square.grid.2x2")
             }
         }
-        Button { exportToFiles(entry) } label: { Label("放到「文件」", systemImage: "folder.badge.plus") }
+        Button { exportForPicking(entry) } label: { Label("存图片和附件", systemImage: "square.and.arrow.down.on.square") }
         if store.collectionContaining(entry.id) == nil {
             Button { store.addToCollection(entry.id) } label: { Label("加入收集", systemImage: "tray.and.arrow.down") }
         }
         Button(role: .destructive) { store.delete([entry.id]) } label: { Label("删除", systemImage: "trash") }
     }
 
-    private func exportToFiles(_ entry: RelayEntry) {
+    private func exportForPicking(_ entry: RelayEntry) {
         let name = FilesExport.folderName(
             title: entry.summary?.title ?? entry.batch.chatName ?? entry.batch.items.first?.displayName ?? "聊天记录",
             date: entry.summary?.start ?? entry.batch.createdAt
         )
         let batch = entry.batch
         Task {
-            let result = await Task.detached(priority: .userInitiated) { Result { try FilesExport.export(batch, name: name) } }.value
-            switch result {
-            case .success(.some): exported = name
-            case .success(.none): store.lastError = "这条聊天只有文字，没有图片或附件要放。"
-            case .failure(let error): store.lastError = error.localizedDescription
+            do {
+                exported = try await FilesExport.exportForPicking([(batch: batch, name: name)]).message
+            } catch {
+                store.lastError = error.localizedDescription
             }
         }
     }

@@ -18,19 +18,34 @@ final class FilesExportTests: XCTestCase {
     }
 
     func testExportsImagesAndAttachmentsButNotTheTranscript() throws {
-        let folder = try XCTUnwrap(FilesExport.export(try fixtures.batch("group-a.zip"), name: "甲等3人的聊天", into: root))
+        let folder = try XCTUnwrap(FilesExport.export(try fixtures.batch("group-a.zip"), name: "甲等3人的聊天", into: root).folder)
         let names = try FileManager.default.contentsOfDirectory(atPath: folder.path).sorted()
         XCTAssertEqual(names, ["录屏_1.mp4", "微信图片_20261020_1.png", "需求文档.pdf"].sorted())
     }
 
+    func testMediaGoesApartForPhotos() throws {
+        let media = root.appendingPathComponent("media", isDirectory: true)
+        let exported = try FilesExport.export(try fixtures.batch("group-a.zip"), name: "聊天", into: root, mediaInto: media)
+        XCTAssertEqual(exported.media.map(\.lastPathComponent).sorted(), ["录屏_1.mp4", "微信图片_20261020_1.png"].sorted())
+        let folder = try XCTUnwrap(exported.folder)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: folder.path), ["需求文档.pdf"])
+    }
+
+    func testSideNoteSaysWhereEachGoes() {
+        XCTAssertEqual(
+            DeliverySheet.sideNote(["a.png", "b.mp4", "c.docx"]),
+            "发送时图片和视频存到「照片」：a.png、b.mp4；附件放到「我的iPhone › 微信流」：c.docx"
+        )
+    }
+
     func testTextOnlyChatMakesNoFolder() throws {
-        XCTAssertNil(try FilesExport.export(try fixtures.batch("text-note.zip"), name: "资料", into: root))
+        XCTAssertNil(try FilesExport.export(try fixtures.batch("text-note.zip"), name: "资料", into: root).folder)
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.path), [])
     }
 
     func testExportingAgainReplacesTheFolder() throws {
         let batch = try fixtures.batch("group-a.zip")
-        let folder = try XCTUnwrap(FilesExport.export(batch, name: "聊天", into: root))
+        let folder = try XCTUnwrap(FilesExport.export(batch, name: "聊天", into: root).folder)
         try Data("旧".utf8).write(to: folder.appendingPathComponent("stale.txt"))
         _ = try FilesExport.export(batch, name: "聊天", into: root)
         XCTAssertFalse(FileManager.default.fileExists(atPath: folder.appendingPathComponent("stale.txt").path))
