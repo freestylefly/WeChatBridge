@@ -33,6 +33,8 @@
 	<string>$(APP_GROUP_ID)</string>
 	<key>DKStorageMode</key>
 	<string>app-group</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>obsidian</string>
