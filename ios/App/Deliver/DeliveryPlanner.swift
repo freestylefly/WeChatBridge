@@ -173,7 +173,9 @@ enum DeliveryPlanner {
         try? fileManager.removeItem(at: work.appendingPathComponent("src"))
         return DeliveryPackage(
             workDirectory: work,
-            shares: group([transcriptURL] + images, max: request.target.maxAttachments),
+            shares: request.target.sendsTranscriptAlone && !images.isEmpty
+                ? [[transcriptURL]] + group(images, max: request.target.maxAttachments)
+                : group([transcriptURL] + images, max: request.target.maxAttachments),
             prompt: request.prompt,
             omitted: omitted
         )

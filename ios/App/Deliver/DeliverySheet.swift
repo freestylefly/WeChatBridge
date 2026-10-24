@@ -158,7 +158,10 @@ struct DeliverySheet: View {
                         }
                     }
                     if package.shares.count > 1 {
-                        Text("文件较多，将分 \(package.shares.count) 次发送").font(.caption).foregroundStyle(.secondary)
+                        Text(effectiveTarget?.sendsTranscriptAlone == true
+                             ? "\(effectiveTarget?.displayName ?? "对方")一次只收一种文件，将分 \(package.shares.count) 次发送：先发 TXT，再发图片"
+                             : "文件较多，将分 \(package.shares.count) 次发送")
+                            .font(.caption).foregroundStyle(.secondary)
                     }
                     if !package.omitted.isEmpty {
                         VStack(alignment: .leading, spacing: 6) {
