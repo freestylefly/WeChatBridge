@@ -113,6 +113,7 @@ struct RootView: View {
         guard !launched else { return }
         launched = true
         DeliveryPlanner.cleanUp()
+        FilesExport.placeGuide()
         observer = InboxObserver { [store] in store.reload() }
         store.reload()
         store.pruneHistory(retentionDays: preferences.retentionDays)

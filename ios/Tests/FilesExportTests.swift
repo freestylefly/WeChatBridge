@@ -32,6 +32,11 @@ final class FilesExportTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: folder.appendingPathComponent("stale.txt").path))
     }
 
+    func testGuideKeepsTheFolderVisibleBeforeAnyExport() throws {
+        FilesExport.placeGuide(in: root)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.path), ["使用说明.txt"])
+    }
+
     func testFolderNameDropsCharactersFilesRejects() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current

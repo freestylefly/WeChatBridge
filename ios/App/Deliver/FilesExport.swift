@@ -7,6 +7,15 @@ import WeChatBridgeCore
 enum FilesExport {
     static var root: URL { URL.documentsDirectory }
 
+    /// Files lists 「微信流」 only once Documents holds something; on a phone
+    /// that never exported, the user would find no folder to open.
+    static func placeGuide(in root: URL = root) {
+        let guide = root.appendingPathComponent("使用说明.txt")
+        guard !FileManager.default.fileExists(atPath: guide.path) else { return }
+        let text = "在中转站长按一条聊天，选「放到「文件」」，这里会多出一个以聊天命名的文件夹，里面是聊天记录和全部原文件。\n在千问等 App 里点「添加文件」→ 我的iPhone → 微信流，进文件夹勾选要发的文件。\n"
+        try? Data(text.utf8).write(to: guide)
+    }
+
     /// `标题 10-20 09.00`: the chat's own name, and its start so two exports of
     /// one group stay apart. Slashes and colons are not allowed in Files.
     static func folderName(title: String, date: Date) -> String {
