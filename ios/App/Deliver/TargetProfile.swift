@@ -55,6 +55,11 @@ struct TargetProfile: Identifiable, Hashable, Codable {
     /// reaches these apps only through the clipboard.
     var dropsSharedText: Bool { id == "doubao" }
 
+    /// Seen on device (2026-10-24): 千问 keeps only the images when a share
+    /// mixes them with the TXT, and 「文字+图」 ends in 「格式不支持」; one PDF
+    /// with the images inline arrives whole.
+    var wantsPDF: Bool { id == "qwen" }
+
     /// What to show before the share sheet; the paste line only when there is
     /// a prompt the target will not receive.
     func sendHint(hasPrompt: Bool) -> String {

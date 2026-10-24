@@ -1,49 +1,15 @@
 import UIKit
 
-/// Trial routes for 千问, which kept only the images when one share mixed
-/// them with the TXT. Picked in the delivery sheet until device tests decide
-/// which one stays.
-enum ShareVariant: String, CaseIterable, Identifiable {
-    case files, text, imagesFirst, pdf
-
-    static let key = "com.xiangming.wechatbridge.ios.qwenShareVariant"
-
-    var id: Self { self }
-
-    var label: String {
-        switch self {
-        case .files: "TXT+图"
-        case .text: "文字+图"
-        case .imagesFirst: "图在前"
-        case .pdf: "PDF"
-        }
-    }
-
-    var detail: String {
-        switch self {
-        case .files: "现在的发法：TXT 文件和图片"
-        case .text: "聊天记录作为文字，和图片一起"
-        case .imagesFirst: "图片在前，TXT 文件在后"
-        case .pdf: "只发一个 PDF，图片插在聊天对应的位置"
-        }
-    }
-
-    /// `group` is the planner's share: transcript first, then images.
-    func items(_ group: [URL], prompt: String) throws -> [Any] {
-        guard let transcript = group.first else { return [] }
-        let images = Array(group.dropFirst())
-        let lead: [Any] = prompt.isEmpty ? [] : [prompt]
-        switch self {
-        case .files:
-            return lead + group
-        case .imagesFirst:
-            return lead + images + [transcript]
-        case .text:
-            let body = try String(contentsOf: transcript, encoding: .utf8)
-            return [prompt.isEmpty ? body : "\(prompt)\n\n\(body)"] + images
-        case .pdf:
-            return lead + [try TranscriptPDF.make(transcript: transcript, images: images)]
-        }
+extension DeliveryPackage {
+    /// The transcript and its images folded into one PDF, for targets that
+    /// keep only the images when a share mixes them with the TXT. A share
+    /// with no images stays as it is.
+    func foldedIntoPDF() throws -> DeliveryPackage {
+        guard let group = shares.first, let transcript = group.first else { return self }
+        let images = shares.flatMap { $0 }.dropFirst().filter { DeliveryPlanner.isImage($0.lastPathComponent) }
+        guard !images.isEmpty else { return self }
+        let pdf = try TranscriptPDF.make(transcript: transcript, images: Array(images))
+        return DeliveryPackage(workDirectory: workDirectory, shares: [[pdf]], prompt: prompt, omitted: omitted)
     }
 }
 

@@ -29,7 +29,6 @@ struct DeliverySheet: View {
     @State private var targets: [TargetProfile] = []
     /// A notification's one-tap delivery fires once, not on every replan.
     @State private var quickSent = false
-    @AppStorage(ShareVariant.key) private var variant: ShareVariant = .pdf
 
     private var entries: [RelayEntry] { store.entries(selection.batchIDs) }
     private var summaries: [RelaySummary] { entries.compactMap(\.summary) }
@@ -158,15 +157,6 @@ struct DeliverySheet: View {
                             Text(ByteFormat.string(row.bytes)).font(.footnote).foregroundStyle(.secondary)
                         }
                     }
-                    if usesVariant(target) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Picker("试验：发送方式", selection: $variant) {
-                                ForEach(ShareVariant.allCases) { Text($0.label).tag($0) }
-                            }
-                            .pickerStyle(.segmented)
-                            Text("试验：\(variant.detail)").font(.caption).foregroundStyle(.secondary)
-                        }
-                    }
                     if package.shares.count > 1 {
                         Text("文件较多，将分 \(package.shares.count) 次发送").font(.caption).foregroundStyle(.secondary)
                     }
@@ -248,7 +238,10 @@ struct DeliverySheet: View {
         planning = true
         let request = DeliveryRequest(batches: entries.map(\.batch), target: target, prompt: nil)
         Task {
-            let result = await Task.detached(priority: .userInitiated) { Result { try DeliveryPlanner.plan(request) } }.value
+            let result = await Task.detached(priority: .userInitiated) { Result {
+                let package = try DeliveryPlanner.plan(request)
+                return request.target.format == .transcriptAndImages && request.target.wantsPDF ? try package.foldedIntoPDF() : package
+            } }.value
             // A newer choice may have replaced this one while it ran.
             guard effectiveTarget == target else {
                 if case .success(let stale) = result { try? FileManager.default.removeItem(at: stale.workDirectory) }
@@ -272,10 +265,6 @@ struct DeliverySheet: View {
         guard selection.quickTargetID != nil, !quickSent, canSend else { return }
         quickSent = true
         send()
-    }
-
-    private func usesVariant(_ target: TargetProfile) -> Bool {
-        target.id == "qwen" && target.format == .transcriptAndImages
     }
 
     private func send() {
@@ -307,9 +296,7 @@ struct DeliverySheet: View {
                 // Long enough to read the second line when there is one.
                 try? await Task.sleep(nanoseconds: message.contains("\n") ? 2_500_000_000 : 1_000_000_000)
                 withAnimation { hint = nil }
-                let lead = nextGroup == 0 ? text : ""
-                let plain: [Any] = (lead.isEmpty ? [] : [lead]) + group
-                let items = usesVariant(target) ? (try? variant.items(group, prompt: lead)) ?? plain : plain
+                let items: [Any] = (nextGroup == 0 && !text.isEmpty ? [text] : []) + group
                 ActivitySheet.present(items: items) { result in
                     busy = false
                     shareFinished(result, target: target, package: package)
