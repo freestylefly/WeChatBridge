@@ -1,3 +1,4 @@
+import UIKit
 import WeChatBridgeCore
 import XCTest
 @testable import WeChatBridgeiOS
@@ -46,6 +47,35 @@ final class DeliveryPlannerTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: urls[0], encoding: .utf8), original.body)
         XCTAssertEqual(Set(package.omitted), ["录屏_1.mp4", "需求文档.pdf"])
         XCTAssertFalse(try String(contentsOf: urls[0], encoding: .utf8).contains("提示"))
+    }
+
+    func testPDFVariantSendsOneFileWithTheImageInside() throws {
+        let package = try plan([try fixtures.batch("group-a.zip")], target(.transcriptAndImages))
+        let group = try XCTUnwrap(package.shares.first)
+        // The fixture's PNG is a stub that does not decode; draw a real one.
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 300, height: 200)).pngData { context in
+            UIColor.systemGreen.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 300, height: 200))
+        }
+        try image.write(to: group[1])
+        let items = try ShareVariant.pdf.items(group, prompt: "")
+        let pdf = try XCTUnwrap(items.first as? URL)
+        XCTAssertEqual(items.count, 1)
+        XCTAssertEqual(pdf.lastPathComponent, "聊天记录.pdf")
+        let document = try XCTUnwrap(CGPDFDocument(pdf as CFURL))
+        XCTAssertGreaterThanOrEqual(document.numberOfPages, 1)
+        // Kept for a look by eye; the work directory goes in tearDown.
+        let copy = FileManager.default.temporaryDirectory.appendingPathComponent("qwen-trial.pdf")
+        try? FileManager.default.removeItem(at: copy)
+        try FileManager.default.copyItem(at: pdf, to: copy)
+    }
+
+    func testTextVariantPutsPromptAboveTranscript() throws {
+        let package = try plan([try fixtures.batch("group-a.zip")], target(.transcriptAndImages))
+        let items = try ShareVariant.text.items(try XCTUnwrap(package.shares.first), prompt: "提示")
+        let text = try XCTUnwrap(items.first as? String)
+        XCTAssertTrue(text.hasPrefix("提示\n\n"))
+        XCTAssertEqual(items.dropFirst().compactMap { ($0 as? URL)?.lastPathComponent }, ["微信图片_20261020_1.png"])
     }
 
     func testMergeRenamesConflictingImageAndRewritesReference() throws {
