@@ -61,7 +61,16 @@ final class RelayStore: ObservableObject {
         }
         let fresh = reader.consumeFailures()
         if !fresh.isEmpty { failures = fresh }
+        ingestMarked()
         summarizeMissing()
+    }
+
+    /// 「分批收集到微信流」 batches join the open collection, oldest first.
+    private func ingestMarked() {
+        let ids = CollectMarker.unseen(entries.map(\.batch.directory), seen: ledger.seenBatchIDs)
+        guard !ids.isEmpty else { return }
+        for id in ids { ledger.append(id) }
+        saveLedger()
     }
 
     /// Parsing reads whole archives, so it runs off the main actor, one batch
@@ -161,7 +170,7 @@ final class RelayStore: ObservableObject {
 
     // MARK: - Collections
 
-    private var ledgerURL: URL? { inbox?.root.appendingPathComponent("collections.json") }
+    private var ledgerURL: URL? { inbox.map(CollectMarker.ledgerURL) }
 
     var collections: [BatchCollection] {
         ledger.collections.filter { $0.status != .delivered && !$0.batchIDs.isEmpty }
@@ -203,6 +212,25 @@ final class RelayStore: ObservableObject {
     func forgetCollection(_ id: UUID) {
         do { try ledger.forget(id) } catch { lastError = error.localizedDescription }
         saveLedger()
+    }
+
+    /// Makes this the collection 「分批收集到微信流」 adds to; a no-op when it already is.
+    func resumeCollection(_ id: UUID) {
+        guard ledger.current?.id != id else { return }
+        do { try ledger.resume(id) } catch { lastError = error.localizedDescription }
+        saveLedger()
+    }
+
+    /// Time order, the order a merge reads in.
+    func orderedBatchIDs(of collection: BatchCollection) -> [UUID] {
+        entries(collection.batchIDs)
+            .sorted { ($0.summary?.start ?? $0.batch.createdAt) < ($1.summary?.start ?? $1.batch.createdAt) }
+            .map(\.id)
+    }
+
+    /// The batch with the latest messages: where the next batch picks up.
+    func lastBatch(of collection: BatchCollection) -> RelayEntry? {
+        orderedBatchIDs(of: collection).last.flatMap(entry)
     }
 
     func collectionContaining(_ batchID: UUID) -> BatchCollection? {

@@ -33,6 +33,7 @@ targets:
       - package: WeChatBridgeKit
         product: WeChatBridgeCore
       - target: WeChatBridgeiOSShare
+      - target: WeChatBridgeiOSCollect
       - target: WeChatBridgeiOSWidget
     settings:
       base:
@@ -58,6 +59,30 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID).share
         INFOPLIST_FILE: Config/Share-Info.plist
+        CODE_SIGN_ENTITLEMENTS: Config/Share.entitlements
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        APPLICATION_EXTENSION_API_ONLY: YES
+  # 「分批收集到微信流」 in the share sheet's action list: the same import,
+  # each batch added to the open collection (see Shared/CollectMarker.swift).
+  WeChatBridgeiOSCollect:
+    type: app-extension
+    platform: iOS
+    sources:
+      - ShareExtension
+      - Shared
+      # The action list draws this icon as a template: a transparent glyph.
+      - CollectExtension
+      - path: Config/PrivacyInfo.xcprivacy
+        buildPhase: resources
+    dependencies:
+      - package: WeChatBridgeKit
+        product: WeChatBridgeCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID).collect
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_FILE: Config/Collect-Info.plist
         CODE_SIGN_ENTITLEMENTS: Config/Share.entitlements
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1"
@@ -105,6 +130,7 @@ schemes:
       targets:
         WeChatBridgeiOS: all
         WeChatBridgeiOSShare: all
+        WeChatBridgeiOSCollect: all
         WeChatBridgeiOSWidget: all
     test:
       targets:

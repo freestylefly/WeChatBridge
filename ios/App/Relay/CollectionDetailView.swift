@@ -18,7 +18,10 @@ struct CollectionDetailView: View {
                     TextField("未命名收集", text: $name)
                         .onSubmit { store.renameCollection(collectionID, to: name) }
                 }
-                Section("\(collection.batchIDs.count) 批，投递时按时间合并") {
+                ContinueCollectingSection(last: store.lastBatch(of: collection)?.summary) {
+                    store.resumeCollection(collectionID)
+                }
+                Section {
                     ForEach(store.entries(collection.batchIDs)) { entry in
                         RelayCardView(entry: entry)
                     }
@@ -27,6 +30,10 @@ struct CollectionDetailView: View {
                             store.removeFromCollection(id, collection: collectionID)
                         }
                     }
+                } header: {
+                    Text("\(collection.batchIDs.count) 批")
+                } footer: {
+                    Text("投递时按时间合并，前后批重叠的消息只留一份。")
                 }
                 Section {
                     Button("解散收集", role: .destructive) { confirmForget = true }
@@ -63,8 +70,62 @@ struct CollectionDetailView: View {
     }
 
     private var orderedIDs: [UUID] {
-        store.entries(collection?.batchIDs ?? [])
-            .sorted { ($0.summary?.start ?? $0.batch.createdAt) < ($1.summary?.start ?? $1.batch.createdAt) }
-            .map(\.id)
+        collection.map(store.orderedBatchIDs) ?? []
+    }
+}
+
+/// 「怎么接着收」: WeChat forwards at most 100 messages, so a long chat comes
+/// in batches. The last message is the bookmark: searched in WeChat, it puts
+/// the user where the next batch starts.
+struct ContinueCollectingSection: View {
+    let last: RelaySummary?
+    /// Copying means the user is about to collect more: into this collection.
+    let willContinue: () -> Void
+    @State private var copied = false
+
+    var body: some View {
+        Section {
+            if let last = last?.last {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("上一批最后一句 · \(last.sender) · \(RelayFormat.day(last.date))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(last.text).font(.subheadline).lineLimit(3)
+                    if let anchor = self.last?.anchor {
+                        Button {
+                            UIPasteboard.general.string = anchor
+                            willContinue()
+                            copied = true
+                        } label: {
+                            Label(copied ? "已复制「\(anchor)」" : "复制关键词", systemImage: copied ? "checkmark" : "doc.on.doc")
+                        }
+                        .buttonStyle(.bordered)
+                        .padding(.top, 2)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                step(1, "复制关键词，回微信在这个聊天里搜索，定位到这一句")
+                step(2, "从它后面开始多选，一次最多 100 条；多选几条重叠的也没关系")
+                step(3, "像平时一样分享出来，在分享面板下方的列表里选「分批收集到微信流」")
+            }
+            .padding(.vertical, 4)
+        } header: {
+            Text("怎么接着收")
+        } footer: {
+            Text("找不到「分批收集到微信流」？在分享面板最下方点「编辑操作」，把它加到个人收藏。")
+        }
+    }
+
+    private func step(_ number: Int, _ text: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text("\(number)")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.white)
+                .frame(width: 18, height: 18)
+                .background(Color.accentColor, in: Circle())
+            Text(text).font(.subheadline)
+        }
     }
 }

@@ -26,6 +26,10 @@ final class RelaySummaryTests: XCTestCase {
         XCTAssertNotNil(summary.start)
         XCTAssertEqual(summary.end!.timeIntervalSince(summary.start!), 7 * 60)
         XCTAssertEqual(summary.archiveItemID, batch.items[0].id)
+        // The last message is a sticker; search needs the last typed words.
+        XCTAssertEqual(summary.anchor, "第一行")
+        XCTAssertEqual(summary.last?.sender, "甲")
+        XCTAssertFalse(summary.hitsForwardLimit)
     }
 
     func testZipWithoutTextIsParseFailed() throws {

@@ -30,6 +30,8 @@ struct RelayListView: View {
     @State private var path: [UUID] = []
     /// What the last 「存图片和附件」 did, for the confirmation.
     @State private var exported: String?
+    /// How to pick up the next batch in WeChat, after 「继续收集」.
+    @State private var collectNote: String?
 
     private var rows: [RelayEntry] {
         let entries = store.visibleEntries
@@ -54,7 +56,11 @@ struct RelayListView: View {
                         NavigationLink {
                             CollectionDetailView(collectionID: collection.id)
                         } label: {
-                            CollectionCardView(collection: collection)
+                            CollectionCardView(collection: collection) {
+                                continueCollecting(collection)
+                            } deliver: {
+                                delivering = DeliverySelection(batchIDs: store.orderedBatchIDs(of: collection), collectionID: collection.id)
+                            }
                         }
                         .selectionDisabled()
                         .relayCardRow()
@@ -62,7 +68,10 @@ struct RelayListView: View {
                 }
                 ForEach(rows) { entry in
                     NavigationLink(value: entry.id) {
-                        RelayCardView(entry: entry, collecting: store.collectionContaining(entry.id) != nil)
+                        RelayCardView(entry: entry, collecting: store.collectionContaining(entry.id) != nil) {
+                            store.addToCollection(entry.id)
+                            if let collection = store.collectionContaining(entry.id) { continueCollecting(collection) }
+                        }
                     }
                     .relayCardRow()
                     .contextMenu { deliverMenu(entry) }
@@ -137,6 +146,11 @@ struct RelayListView: View {
             } message: {
                 Text(exported ?? "")
             }
+            .alert("接着收集", isPresented: Binding(get: { collectNote != nil }, set: { if !$0 { collectNote = nil } })) {
+                Button("好") { collectNote = nil }
+            } message: {
+                Text(collectNote ?? "")
+            }
             .sheet(item: $delivering) { selection in
                 DeliverySheet(selection: selection)
             }
@@ -178,6 +192,20 @@ struct RelayListView: View {
             Button { store.addToCollection(entry.id) } label: { Label("加入收集", systemImage: "tray.and.arrow.down") }
         }
         Button(role: .destructive) { store.delete([entry.id]) } label: { Label("删除", systemImage: "trash") }
+    }
+
+    /// The extension cannot be opened from here, so this points the way:
+    /// the collection takes the next batches, and the last message goes to
+    /// the clipboard for WeChat's search.
+    private func continueCollecting(_ collection: BatchCollection) {
+        store.resumeCollection(collection.id)
+        let steps = "从下一条开始多选，分享时在下方列表选「分批收集到微信流」。"
+        if let anchor = store.lastBatch(of: collection)?.summary?.anchor {
+            UIPasteboard.general.string = anchor
+            collectNote = "已复制最后一句「\(anchor)」。回微信在这个聊天里搜索它定位，\(steps)"
+        } else {
+            collectNote = "回微信找到上一批的最后一条，\(steps)"
+        }
     }
 
     private func exportForPicking(_ entry: RelayEntry) {

@@ -15,7 +15,7 @@ struct RelaySummary: Codable, Hashable {
         case files
     }
 
-    static let currentSchemaVersion = 2
+    static let currentSchemaVersion = 3
     static let cacheFileName = "relay-cache.json"
     static let mediaFolder = "聊天记录内的图片、视频和文件/"
 
@@ -35,6 +35,20 @@ struct RelaySummary: Codable, Hashable {
 
     /// The archive the summary was read from, by item id; nil when none parsed.
     var archiveItemID: UUID?
+
+    /// The chat's last message with searchable words (see `SearchAnchor`):
+    /// where the next batch of 「分批收集」 picks up.
+    struct Last: Codable, Hashable {
+        let sender: String
+        let date: Date
+        let text: String
+    }
+    var last: Last?
+    /// What to search in WeChat to find `last`.
+    var anchor: String?
+
+    /// WeChat stopped the selection here, so the chat likely goes on.
+    var hitsForwardLimit: Bool { messageCount == SearchAnchor.forwardLimit }
 
     static func make(for batch: ReadyBatch) -> RelaySummary {
         // A chat export anywhere in the batch wins over a plain text file.
@@ -82,6 +96,7 @@ struct RelaySummary: Codable, Hashable {
         mediaCount: Int,
         archiveItemID: UUID?
     ) -> RelaySummary {
+        let anchor = SearchAnchor.anchor(records)
         var seen = Set<String>()
         let senders = records.map(\.sender).filter { seen.insert($0).inserted }
         let preview = records.prefix(2).map { record -> String in
@@ -97,7 +112,9 @@ struct RelaySummary: Codable, Hashable {
             preview: preview,
             mediaCount: mediaCount,
             kind: .chat,
-            archiveItemID: archiveItemID
+            archiveItemID: archiveItemID,
+            last: anchor.map { Last(sender: $0.record.sender, date: $0.record.date, text: String($0.record.text.prefix(200))) },
+            anchor: anchor?.keyword
         )
     }
 

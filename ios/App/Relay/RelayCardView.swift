@@ -4,6 +4,8 @@ import WeChatBridgeCore
 struct RelayCardView: View {
     let entry: RelayEntry
     var collecting = false
+    /// Offered on a chat cut off at WeChat's forward limit; nil hides it.
+    var startCollecting: (() -> Void)?
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -31,9 +33,36 @@ struct RelayCardView: View {
                 } else {
                     ProgressView().controlSize(.small)
                 }
+                if let startCollecting, !collecting, entry.summary?.hitsForwardLimit == true {
+                    ForwardLimitHint(action: startCollecting).padding(.top, 4)
+                }
             }
         }
         .padding(.vertical, 6)
+    }
+}
+
+/// Exactly 100 messages is where WeChat stops a selection, so the chat most
+/// likely goes on beyond this batch.
+private struct ForwardLimitHint: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Image(systemName: "exclamationmark.circle.fill").foregroundStyle(.orange)
+                // Per-run colours: a button label is otherwise tinted throughout.
+                (Text("正好 \(SearchAnchor.forwardLimit) 条，微信一次最多转 \(SearchAnchor.forwardLimit) 条。还有前后的消息？").foregroundColor(.primary)
+                    + Text("分批收集").bold().foregroundColor(.accentColor))
+                    .font(.caption)
+                    .multilineTextAlignment(.leading)
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.yellow.opacity(0.18), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        // Its own tap target inside the row's navigation link.
+        .buttonStyle(.borderless)
     }
 }
 
@@ -128,34 +157,34 @@ extension View {
     }
 }
 
-enum RelayFormat {
-    /// `10月20日 09:00–09:07`; both ends dated when the range crosses a day.
-    static func range(_ start: Date?, _ end: Date?, calendar: Calendar = .current) -> String? {
-        guard let start else { return nil }
-        let day = DateFormatter()
-        day.locale = Locale(identifier: "zh_CN")
-        day.dateFormat = "M月d日 HH:mm"
-        let time = DateFormatter()
-        time.dateFormat = "HH:mm"
-        guard let end, end != start else { return day.string(from: start) }
-        let tail = calendar.isDate(start, inSameDayAs: end) ? time.string(from: end) : day.string(from: end)
-        return "\(day.string(from: start))–\(tail)"
-    }
-
-    /// `10月24日 00:19`.
-    static func day(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateFormat = "M月d日 HH:mm"
-        return formatter.string(from: date)
-    }
-}
 
 struct CollectionCardView: View {
     @EnvironmentObject private var store: RelayStore
     let collection: BatchCollection
+    let continueCollecting: () -> Void
+    let deliver: () -> Void
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            header
+            // Styled buttons keep their own tap targets inside the row's link.
+            HStack(spacing: 10) {
+                Button(action: continueCollecting) {
+                    Label("继续收集", systemImage: "plus.square.on.square").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                Button(action: deliver) {
+                    Label("完成并投递", systemImage: "paperplane.fill").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .controlSize(.small)
+            .font(.subheadline.weight(.medium))
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var header: some View {
         HStack(spacing: 12) {
             Image(systemName: "square.stack.3d.up.fill")
                 .font(.system(size: 15, weight: .semibold))
@@ -164,17 +193,23 @@ struct CollectionCardView: View {
                 .background(Color.purple.opacity(0.13), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
             VStack(alignment: .leading, spacing: 4) {
                 Text(collection.name.isEmpty ? "未命名收集" : collection.name).font(.headline)
-                Text("\(collection.batchIDs.count) 批 · \(messageCount) 条消息")
+                Text(line)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             Spacer()
             Image(systemName: "pin.fill").font(.caption).foregroundStyle(.secondary)
         }
-        .padding(.vertical, 4)
     }
 
-    private var messageCount: Int {
-        store.entries(collection.batchIDs).compactMap { $0.summary?.messageCount }.reduce(0, +)
+    /// `3 批 · 约 280 条 · 上一批 09:00–09:58`. 「约」: overlapping batches are
+    /// deduplicated only when merged.
+    private var line: String {
+        let count = store.entries(collection.batchIDs).compactMap { $0.summary?.messageCount }.reduce(0, +)
+        var parts = ["\(collection.batchIDs.count) 批", "约 \(count) 条"]
+        if let last = store.lastBatch(of: collection)?.summary, let range = RelayFormat.range(last.start, last.end) {
+            parts.append("上一批 \(range)")
+        }
+        return parts.joined(separator: " · ")
     }
 }
