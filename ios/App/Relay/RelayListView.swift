@@ -14,6 +14,8 @@ struct DeliverySelection: Identifiable {
     let id = UUID()
     let batchIDs: [UUID]
     var collectionID: UUID?
+    /// From a notification: preselect this target and send without a tap.
+    var quickTargetID: String?
 }
 
 struct RelayListView: View {
@@ -23,6 +25,7 @@ struct RelayListView: View {
     @State private var editMode: EditMode = .inactive
     @State private var selection = Set<UUID>()
     @State private var delivering: DeliverySelection?
+    @ObservedObject private var router = QuickDeliverRouter.shared
 
     private var rows: [RelayEntry] {
         let entries = store.visibleEntries
@@ -127,7 +130,22 @@ struct RelayListView: View {
             .sheet(item: $delivering) { selection in
                 DeliverySheet(selection: selection)
             }
+            .onAppear(perform: takeQuickRequest)
+            .onChange(of: router.pending) { _ in takeQuickRequest() }
         }
+    }
+
+    private func takeQuickRequest() {
+        guard let request = router.pending else { return }
+        router.pending = nil
+        // The share may have landed a moment ago, before any reload.
+        store.reload()
+        guard store.entry(request.batchID) != nil else {
+            store.lastError = "这批内容已不在中转站。"
+            return
+        }
+        editMode = .inactive
+        delivering = DeliverySelection(batchIDs: [request.batchID], quickTargetID: request.targetID)
     }
 
     /// Time order, so a merge reads oldest first whatever order the user tapped.

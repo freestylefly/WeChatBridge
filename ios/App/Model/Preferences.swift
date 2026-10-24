@@ -34,9 +34,11 @@ final class Preferences: ObservableObject {
     @Published var obsidianBookmark: Data? { didSet { defaults.set(obsidianBookmark, forKey: Key.obsidianBookmark) } }
     @Published var folderBookmark: Data? { didSet { defaults.set(folderBookmark, forKey: Key.folderBookmark) } }
     @Published var formatOverrides: [String: String] { didSet { defaults.set(formatOverrides, forKey: Key.targetFormatOverrides) } }
-    @Published var hiddenTargets: [String] { didSet { defaults.set(hiddenTargets, forKey: Key.hiddenTargets) } }
-    @Published var targetOrder: [String] { didSet { defaults.set(targetOrder, forKey: Key.targetOrder) } }
-    @Published var lastTarget: String? { didSet { defaults.set(lastTarget, forKey: Key.lastTarget) } }
+    @Published var hiddenTargets: [String] { didSet { defaults.set(hiddenTargets, forKey: Key.hiddenTargets); publishQuickTargets() } }
+    @Published var targetOrder: [String] { didSet { defaults.set(targetOrder, forKey: Key.targetOrder); publishQuickTargets() } }
+    @Published var lastTarget: String? { didSet { defaults.set(lastTarget, forKey: Key.lastTarget); publishQuickTargets() } }
+    /// 「分享后提醒我投递」; the extension reads the same key.
+    @Published var quickDeliver: Bool { didSet { defaults.set(quickDeliver, forKey: QuickDeliver.enabledKey) } }
     @Published var onboardingDone: Bool { didSet { defaults.set(onboardingDone, forKey: Key.onboardingDone) } }
 
     init(defaults: UserDefaults = Preferences.sharedDefaults) {
@@ -55,6 +57,13 @@ final class Preferences: ObservableObject {
         targetOrder = defaults.stringArray(forKey: Key.targetOrder) ?? []
         lastTarget = defaults.string(forKey: Key.lastTarget)
         onboardingDone = defaults.bool(forKey: Key.onboardingDone)
+        quickDeliver = QuickDeliver.isEnabled(defaults)
+        publishQuickTargets()
+    }
+
+    /// The notification's buttons, for the extension to read.
+    private func publishQuickTargets() {
+        QuickDeliver.store(targets.map { QuickDeliver.Target(id: $0.id, name: $0.displayName) }, in: defaults)
     }
 
     /// Falls back to the app's own defaults only when the group is missing,

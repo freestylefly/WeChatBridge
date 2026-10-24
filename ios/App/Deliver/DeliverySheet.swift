@@ -27,6 +27,8 @@ struct DeliverySheet: View {
     /// Taken once on open: recording a delivery moves its target to the front,
     /// and the tile the user just tapped must not jump away mid-sheet.
     @State private var targets: [TargetProfile] = []
+    /// A notification's one-tap delivery fires once, not on every replan.
+    @State private var quickSent = false
 
     private var entries: [RelayEntry] { store.entries(selection.batchIDs) }
     private var summaries: [RelaySummary] { entries.compactMap(\.summary) }
@@ -205,7 +207,7 @@ struct DeliverySheet: View {
 
     private func setUp() {
         targets = preferences.targets
-        target = targets.first
+        target = selection.quickTargetID.flatMap { id in targets.first { $0.id == id } } ?? targets.first
         let resolution = SceneResolver.resolve(
             groupName: chatName,
             settings: preferences.scenes,
@@ -228,7 +230,11 @@ struct DeliverySheet: View {
         planError = nil
         nextGroup = 0
         savedNote = nil
-        guard let target = effectiveTarget, target.format.usesShareSheet else { return }
+        guard let target = effectiveTarget, target.format.usesShareSheet else {
+            // Writers need no planning; a quick delivery writes straight away.
+            if effectiveTarget != nil { sendIfQuick() }
+            return
+        }
         planning = true
         let request = DeliveryRequest(batches: entries.map(\.batch), target: target, prompt: nil)
         Task {
@@ -240,13 +246,23 @@ struct DeliverySheet: View {
             }
             planning = false
             switch result {
-            case .success(let package): self.package = package
+            case .success(let package):
+                self.package = package
+                sendIfQuick()
             case .failure(let error): planError = error.localizedDescription
             }
         }
     }
 
     // MARK: - Sending
+
+    /// The notification already said where this goes; the user's next tap
+    /// should be the app in the share sheet, not 「发送」.
+    private func sendIfQuick() {
+        guard selection.quickTargetID != nil, !quickSent, canSend else { return }
+        quickSent = true
+        send()
+    }
 
     private func send() {
         guard let target = effectiveTarget else { return }

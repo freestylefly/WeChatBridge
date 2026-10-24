@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
+import UserNotifications
 import WeChatBridgeCore
 
 struct SettingsView: View {
@@ -35,6 +36,17 @@ struct SettingsView: View {
                     LabeledContent("子文件夹") {
                         TextField("子文件夹", text: $preferences.folderSubfolder).multilineTextAlignment(.trailing)
                     }
+                }
+                Section {
+                    Toggle("分享后提醒我投递", isOn: $preferences.quickDeliver)
+                        .onChange(of: preferences.quickDeliver) { on in
+                            guard on else { return }
+                            Task { _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) }
+                        }
+                } header: {
+                    Text("快速投递")
+                } footer: {
+                    Text("从微信分享进来后弹一条通知：点一下直接打开分享面板，投递到上次的目标；长按通知可以换成别的目标。")
                 }
                 Section("投递目标") {
                     NavigationLink("调整目标") { TargetSettingsView() }

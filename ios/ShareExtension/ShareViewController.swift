@@ -132,6 +132,12 @@ final class ShareViewController: UIViewController {
             names: manifestItems.map(\.displayName),
             byteCount: manifestItems.reduce(0) { $0 + $1.byteCount }
         )
+        let names = manifestItems.map(\.displayName)
+        await QuickDeliver.post(
+            batchID: staging.batchID,
+            head: names.count == 1 ? names[0] : "\(names.count) 个文件",
+            defaults: UserDefaults(suiteName: AppGroup.identifier) ?? .standard
+        )
         // Long enough to read one line, short enough that the user is back in
         // WeChat before they think about it. The button closes it sooner.
         try? await Task.sleep(nanoseconds: 1_200_000_000)
