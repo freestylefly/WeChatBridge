@@ -53,7 +53,9 @@ final class ShareViewController: UIViewController {
             return
         }
         guard let inbox else {
-            fail(InboxError.containerUnavailable(identifier: AppGroup.identifier), inbox: nil)
+            // A signing problem, not the user's: the group id goes to the log only.
+            NSLog("WeChatBridge share: %@", InboxError.containerUnavailable(identifier: AppGroup.identifier).errorDescription ?? "")
+            model.state = .failed(Self.installBroken)
             return
         }
         let staging: BatchStaging
@@ -163,6 +165,8 @@ final class ShareViewController: UIViewController {
         }
         model.state = .failed(message)
     }
+
+    static let installBroken = "微信流没装好，请重新安装后再试。"
 
     static func flatten(inputItems: [Any]) -> [AttachmentSource] {
         var sources: [AttachmentSource] = []

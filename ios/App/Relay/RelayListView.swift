@@ -40,6 +40,7 @@ struct RelayListView: View {
             List(selection: editMode.isEditing ? $selection : nil) {
                 if !store.failures.isEmpty {
                     FailureBanner(failures: store.failures) { store.failures = [] }
+                        .relayCardRow()
                 }
                 if filter != .undelivered {
                     ForEach(store.collections) { collection in
@@ -49,12 +50,14 @@ struct RelayListView: View {
                             CollectionCardView(collection: collection)
                         }
                         .selectionDisabled()
+                        .relayCardRow()
                     }
                 }
                 ForEach(rows) { entry in
                     NavigationLink(value: entry.id) {
                         RelayCardView(entry: entry, collecting: store.collectionContaining(entry.id) != nil)
                     }
+                    .relayCardRow()
                     .swipeActions(edge: .trailing) {
                         Button(role: .destructive) { store.delete([entry.id]) } label: { Label("删除", systemImage: "trash") }
                     }
@@ -65,6 +68,8 @@ struct RelayListView: View {
                 }
             }
             .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color(.systemGroupedBackground))
             .overlay {
                 if store.visibleEntries.isEmpty && store.collections.isEmpty {
                     EmptyRelayView { showsOnboarding = true }
@@ -105,7 +110,8 @@ struct RelayListView: View {
                 }
             }
             // The tab bar would cover the edit actions in the bottom bar.
-            .toolbar(editMode.isEditing ? .hidden : .visible, for: .tabBar)
+            // `.automatic`, not `.visible`: a pushed detail view hides it too.
+            .toolbar(editMode.isEditing ? .hidden : .automatic, for: .tabBar)
             .environment(\.editMode, $editMode)
             .refreshable { store.reload() }
             .safeAreaInset(edge: .bottom) {
@@ -159,15 +165,21 @@ private struct EmptyRelayView: View {
     let showGuide: () -> Void
 
     var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "tray").font(.system(size: 44)).foregroundStyle(.secondary)
-            Text("还没有收到聊天记录").font(.headline)
+        VStack(spacing: 14) {
+            Image(systemName: "tray.and.arrow.down.fill")
+                .font(.system(size: 38))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 88, height: 88)
+                .background(Color.accentColor.opacity(0.12), in: Circle())
+            Text("还没有收到聊天记录").font(.title3.weight(.semibold))
             Text("在微信里把聊天记录导出，分享到「微信流」，就会出现在这里。")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-            Button("查看如何从微信发过来", action: showGuide)
+            Button("怎么从微信发过来", action: showGuide)
                 .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .padding(.top, 4)
         }
         .padding(32)
     }

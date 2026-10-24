@@ -43,6 +43,12 @@ struct TargetProfile: Identifiable, Hashable, Codable {
         }
     }
 
+    /// Asset name of the app's own icon (from `shared/AppLogos`); nil for
+    /// targets that have none and fall back to `symbol`.
+    var logo: String? {
+        ["chatgpt", "doubao", "qwen", "workbuddy", "claude", "obsidian"].contains(id) ? "Logo-\(id)" : nil
+    }
+
     static let pasteHint = "提示词已复制，在输入框长按粘贴"
 
     /// Seen on device to drop the text in a share (R2, 2026-10-24): the prompt

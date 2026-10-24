@@ -14,6 +14,10 @@ final class TargetProfileTests: XCTestCase {
         XCTAssertEqual(formats["other"], .archive)
     }
 
+    func testLogoForTargetsTheProjectShipsArtFor() {
+        XCTAssertEqual(TargetProfile.builtIn.compactMap(\.logo), ["Logo-chatgpt", "Logo-doubao", "Logo-qwen", "Logo-workbuddy", "Logo-claude", "Logo-obsidian"])
+    }
+
     func testHint() {
         XCTAssertEqual(TargetProfile.builtIn[1].hint, "请在下一屏选择「豆包」")
         XCTAssertEqual(TargetProfile.builtIn.first { $0.id == "obsidian" }?.hint, "")

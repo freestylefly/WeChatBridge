@@ -18,3 +18,7 @@ international artwork is used.
 Extension. The settings pane uses the same files when the destination app is
 not installed. On Windows they are published to `Resources/AppLogos` and used
 by the Entries pane and target pickers.
+
+On iOS, `ios/Resources/Assets.xcassets/Logo-*.imageset` holds 180 px copies
+for the delivery panel's target grid; regenerate them with `sips -Z 180` when
+these change.

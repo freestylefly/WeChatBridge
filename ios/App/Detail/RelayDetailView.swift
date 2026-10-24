@@ -34,6 +34,9 @@ struct RelayDetailView: View {
                 }
             }
         }
+        // The actions float over the content; the tab bar would only stack
+        // a second bar under them.
+        .toolbar(.hidden, for: .tabBar)
         .safeAreaInset(edge: .bottom) {
             if entry != nil { actionBar }
         }
@@ -73,26 +76,33 @@ struct RelayDetailView: View {
     }
 
     private var actionBar: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
             Button {
                 store.addToCollection(batchID)
                 toast = "已加入收集"
             } label: {
                 Label(store.collectionContaining(batchID) == nil ? "加入收集" : "已在收集中", systemImage: "square.stack.3d.up")
-                    .frame(maxWidth: .infinity)
+                    .font(.subheadline.weight(.medium))
+                    .padding(.horizontal, 14)
+                    .frame(maxHeight: .infinity)
             }
-            .buttonStyle(.bordered)
             .disabled(store.collectionContaining(batchID) != nil)
             Button {
                 delivering = DeliverySelection(batchIDs: [batchID])
             } label: {
-                Label("投递", systemImage: "paperplane.fill").frame(maxWidth: .infinity)
+                Label("投递", systemImage: "paperplane.fill")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.accentColor, in: Capsule())
             }
-            .buttonStyle(.borderedProminent)
         }
-        .controlSize(.large)
-        .padding()
-        .background(.bar)
+        .frame(height: 48)
+        .padding(5)
+        .background(.regularMaterial, in: Capsule())
+        .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 8)
     }
 
     private func load() async {

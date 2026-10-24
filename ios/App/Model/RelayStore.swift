@@ -50,7 +50,9 @@ final class RelayStore: ObservableObject {
 
     func reload() {
         guard let reader else {
-            lastError = InboxError.containerUnavailable(identifier: AppGroup.identifier).errorDescription
+            // A signing problem: the group id is for the log, not the user.
+            NSLog("WeChatBridge: %@", InboxError.containerUnavailable(identifier: AppGroup.identifier).errorDescription ?? "")
+            lastError = "微信流没装好，读不到分享进来的内容。请重新安装后再试。"
             return
         }
         let known = Dictionary(uniqueKeysWithValues: entries.map { ($0.id, $0.summary) })

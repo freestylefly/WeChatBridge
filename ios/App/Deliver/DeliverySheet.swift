@@ -47,7 +47,7 @@ struct DeliverySheet: View {
             Form {
                 Section("投递到") { targetGrid }
                 if effectiveTarget != nil {
-                    Section("场景") { scenePicker }
+                    Section { scenePicker }
                     Section("预览") { preview }
                 }
             }
@@ -68,7 +68,10 @@ struct DeliverySheet: View {
                 }
             }
         }
-        .presentationDetents([.medium, .large])
+        // Full height: at medium only the grid showed, with send and preview
+        // below the fold and the chat bleeding through the glass.
+        .presentationDetents([.large])
+        .presentationBackground(Color(.systemGroupedBackground))
         .onAppear(perform: setUp)
         .onChange(of: target) { _ in replan() }
         .onChange(of: forceArchive) { _ in replan() }
@@ -78,19 +81,30 @@ struct DeliverySheet: View {
     // MARK: - Sections
 
     private var targetGrid: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 76), spacing: 12)], spacing: 12) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 76), spacing: 12)], spacing: 14) {
             ForEach(targets) { profile in
+                let selected = target?.id == profile.id
                 Button { target = profile } label: {
                     VStack(spacing: 6) {
-                        Image(systemName: profile.symbol)
-                            .font(.title2)
-                            .frame(width: 48, height: 48)
-                            .background(
-                                (target?.id == profile.id ? Color.accentColor : Color(.tertiarySystemFill)),
-                                in: RoundedRectangle(cornerRadius: 12)
-                            )
-                            .foregroundStyle(target?.id == profile.id ? .white : .primary)
-                        Text(profile.displayName).font(.caption).lineLimit(1)
+                        TargetIcon(profile: profile, size: 50)
+                            .padding(3)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .strokeBorder(Color.accentColor, lineWidth: selected ? 2.5 : 0)
+                            }
+                            .overlay(alignment: .topTrailing) {
+                                if selected {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 18))
+                                        .symbolRenderingMode(.palette)
+                                        .foregroundStyle(.white, Color.accentColor)
+                                        .offset(x: 6, y: -6)
+                                }
+                            }
+                        Text(profile.displayName)
+                            .font(.caption.weight(selected ? .semibold : .regular))
+                            .foregroundStyle(selected ? Color.accentColor : .primary)
+                            .lineLimit(1)
                     }
                 }
                 .buttonStyle(.plain)
@@ -131,15 +145,27 @@ struct DeliverySheet: View {
                 } else if let planError {
                     Text(planError).foregroundStyle(.red)
                 } else if let package {
-                    Text("将发送：\(Self.describe(package))")
+                    ForEach(Self.rows(package), id: \.title) { row in
+                        HStack(spacing: 12) {
+                            Image(systemName: row.symbol)
+                                .foregroundStyle(Color.accentColor)
+                                .frame(width: 24)
+                            Text(row.title).lineLimit(1).truncationMode(.middle)
+                            Spacer()
+                            Text(ByteFormat.string(row.bytes)).font(.footnote).foregroundStyle(.secondary)
+                        }
+                    }
                     if package.shares.count > 1 {
                         Text("文件较多，将分 \(package.shares.count) 次发送").font(.caption).foregroundStyle(.secondary)
                     }
                     if !package.omitted.isEmpty {
-                        DisclosureGroup("未随附 \(package.omitted.count) 个文件") {
-                            ForEach(package.omitted, id: \.self) { Text($0).font(.caption) }
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("不发送：\(package.omitted.joined(separator: "、"))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(3)
+                            Button("改发原始 ZIP") { forceArchive = true }.font(.footnote)
                         }
-                        Button("改发原始 ZIP") { forceArchive = true }
                     }
                 }
             }
@@ -316,13 +342,30 @@ struct DeliverySheet: View {
 
     // MARK: - Text
 
-    static func describe(_ package: DeliveryPackage) -> String {
-        let names = package.shares.flatMap { $0 }.map(\.lastPathComponent)
-        let images = names.filter(DeliveryPlanner.isImage).count
-        if names.first == DeliveryPlanner.transcriptName {
-            return images > 0 ? "\(DeliveryPlanner.transcriptName) + \(images) 张图片" : DeliveryPlanner.transcriptName
+    struct PreviewRow {
+        let symbol: String
+        let title: String
+        let bytes: Int64
+    }
+
+    /// One row per file, except that images fold into one 「3 张图片」 row.
+    static func rows(_ package: DeliveryPackage, fileManager: FileManager = .default) -> [PreviewRow] {
+        func size(_ url: URL) -> Int64 {
+            ((try? fileManager.attributesOfItem(atPath: url.path))?[.size] as? NSNumber)?.int64Value ?? 0
         }
-        return names.count == 1 ? names[0] : "\(names[0]) 等 \(names.count) 个文件"
+        let urls = package.shares.flatMap { $0 }
+        let images = urls.filter { DeliveryPlanner.isImage($0.lastPathComponent) }
+        var rows = urls.filter { !DeliveryPlanner.isImage($0.lastPathComponent) }.map { url in
+            PreviewRow(
+                symbol: url.pathExtension.lowercased() == "zip" ? "doc.zipper" : "doc.text",
+                title: url.lastPathComponent,
+                bytes: size(url)
+            )
+        }
+        if !images.isEmpty {
+            rows.append(PreviewRow(symbol: "photo.on.rectangle", title: "\(images.count) 张图片", bytes: images.map(size).reduce(0, +)))
+        }
+        return rows
     }
 
     static func obsidianURL(for note: URL) -> URL? {

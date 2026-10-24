@@ -60,7 +60,7 @@ private struct MessageRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 if showsSender {
                     HStack(spacing: 6) {
-                        Text(record.sender).font(.caption.weight(.semibold))
+                        Text(record.sender).font(.caption.weight(.semibold)).foregroundStyle(Avatar.color(for: record.sender))
                         Text(record.date, format: .dateTime.hour().minute()).font(.caption2).foregroundStyle(.secondary)
                     }
                 }
@@ -77,12 +77,18 @@ private struct Avatar: View {
     let name: String
 
     var body: some View {
-        let hue = Double(abs(name.hashValue % 360)) / 360
         Text(String(name.prefix(1)))
             .font(.footnote.weight(.semibold))
             .foregroundStyle(.white)
             .frame(width: 32, height: 32)
-            .background(Color(hue: hue, saturation: 0.45, brightness: 0.75), in: RoundedRectangle(cornerRadius: 6))
+            .background(Self.color(for: name), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    /// Stable per name across launches (`hashValue` is reseeded each run), so
+    /// a speaker keeps one colour for avatar and name.
+    static func color(for name: String) -> Color {
+        let seed = name.unicodeScalars.reduce(UInt32(5381)) { ($0 &* 33) &+ $1.value }
+        return Color(hue: Double(seed % 360) / 360, saturation: 0.5, brightness: 0.72)
     }
 }
 
@@ -98,15 +104,21 @@ private struct TokenView: View {
             Text(text)
                 .textSelection(.enabled)
                 .padding(10)
-                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
+                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         case .image(let name):
             if let url = transcript.url(for: name), let image = Thumbnail.load(url, maxPixel: 600) {
+                let size = Self.displaySize(image.size)
                 Button { openImage(url) } label: {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFit()
-                        .frame(maxWidth: 220, maxHeight: 260, alignment: .leading)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .frame(width: size.width, height: size.height)
+                        // A tile behind, so a tiny or transparent image is
+                        // still a visible, tappable thing.
+                        .frame(minWidth: 64, minHeight: 64)
+                        .background(Color(.tertiarySystemFill))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.primary.opacity(0.08)))
                 }
                 .accessibilityLabel("图片 \(name)")
             } else {
@@ -118,9 +130,20 @@ private struct TokenView: View {
             Attachment(symbol: "doc", title: name, subtitle: "文件", action: transcript.url(for: name).map { url in { openFile(url) } })
         case .link(let title, let url):
             Link(destination: url) { Attachment.label(symbol: "link", title: title, subtitle: url.host ?? url.absoluteString) }
+                .buttonStyle(.plain)
         case .channels(let title, let url):
             Link(destination: url) { Attachment.label(symbol: "play.rectangle", title: title, subtitle: "视频号") }
+                .buttonStyle(.plain)
         }
+    }
+}
+
+extension TokenView {
+    /// Fits in 220×260 pt and never blows a small image up past one point per pixel.
+    static func displaySize(_ pixels: CGSize) -> CGSize {
+        guard pixels.width > 0, pixels.height > 0 else { return CGSize(width: 64, height: 64) }
+        let scale = min(220 / pixels.width, 260 / pixels.height, 1)
+        return CGSize(width: pixels.width * scale, height: pixels.height * scale)
     }
 }
 
@@ -133,6 +156,7 @@ private struct Attachment: View {
     var body: some View {
         if let action {
             Button(action: action) { Self.label(symbol: symbol, title: title, subtitle: subtitle) }
+                .buttonStyle(.plain)
         } else {
             Self.label(symbol: symbol, title: title, subtitle: subtitle)
         }
@@ -140,7 +164,7 @@ private struct Attachment: View {
 
     static func label(symbol: String, title: String, subtitle: String) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: symbol).font(.title3).frame(width: 28)
+            Image(systemName: symbol).font(.title3).foregroundStyle(Color.accentColor).frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.subheadline).lineLimit(2).multilineTextAlignment(.leading)
                 Text(subtitle).font(.caption).foregroundStyle(.secondary)
@@ -149,7 +173,7 @@ private struct Attachment: View {
         .foregroundStyle(.primary)
         .padding(10)
         .frame(maxWidth: 260, alignment: .leading)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 

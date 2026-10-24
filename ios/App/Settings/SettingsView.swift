@@ -94,7 +94,7 @@ struct TargetSettingsView: View {
                 ForEach(all) { profile in
                     VStack(alignment: .leading, spacing: 6) {
                         Toggle(isOn: visible(profile.id)) {
-                            Label(profile.displayName, systemImage: profile.symbol)
+                            Label { Text(profile.displayName) } icon: { TargetIcon(profile: profile, size: 28) }
                         }
                         if profile.canChangeFormat {
                             Picker("发送方式", selection: format(profile)) {

@@ -97,4 +97,11 @@ final class RelaySummaryTests: XCTestCase {
         XCTAssertEqual(RelayFormat.range(start, start.addingTimeInterval(86_400), calendar: calendar), "10月20日 09:00–10月21日 09:00")
         XCTAssertNil(RelayFormat.range(nil, nil))
     }
+
+    func testTextCardShowsOneLinkAsItsDomain() {
+        let summary = RelaySummary.make(text: "合集\n讲义\nhttps://example.com/s/a1", archiveName: "a.txt", mediaCount: 0, archiveItemID: nil)
+        XCTAssertEqual(RelayCardView.previewLines(summary), ["讲义", "🔗 example.com"])
+        let twoLinks = RelaySummary.make(text: "合集\nhttps://example.com/1\nhttps://example.org/2", archiveName: "a.txt", mediaCount: 0, archiveItemID: nil)
+        XCTAssertEqual(RelayCardView.previewLines(twoLinks), ["🔗 example.com"])
+    }
 }

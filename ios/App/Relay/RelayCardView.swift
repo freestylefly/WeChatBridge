@@ -6,36 +6,71 @@ struct RelayCardView: View {
     var collecting = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(entry.summary?.title ?? entry.batch.items.first?.displayName ?? "聊天记录")
-                    .font(.headline)
-                    .lineLimit(1)
-                Spacer()
-                StatusTag(entry: entry, collecting: collecting)
-            }
-            if let summary = entry.summary {
-                ForEach(summary.preview, id: \.self) { line in
-                    Text(line).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+        HStack(alignment: .top, spacing: 12) {
+            KindBadge(kind: entry.summary?.kind)
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(entry.summary?.title ?? entry.batch.items.first?.displayName ?? "聊天记录")
+                        .font(.headline)
+                        .lineLimit(1)
+                    Spacer(minLength: 4)
+                    StatusTag(entry: entry, collecting: collecting)
                 }
-                HStack(spacing: 6) {
-                    Text(Self.counts(summary))
-                    Spacer()
-                    if let range = RelayFormat.range(summary.start, summary.end) {
-                        Text(range)
+                if let summary = entry.summary {
+                    ForEach(Self.previewLines(summary), id: \.self) { line in
+                        Text(line).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                     }
+                    HStack(spacing: 6) {
+                        Text(Self.counts(summary))
+                        Spacer()
+                        Text(RelayFormat.range(summary.start, summary.end) ?? "收到于 \(RelayFormat.day(entry.batch.createdAt))")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .padding(.top, 2)
+                } else {
+                    ProgressView().controlSize(.small)
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            } else {
-                ProgressView().controlSize(.small)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
+    }
+}
+
+/// Which kind of content a card holds, at a glance.
+private struct KindBadge: View {
+    let kind: RelaySummary.Kind?
+
+    var body: some View {
+        let (symbol, color): (String, Color) = switch kind {
+        case .chat: ("bubble.left.and.bubble.right.fill", .accentColor)
+        case .text: ("doc.plaintext.fill", .blue)
+        case .files: ("exclamationmark.triangle.fill", .orange)
+        case nil: ("tray.fill", .secondary)
+        }
+        Image(systemName: symbol)
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(color)
+            .frame(width: 34, height: 34)
+            .background(color.opacity(0.13), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
     }
 }
 
 extension RelayCardView {
+    /// A text's lines as written, except that a bare link shows only its
+    /// domain and at most one link is shown.
+    static func previewLines(_ summary: RelaySummary) -> [String] {
+        guard summary.kind == .text else { return summary.preview }
+        var sawLink = false
+        return summary.preview.compactMap { line in
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard let url = URL(string: trimmed), let scheme = url.scheme, scheme.hasPrefix("http"), let host = url.host else { return line }
+            if sawLink { return nil }
+            sawLink = true
+            return "🔗 \(host)"
+        }
+    }
+
     /// `8 条消息 · 3 个附件`; a text file reads `文本`, and a lone count has no dot.
     static func counts(_ summary: RelaySummary) -> String {
         var parts: [String] = []
@@ -57,9 +92,16 @@ private struct StatusTag: View {
         let (text, color): (String, Color) = {
             if entry.summary?.parseFailed == true { return ("解析失败", .orange) }
             if collecting { return ("收集中", .purple) }
-            if entry.isDelivered { return ("已投递到 \(entry.batch.targetName ?? "")", .green) }
-            return ("未投递", .blue)
+            if entry.isDelivered { return (entry.batch.targetName.map { "已投递 · \($0)" } ?? "已投递", .secondary) }
+            // Undelivered is the normal state and gets no tag.
+            return ("", .clear)
         }()
+        if !text.isEmpty {
+            tag(text, color: color)
+        }
+    }
+
+    private func tag(_ text: String, color: Color) -> some View {
         Text(text)
             .font(.caption2.weight(.medium))
             .lineLimit(1)
@@ -67,6 +109,22 @@ private struct StatusTag: View {
             .padding(.vertical, 2)
             .foregroundStyle(color)
             .background(color.opacity(0.12), in: Capsule())
+    }
+}
+
+extension View {
+    /// The relay's card look inside a plain List: a rounded tile on the
+    /// grouped background, drawn as the row background so the disclosure
+    /// chevron and edit-mode checkmarks sit inside it.
+    func relayCardRow() -> some View {
+        listRowBackground(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+                .padding(.vertical, 5)
+                .padding(.horizontal, 16)
+        )
+        .listRowInsets(EdgeInsets(top: 10, leading: 30, bottom: 10, trailing: 30))
+        .listRowSeparator(.hidden)
     }
 }
 
@@ -83,6 +141,14 @@ enum RelayFormat {
         let tail = calendar.isDate(start, inSameDayAs: end) ? time.string(from: end) : day.string(from: end)
         return "\(day.string(from: start))–\(tail)"
     }
+
+    /// `10月24日 00:19`.
+    static func day(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "M月d日 HH:mm"
+        return formatter.string(from: date)
+    }
 }
 
 struct CollectionCardView: View {
@@ -92,8 +158,10 @@ struct CollectionCardView: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "square.stack.3d.up.fill")
-                .font(.title2)
+                .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.purple)
+                .frame(width: 34, height: 34)
+                .background(Color.purple.opacity(0.13), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
             VStack(alignment: .leading, spacing: 4) {
                 Text(collection.name.isEmpty ? "未命名收集" : collection.name).font(.headline)
                 Text("\(collection.batchIDs.count) 批 · \(messageCount) 条消息")
