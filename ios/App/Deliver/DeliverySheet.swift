@@ -22,9 +22,6 @@ struct DeliverySheet: View {
     @State private var nextGroup = 0
     @State private var busy = false
     @State private var toast: String?
-    /// Where the images and attachments went, said once the share sheet is
-    /// gone; a toast under it would never be seen.
-    @State private var exportNote: String?
     @State private var hint: String?
     @State private var savedNote: URL?
     /// Taken once on open: recording a delivery moves its target to the front,
@@ -276,22 +273,21 @@ struct DeliverySheet: View {
 
     /// The images and attachments the TXT names: media into Photos for the
     /// target's 相册 picker, the rest into 「我的iPhone › 微信流」 for its file
-    /// picker. Awaited before the share sheet, so the one-time Photos prompt
-    /// never lands on top of it.
-    private func exportForPicking() async {
-        let jobs = entries.map { entry in
-            (batch: entry.batch, name: FilesExport.folderName(
-                title: entry.summary?.title ?? entry.batch.chatName ?? entry.batch.items.first?.displayName ?? "聊天记录",
-                date: entry.summary?.start ?? entry.batch.createdAt
-            ))
-        }
+    /// picker. Run only once the share went through, so a cancelled one
+    /// leaves nothing behind. Images the PDF already carries are skipped.
+    private func exportForPicking(_ package: DeliveryPackage) async -> String? {
+        let jobs = entries.map { FilesExport.Job(batch: $0.batch, name: FilesExport.folderName(for: $0), inPDF: package.inPDF) }
         do {
-            // In PDF mode the images already ride inside it.
-            let summary = try await FilesExport.exportForPicking(jobs, includeImages: !preferences.imagesInPDF)
-            exportNote = summary.isEmpty ? nil : summary.message
+            let summary = try await FilesExport.exportForPicking(jobs)
+            return summary.isEmpty ? nil : summary.message
         } catch {
-            exportNote = "图片和附件没能存下：\(error.localizedDescription)"
+            return "图片和附件没能存下：\(error.localizedDescription)"
         }
+    }
+
+    /// Whether a completed share of the first group also exports.
+    private func exports(_ package: DeliveryPackage, target: TargetProfile) -> Bool {
+        target.format == .transcriptAndImages && !package.omitted.isEmpty
     }
 
     /// 「发送时存到…」 under the preview: which names go where.
@@ -316,7 +312,7 @@ struct DeliverySheet: View {
                 toast = "提示词已复制，可在对方输入框粘贴"
             }
             let group = package.shares[nextGroup]
-            let exports = nextGroup == 0 && target.format == .transcriptAndImages && !package.omitted.isEmpty
+            let asksPhotos = nextGroup == 0 && exports(package, target: target) && package.omitted.contains(where: FilesExport.isMedia)
             busy = true
             let message = target.sendHint(hasPrompt: !text.isEmpty)
             withAnimation { hint = message.isEmpty ? nil : message }
@@ -331,7 +327,8 @@ struct DeliverySheet: View {
                 )
             }
             Task {
-                if exports { await exportForPicking() }
+                // Before the share sheet, so the one-time prompt never lands on it.
+                if asksPhotos { _ = await PhotosSaver.authorize() }
                 // Long enough to read the second line when there is one.
                 try? await Task.sleep(nanoseconds: message.contains("\n") ? 2_500_000_000 : 1_000_000_000)
                 withAnimation { hint = nil }
@@ -354,15 +351,25 @@ struct DeliverySheet: View {
             }
             return
         }
+        let exporting = nextGroup == 0 && exports(package, target: target)
         if nextGroup == 0 {
             recordDelivery(target: target, detail: "\(target.format.label) · \(result.activityType ?? "未知去向")")
             DeliveryActivityController.markSent()
         }
         nextGroup += 1
-        if nextGroup >= package.shares.count {
-            let hasPrompt = !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            let done = hasPrompt && target.dropsSharedText ? TargetProfile.pasteHint : "已交给分享面板"
-            toast = [done, exportNote].compactMap { $0 }.joined(separator: "\n")
+        let hasPrompt = !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let done = nextGroup < package.shares.count ? nil
+            : hasPrompt && target.dropsSharedText ? TargetProfile.pasteHint : "已交给分享面板"
+        guard exporting else {
+            if let done { toast = done }
+            return
+        }
+        busy = true
+        Task {
+            // Said once the share sheet is gone; a toast under it would never be seen.
+            let note = await exportForPicking(package)
+            busy = false
+            toast = [done, note].compactMap { $0 }.joined(separator: "\n")
         }
     }
 

@@ -60,7 +60,7 @@ final class DeliveryPlannerTests: XCTestCase {
     func testPDFModeFoldsTheImageIn() throws {
         let planned = try plan([try fixtures.batch("group-a.zip")], target(.transcriptAndImages))
         let group = try XCTUnwrap(planned.shares.first)
-        // The fixture's PNG is a stub that does not decode; draw a real one.
+        // Draw a real image, so the test does not lean on the fixture's bytes.
         let image = UIGraphicsImageRenderer(size: CGSize(width: 300, height: 200)).pngData { context in
             UIColor.systemGreen.setFill()
             context.fill(CGRect(x: 0, y: 0, width: 300, height: 200))
@@ -69,7 +69,16 @@ final class DeliveryPlannerTests: XCTestCase {
         let package = try planned.foldedIntoPDF()
         XCTAssertEqual(package.shares.map { $0.map(\.lastPathComponent) }, [["聊天记录.pdf"]])
         XCTAssertEqual(Set(package.omitted), ["录屏_1.mp4", "需求文档.pdf"])
+        XCTAssertEqual(package.inPDF, ["微信图片_20261020_1.png"])
         XCTAssertGreaterThanOrEqual(try XCTUnwrap(CGPDFDocument(package.shares[0][0] as CFURL)).numberOfPages, 1)
+    }
+
+    func testImageThatDoesNotDecodeIsExportedInstead() throws {
+        let planned = try plan([try fixtures.batch("group-a.zip")], target(.transcriptAndImages))
+        try Data("not a png".utf8).write(to: try XCTUnwrap(planned.shares.first)[1])
+        let package = try planned.foldedIntoPDF()
+        XCTAssertEqual(Set(package.omitted), ["微信图片_20261020_1.png", "录屏_1.mp4", "需求文档.pdf"])
+        XCTAssertEqual(package.inPDF, [])
     }
 
     func testTextOnlyShareIsNotFoldedIntoPDF() throws {

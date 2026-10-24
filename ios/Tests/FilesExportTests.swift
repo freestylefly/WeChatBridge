@@ -31,10 +31,37 @@ final class FilesExportTests: XCTestCase {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: folder.path), ["需求文档.pdf"])
     }
 
-    func testPDFModeLeavesImagesOut() throws {
+    func testImagesInThePDFAreLeftOut() throws {
         let media = root.appendingPathComponent("media", isDirectory: true)
-        let exported = try FilesExport.export(try fixtures.batch("group-a.zip"), name: "聊天", into: root, mediaInto: media, includeImages: false)
+        let exported = try FilesExport.export(try fixtures.batch("group-a.zip"), name: "聊天", into: root, mediaInto: media, inPDF: ["微信图片_20261020_1.png"])
         XCTAssertEqual(exported.media.map(\.lastPathComponent), ["录屏_1.mp4"])
+    }
+
+    func testMergedChatsKeepSameNamedMediaApart() throws {
+        let media = root.appendingPathComponent("media", isDirectory: true)
+        let jobs = [
+            FilesExport.Job(batch: try fixtures.batch("group-a.zip"), name: "聊天"),
+            FilesExport.Job(batch: try fixtures.batch("group-a-later.zip"), name: "聊天"),
+        ]
+        let staged = try FilesExport.stage(jobs, into: root, mediaRoot: media)
+        XCTAssertEqual(staged.names, ["聊天", "聊天 (2)"])
+        XCTAssertEqual(staged.media.map { $0.map(\.lastPathComponent).sorted() }, [["录屏_1.mp4", "微信图片_20261020_1.png"].sorted(), ["微信图片_20261020_1.png"]])
+    }
+
+    func testMediaPhotosDidNotTakeGoIntoTheFolder() throws {
+        let media = root.appendingPathComponent("media", isDirectory: true)
+        let exported = try FilesExport.export(try fixtures.batch("group-a.zip"), name: "聊天", into: root, mediaInto: media)
+        try FilesExport.keep(exported.media, in: "聊天", root: root)
+        let names = try FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent("聊天").path).sorted()
+        XCTAssertEqual(names, ["录屏_1.mp4", "微信图片_20261020_1.png", "需求文档.pdf"].sorted())
+    }
+
+    func testFailedExportKeepsTheOldFolder() throws {
+        let batch = try fixtures.batch("group-a.zip")
+        let folder = try XCTUnwrap(FilesExport.export(batch, name: "聊天", into: root).folder)
+        try FileManager.default.removeItem(at: batch.items[0].url)
+        XCTAssertThrowsError(try FilesExport.export(batch, name: "聊天", into: root))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: folder.appendingPathComponent("需求文档.pdf").path))
     }
 
     func testSideNoteSaysWhereEachGoes() {

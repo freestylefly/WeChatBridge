@@ -181,14 +181,10 @@ struct RelayListView: View {
     }
 
     private func exportForPicking(_ entry: RelayEntry) {
-        let name = FilesExport.folderName(
-            title: entry.summary?.title ?? entry.batch.chatName ?? entry.batch.items.first?.displayName ?? "聊天记录",
-            date: entry.summary?.start ?? entry.batch.createdAt
-        )
-        let batch = entry.batch
+        let job = FilesExport.Job(batch: entry.batch, name: FilesExport.folderName(for: entry))
         Task {
             do {
-                exported = try await FilesExport.exportForPicking([(batch: batch, name: name)]).message
+                exported = try await FilesExport.exportForPicking([job]).message
             } catch {
                 store.lastError = error.localizedDescription
             }

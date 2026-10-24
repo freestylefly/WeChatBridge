@@ -17,6 +17,9 @@ struct DeliveryPackage {
     let prompt: String?
     /// File names this format leaves out (videos, documents), for the preview.
     let omitted: [String]
+    /// Images drawn into the PDF, which the export leaves out; empty when
+    /// the images go as files.
+    var inPDF: Set<String> = []
 
     var fileCount: Int { shares.reduce(0) { $0 + $1.count } }
 
