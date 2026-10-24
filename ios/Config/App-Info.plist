@@ -30,7 +30,7 @@
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>DKAppGroupIdentifier</key>
-	<string>group.com.xiangming.wechatbridge</string>
+	<string>$(APP_GROUP_ID)</string>
 	<key>DKStorageMode</key>
 	<string>app-group</string>
 	<key>LSApplicationQueriesSchemes</key>

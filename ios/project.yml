@@ -27,7 +27,7 @@ targets:
       - target: WeChatBridgeiOSShare
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.xiangming.wechatbridge.ios
+        PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID)
         INFOPLIST_FILE: Config/App-Info.plist
         CODE_SIGN_ENTITLEMENTS: Config/App.entitlements
         SWIFT_VERSION: "5.0"
@@ -47,7 +47,7 @@ targets:
         product: WeChatBridgeCore
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.xiangming.wechatbridge.ios.share
+        PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID).share
         INFOPLIST_FILE: Config/Share-Info.plist
         CODE_SIGN_ENTITLEMENTS: Config/Share.entitlements
         SWIFT_VERSION: "5.0"
@@ -69,7 +69,7 @@ targets:
       - target: WeChatBridgeiOS
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.xiangming.wechatbridge.ios.tests
+        PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID).tests
         GENERATE_INFOPLIST_FILE: YES
         SWIFT_VERSION: "5.0"
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/WeChatBridgeiOS.app/WeChatBridgeiOS"
