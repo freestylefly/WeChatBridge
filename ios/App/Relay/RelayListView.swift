@@ -28,6 +28,8 @@ struct RelayListView: View {
     @ObservedObject private var router = QuickDeliverRouter.shared
     @EnvironmentObject private var preferences: Preferences
     @State private var path: [UUID] = []
+    /// Folder name of the last 「放到「文件」」, for the confirmation.
+    @State private var exported: String?
 
     private var rows: [RelayEntry] {
         let entries = store.visibleEntries
@@ -130,6 +132,11 @@ struct RelayListView: View {
             } message: {
                 Text(store.lastError ?? "")
             }
+            .alert("已放到「文件」", isPresented: Binding(get: { exported != nil }, set: { if !$0 { exported = nil } })) {
+                Button("好") { exported = nil }
+            } message: {
+                Text("在千问等 App 里点「添加文件」→ 我的iPhone → 微信流 →「\(exported ?? "")」，勾选要发的文件。")
+            }
             .sheet(item: $delivering) { selection in
                 DeliverySheet(selection: selection)
             }
@@ -166,10 +173,26 @@ struct RelayListView: View {
                 Label("选择目标…", systemImage: "square.grid.2x2")
             }
         }
+        Button { exportToFiles(entry) } label: { Label("放到「文件」", systemImage: "folder.badge.plus") }
         if store.collectionContaining(entry.id) == nil {
             Button { store.addToCollection(entry.id) } label: { Label("加入收集", systemImage: "tray.and.arrow.down") }
         }
         Button(role: .destructive) { store.delete([entry.id]) } label: { Label("删除", systemImage: "trash") }
+    }
+
+    private func exportToFiles(_ entry: RelayEntry) {
+        let name = FilesExport.folderName(
+            title: entry.summary?.title ?? entry.batch.chatName ?? entry.batch.items.first?.displayName ?? "聊天记录",
+            date: entry.summary?.start ?? entry.batch.createdAt
+        )
+        let batch = entry.batch
+        Task {
+            let result = await Task.detached(priority: .userInitiated) { Result { try FilesExport.export(batch, name: name) } }.value
+            switch result {
+            case .success: exported = name
+            case .failure(let error): store.lastError = error.localizedDescription
+            }
+        }
     }
 
     private func takeQuickRequest() {

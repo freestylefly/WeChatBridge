@@ -166,7 +166,12 @@ struct DeliverySheet: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(3)
-                            Button("改发原始 ZIP") { forceArchive = true }.font(.footnote)
+                            HStack(spacing: 16) {
+                                Button("改发原始 ZIP") { forceArchive = true }
+                                Button("把原文件放到「文件」", action: exportToFiles)
+                            }
+                            .font(.footnote)
+                            .buttonStyle(.borderless)
                         }
                     }
                 }
@@ -265,6 +270,28 @@ struct DeliverySheet: View {
         guard selection.quickTargetID != nil, !quickSent, canSend else { return }
         quickSent = true
         send()
+    }
+
+    /// Every picked chat into 「我的iPhone › 微信流」, for apps that take files
+    /// through their own picker rather than a share.
+    private func exportToFiles() {
+        let jobs = entries.map { entry in
+            (entry.batch, FilesExport.folderName(
+                title: entry.summary?.title ?? entry.batch.chatName ?? entry.batch.items.first?.displayName ?? "聊天记录",
+                date: entry.summary?.start ?? entry.batch.createdAt
+            ))
+        }
+        Task {
+            let result = await Task.detached(priority: .userInitiated) {
+                Result { try jobs.map { try FilesExport.export($0.0, name: $0.1) } }
+            }.value
+            switch result {
+            case .success(let folders):
+                toast = "已放到「我的iPhone › 微信流 › \(folders.map(\.lastPathComponent).joined(separator: "、"))」"
+            case .failure(let error):
+                toast = "没能放到「文件」：\(error.localizedDescription)"
+            }
+        }
     }
 
     private func send() {
