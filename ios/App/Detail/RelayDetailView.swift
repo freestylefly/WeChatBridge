@@ -28,7 +28,7 @@ struct RelayDetailView: View {
         .navigationTitle(entry?.summary?.title ?? "聊天记录")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if let entry, entry.summary?.parseFailed == false {
+            if let entry, entry.summary?.kind == .chat {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("绑定场景") { binding = true }
                 }
@@ -48,7 +48,9 @@ struct RelayDetailView: View {
 
     @ViewBuilder
     private func content(_ entry: RelayEntry) -> some View {
-        if let loaded {
+        if let loaded, let text = loaded.text {
+            PlainTextView(text: text)
+        } else if let loaded {
             TranscriptView(transcript: loaded)
         } else if entry.summary?.parseFailed == true || loadError != nil {
             List {
@@ -108,6 +110,8 @@ struct RelayDetailView: View {
 /// The parsed transcript plus where its media was unpacked.
 struct LoadedTranscript {
     let records: [WeChatTranscriptRecord]
+    /// Set instead of `records` when the text is not in chat-record layout.
+    var text: String?
     let mediaDirectory: URL
     /// Leaf file name → unpacked path relative to `mediaDirectory`.
     let media: [String: String]
@@ -118,21 +122,33 @@ struct LoadedTranscript {
 
     /// nil: no WeChat archive among the batch's files.
     static func load(_ batch: ReadyBatch) -> Result<LoadedTranscript, Error>? {
+        var fallback: (Data, WeChatNativeArchive.Transcript)?
         for item in batch.items where item.url.pathExtension.lowercased() == "zip" {
             do {
                 let data = try Data(contentsOf: item.url, options: .mappedIfSafe)
-                guard let transcript = try WeChatNativeArchive.transcript(data), let records = transcript.records else { continue }
-                let extracted = try RelayFiles.extract(data, batchID: batch.id)
-                var media: [String: String] = [:]
-                for name in extracted.names where !name.hasSuffix("/") && name != transcript.path {
-                    media[(name as NSString).lastPathComponent] = name
-                }
-                return .success(LoadedTranscript(records: records, mediaDirectory: extracted.directory, media: media))
+                guard let transcript = try WeChatNativeArchive.transcript(data) else { continue }
+                // A chat export later in the batch wins, as in the summary.
+                if transcript.records == nil, fallback == nil { fallback = (data, transcript) }
+                guard let records = transcript.records else { continue }
+                return .success(try loaded(records: records, text: nil, data: data, transcript: transcript, batchID: batch.id))
             } catch {
                 return .failure(error)
             }
         }
-        return nil
+        guard let (data, transcript) = fallback else { return nil }
+        return Result { try loaded(records: [], text: transcript.body, data: data, transcript: transcript, batchID: batch.id) }
+    }
+
+    private static func loaded(
+        records: [WeChatTranscriptRecord], text: String?, data: Data,
+        transcript: WeChatNativeArchive.Transcript, batchID: UUID
+    ) throws -> LoadedTranscript {
+        let extracted = try RelayFiles.extract(data, batchID: batchID)
+        var media: [String: String] = [:]
+        for name in extracted.names where !name.hasSuffix("/") && name != transcript.path {
+            media[(name as NSString).lastPathComponent] = name
+        }
+        return LoadedTranscript(records: records, text: text, mediaDirectory: extracted.directory, media: media)
     }
 }
 

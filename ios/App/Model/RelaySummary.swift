@@ -4,7 +4,18 @@ import WeChatBridgeCore
 
 /// What a relay card shows, worked out once per batch and cached next to it.
 struct RelaySummary: Codable, Hashable {
-    static let currentSchemaVersion = 1
+    /// What the batch's archive turned out to hold.
+    enum Kind: String, Codable {
+        /// WeChat's chat-record export: `·sender`, timestamp, text.
+        case chat
+        /// A text file in another layout, such as a single long message or a
+        /// note exported on its own. Read and delivered as the text it is.
+        case text
+        /// No readable text at all: delivered only as the original files.
+        case files
+    }
+
+    static let currentSchemaVersion = 2
     static let cacheFileName = "relay-cache.json"
     static let mediaFolder = "聊天记录内的图片、视频和文件/"
 
@@ -17,29 +28,38 @@ struct RelaySummary: Codable, Hashable {
     var end: Date?
     var preview: [String]
     var mediaCount: Int
-    /// No WeChat transcript in any of the batch's files: a plain file someone
-    /// shared. Still deliverable, as itself.
-    var parseFailed: Bool
+    var kind: Kind
+    /// No text in any of the batch's files: a plain file someone shared.
+    /// Still deliverable, as itself.
+    var parseFailed: Bool { kind == .files }
 
     /// The archive the summary was read from, by item id; nil when none parsed.
     var archiveItemID: UUID?
 
     static func make(for batch: ReadyBatch) -> RelaySummary {
+        // A chat export anywhere in the batch wins over a plain text file.
+        // Only the chosen archive is unpacked: the batch has one unpack folder.
+        var text: (item: ReadyItem, data: Data, transcript: WeChatNativeArchive.Transcript)?
         for item in batch.items where item.url.pathExtension.lowercased() == "zip" {
             guard let data = try? Data(contentsOf: item.url, options: .mappedIfSafe),
-                  let transcript = try? WeChatNativeArchive.transcript(data),
-                  let records = transcript.records
+                  let transcript = try? WeChatNativeArchive.transcript(data)
             else { continue }
-            let media = (try? RelayFiles.extract(data, batchID: batch.id))?
-                .names.filter { $0 != transcript.path && !$0.hasSuffix("/") }.count ?? 0
+            guard let records = transcript.records else {
+                if text == nil { text = (item, data, transcript) }
+                continue
+            }
             return make(
                 records: records,
                 transcript: transcript,
                 chatName: batch.chatName,
                 archiveName: item.displayName,
-                mediaCount: media + batch.items.count - 1,
+                mediaCount: mediaCount(data, transcript: transcript, batch: batch),
                 archiveItemID: item.id
             )
+        }
+        if let (item, data, transcript) = text {
+            return make(text: transcript.body, archiveName: item.displayName,
+                        mediaCount: mediaCount(data, transcript: transcript, batch: batch), archiveItemID: item.id)
         }
         return RelaySummary(
             title: batch.items.count == 1 ? batch.items[0].displayName : "\(batch.items.count) 个文件",
@@ -49,7 +69,7 @@ struct RelaySummary: Codable, Hashable {
             end: nil,
             preview: batch.items.prefix(2).map(\.displayName),
             mediaCount: batch.items.count,
-            parseFailed: true,
+            kind: .files,
             archiveItemID: nil
         )
     }
@@ -76,7 +96,34 @@ struct RelaySummary: Codable, Hashable {
             end: transcript.end,
             preview: preview,
             mediaCount: mediaCount,
-            parseFailed: false,
+            kind: .chat,
+            archiveItemID: archiveItemID
+        )
+    }
+
+    /// Files in the archive besides its text, plus the batch's other files.
+    private static func mediaCount(_ data: Data, transcript: WeChatNativeArchive.Transcript, batch: ReadyBatch) -> Int {
+        let media = (try? RelayFiles.extract(data, batchID: batch.id))?
+            .names.filter { $0 != transcript.path && !$0.hasSuffix("/") }.count ?? 0
+        return media + batch.items.count - 1
+    }
+
+    /// The first line names the text (WeChat starts a single exported message
+    /// with `·`); the next lines preview it.
+    static func make(text: String, archiveName: String, mediaCount: Int, archiveItemID: UUID?) -> RelaySummary {
+        let lines = text.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        let heading = lines.first.map { String($0.drop { $0 == "·" }).trimmingCharacters(in: .whitespaces) } ?? ""
+        return RelaySummary(
+            title: heading.isEmpty ? archiveName : String(heading.prefix(40)),
+            messageCount: nil,
+            senders: [],
+            start: nil,
+            end: nil,
+            preview: lines.dropFirst().prefix(2).map { String($0.prefix(40)) },
+            mediaCount: mediaCount,
+            kind: .text,
             archiveItemID: archiveItemID
         )
     }

@@ -30,7 +30,7 @@ enum DeliveryPlanner {
 
         var errorDescription: String? {
             switch self {
-            case .noArchive: "这批内容里没有可读的微信聊天记录，可以改为发送原始文件。"
+            case .noArchive: "这批内容里没有可读的文本，可以改为发送原始文件。"
             case .unsupportedFormat: "这个目标不通过分享面板投递。"
             }
         }
@@ -90,6 +90,8 @@ enum DeliveryPlanner {
 
     private struct Source {
         let body: String
+        /// False for a text in another layout, which cannot be merged by time.
+        let isChat: Bool
         let transcriptPath: String
         let directory: URL
         let names: [String]
@@ -103,12 +105,11 @@ enum DeliveryPlanner {
             for item in batch.items {
                 if item.url.pathExtension.lowercased() == "zip",
                    let data = try? Data(contentsOf: item.url, options: .mappedIfSafe),
-                   let transcript = try WeChatNativeArchive.transcript(data),
-                   transcript.records != nil {
+                   let transcript = try WeChatNativeArchive.transcript(data) {
                     let directory = work.appendingPathComponent("src/\(batch.id.uuidString)/\(item.id.uuidString)", isDirectory: true)
                     try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
                     let names = try WeChatNativeArchive.extract(data, to: directory)
-                    sources.append(Source(body: transcript.body, transcriptPath: transcript.path, directory: directory, names: names))
+                    sources.append(Source(body: transcript.body, isChat: transcript.records != nil, transcriptPath: transcript.path, directory: directory, names: names))
                     found = true
                 } else {
                     omitted.append(item.displayName)
@@ -148,7 +149,9 @@ enum DeliveryPlanner {
             renames.append(renamed)
         }
 
-        let transcriptURL = output.appendingPathComponent(transcriptName)
+        // A text that is not a chat record keeps its own name.
+        let textName = sources.contains(where: \.isChat) ? transcriptName : (sources[0].transcriptPath as NSString).lastPathComponent
+        let transcriptURL = output.appendingPathComponent(textName)
         if sources.count == 1 {
             // Byte for byte: a single export goes out exactly as WeChat wrote it.
             let original = sources[0].directory.appendingPathComponent(sources[0].transcriptPath)
@@ -159,7 +162,12 @@ enum DeliveryPlanner {
                     body.replacingOccurrences(of: "[图片] \(pair.key)", with: "[图片] \(pair.value)")
                 }
             }
-            try TranscriptMerge.merge(bodies).write(to: transcriptURL, atomically: true, encoding: .utf8)
+            // Only chat records carry times to interleave by; anything else
+            // goes out in the order it was picked.
+            let merged = sources.allSatisfy(\.isChat)
+                ? try TranscriptMerge.merge(bodies)
+                : bodies.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.joined(separator: "\n\n")
+            try merged.write(to: transcriptURL, atomically: true, encoding: .utf8)
         }
 
         try? fileManager.removeItem(at: work.appendingPathComponent("src"))

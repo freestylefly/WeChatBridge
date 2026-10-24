@@ -19,12 +19,7 @@ struct RelayCardView: View {
                     Text(line).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                 }
                 HStack(spacing: 6) {
-                    if let count = summary.messageCount {
-                        Text("\(count) 条消息")
-                    }
-                    if summary.mediaCount > 0 {
-                        Text("· \(summary.mediaCount) 个附件")
-                    }
+                    Text(Self.counts(summary))
                     Spacer()
                     if let range = RelayFormat.range(summary.start, summary.end) {
                         Text(range)
@@ -37,6 +32,20 @@ struct RelayCardView: View {
             }
         }
         .padding(.vertical, 4)
+    }
+}
+
+extension RelayCardView {
+    /// `8 条消息 · 3 个附件`; a text file reads `文本`, and a lone count has no dot.
+    static func counts(_ summary: RelaySummary) -> String {
+        var parts: [String] = []
+        if let count = summary.messageCount {
+            parts.append("\(count) 条消息")
+        } else if summary.kind == .text {
+            parts.append("文本")
+        }
+        if summary.mediaCount > 0 { parts.append("\(summary.mediaCount) 个附件") }
+        return parts.joined(separator: " · ")
     }
 }
 

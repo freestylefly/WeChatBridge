@@ -73,10 +73,29 @@ final class DeliveryPlannerTests: XCTestCase {
         ])
     }
 
-    func testNonWeChatArchiveCannotBeUnpacked() throws {
-        XCTAssertThrowsError(try plan([try fixtures.batch("not-wechat.zip")], target(.transcriptAndImages)))
-        let package = try plan([try fixtures.batch("not-wechat.zip")], target(.archive))
+    func testArchiveWithoutTextCannotBeUnpacked() throws {
+        XCTAssertThrowsError(try plan([try fixtures.batch("files-only.zip")], target(.transcriptAndImages)))
+        let package = try plan([try fixtures.batch("files-only.zip")], target(.archive))
         XCTAssertEqual(package.fileCount, 1)
+    }
+
+    func testPlainTextGoesOutUnderItsOwnName() throws {
+        let batch = try fixtures.batch("text-note.zip")
+        let package = try plan([batch], target(.transcriptAndImages))
+        let urls = try XCTUnwrap(package.shares.first)
+        XCTAssertEqual(urls.map(\.lastPathComponent), ["资料合集.txt"])
+        let original = try XCTUnwrap(WeChatNativeArchive.transcript(Data(contentsOf: batch.items[0].url)))
+        XCTAssertEqual(try String(contentsOf: urls[0], encoding: .utf8), original.body)
+    }
+
+    func testPlainTextMergesWithChatInPickedOrder() throws {
+        let package = try plan([try fixtures.batch("group-a.zip"), try fixtures.batch("text-note.zip")], target(.transcriptAndImages))
+        let urls = try XCTUnwrap(package.shares.first)
+        XCTAssertEqual(urls[0].lastPathComponent, "聊天记录.txt")
+        let text = try String(contentsOf: urls[0], encoding: .utf8)
+        let chat = try XCTUnwrap(text.range(of: "早上好"))
+        let note = try XCTUnwrap(text.range(of: "资料合集"))
+        XCTAssertLessThan(chat.lowerBound, note.lowerBound)
     }
 
     func testWritersHaveNoSharePlan() throws {

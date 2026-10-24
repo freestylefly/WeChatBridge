@@ -28,11 +28,47 @@ final class RelaySummaryTests: XCTestCase {
         XCTAssertEqual(summary.archiveItemID, batch.items[0].id)
     }
 
-    func testNonWeChatZipIsParseFailed() throws {
-        let summary = RelaySummary.make(for: try fixtures.batch("not-wechat.zip"))
+    func testZipWithoutTextIsParseFailed() throws {
+        let batch = try fixtures.batch("files-only.zip")
+        defer { RelayFiles.remove(batchID: batch.id) }
+        let summary = RelaySummary.make(for: batch)
+        XCTAssertEqual(summary.kind, .files)
         XCTAssertTrue(summary.parseFailed)
         XCTAssertNil(summary.messageCount)
-        XCTAssertEqual(summary.title, "not-wechat.zip")
+        XCTAssertEqual(summary.title, "files-only.zip")
+        XCTAssertEqual(RelayCardView.counts(summary), "1 个附件")
+    }
+
+    /// A single exported message: `·` heading, then lines, but no timestamps.
+    func testTextInAnotherLayoutIsReadAsText() throws {
+        let batch = try fixtures.batch("text-note.zip")
+        defer { RelayFiles.remove(batchID: batch.id) }
+        let summary = RelaySummary.make(for: batch)
+        XCTAssertEqual(summary.kind, .text)
+        XCTAssertFalse(summary.parseFailed)
+        XCTAssertEqual(summary.title, "示例收藏 - 资料合集 第一期 10月23日更新")
+        XCTAssertEqual(summary.preview, ["公开课讲义合集", "https://example.com/s/a1"])
+        XCTAssertNil(summary.messageCount)
+        XCTAssertEqual(summary.mediaCount, 0)
+        XCTAssertEqual(RelayCardView.counts(summary), "文本")
+
+        guard case .success(let loaded) = LoadedTranscript.load(batch) else { return XCTFail("text did not load") }
+        XCTAssertTrue(loaded.records.isEmpty)
+        XCTAssertEqual(loaded.text?.hasPrefix("·示例收藏"), true)
+    }
+
+    func testChatExportWinsOverPlainText() throws {
+        let batch = try fixtures.batch("text-note.zip", "group-a.zip")
+        defer { RelayFiles.remove(batchID: batch.id) }
+        let summary = RelaySummary.make(for: batch)
+        XCTAssertEqual(summary.kind, .chat)
+        XCTAssertEqual(summary.archiveItemID, batch.items[1].id)
+        XCTAssertEqual(RelayCardView.counts(summary), "8 条消息 · 4 个附件")
+    }
+
+    func testPlainTextLinksAreLive() {
+        let text = PlainTextView.linked("工具清单\nhttps://example.com/s/c3")
+        XCTAssertEqual(text.runs.compactMap(\.link), [URL(string: "https://example.com/s/c3")!])
     }
 
     func testCacheRoundTrip() throws {

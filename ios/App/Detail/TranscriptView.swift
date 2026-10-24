@@ -152,3 +152,31 @@ private struct Attachment: View {
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
     }
 }
+
+/// A text that is not a chat record, shown as written with its links live.
+struct PlainTextView: View {
+    let text: String
+
+    var body: some View {
+        ScrollView {
+            Text(Self.linked(text))
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+        }
+    }
+
+    static func linked(_ text: String) -> AttributedString {
+        var attributed = AttributedString(text)
+        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else { return attributed }
+        for match in detector.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
+            guard let url = match.url,
+                  let range = Range(match.range, in: text),
+                  let lower = AttributedString.Index(range.lowerBound, within: attributed),
+                  let upper = AttributedString.Index(range.upperBound, within: attributed)
+            else { continue }
+            attributed[lower..<upper].link = url
+        }
+        return attributed
+    }
+}
