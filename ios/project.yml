@@ -19,6 +19,7 @@ targets:
     sources:
       - App
       - Shared
+      - LiveActivity
       - Resources
       - path: Config/PrivacyInfo.xcprivacy
         buildPhase: resources
@@ -26,6 +27,7 @@ targets:
       - package: WeChatBridgeKit
         product: WeChatBridgeCore
       - target: WeChatBridgeiOSShare
+      - target: WeChatBridgeiOSWidget
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID)
@@ -58,6 +60,23 @@ targets:
         APPLICATION_EXTENSION_API_ONLY: YES
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
+  WeChatBridgeiOSWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - Widget
+      - LiveActivity
+      # Shared with the app for the target logos, the app glyph and the accent.
+      - path: Resources/Assets.xcassets
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID).widget
+        INFOPLIST_FILE: Config/Widget-Info.plist
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        APPLICATION_EXTENSION_API_ONLY: YES
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
   WeChatBridgeiOSTests:
     type: bundle.unit-test
     platform: iOS
@@ -83,6 +102,7 @@ schemes:
       targets:
         WeChatBridgeiOS: all
         WeChatBridgeiOSShare: all
+        WeChatBridgeiOSWidget: all
     test:
       targets:
         - WeChatBridgeiOSTests

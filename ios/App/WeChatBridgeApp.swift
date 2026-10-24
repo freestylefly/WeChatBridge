@@ -28,6 +28,23 @@ final class QuickDeliverRouter: ObservableObject {
     }
 
     @Published var pending: Request?
+
+    /// A tap on the Live Activity: show this batch. Each tap is a new value,
+    /// so tapping the same batch twice still navigates.
+    struct Open: Equatable {
+        let batchID: UUID
+        let token = UUID()
+    }
+
+    @Published var open: Open?
+
+    /// `wechatbridge://relay/<batch id>`, the Live Activity's link.
+    func handle(_ url: URL) {
+        guard url.scheme == "wechatbridge", url.host == "relay",
+              let id = UUID(uuidString: url.lastPathComponent)
+        else { return }
+        open = Open(batchID: id)
+    }
 }
 
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
@@ -75,6 +92,10 @@ struct RootView: View {
         .onChange(of: router.pending) { request in
             if request != nil { tab = 0; showsOnboarding = false }
         }
+        .onChange(of: router.open) { open in
+            if open != nil { tab = 0; showsOnboarding = false }
+        }
+        .onOpenURL { router.handle($0) }
         .fullScreenCover(isPresented: $showsOnboarding) {
             OnboardingView { preferences.onboardingDone = true; showsOnboarding = false }
         }

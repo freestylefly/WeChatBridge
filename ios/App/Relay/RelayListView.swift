@@ -26,6 +26,8 @@ struct RelayListView: View {
     @State private var selection = Set<UUID>()
     @State private var delivering: DeliverySelection?
     @ObservedObject private var router = QuickDeliverRouter.shared
+    @EnvironmentObject private var preferences: Preferences
+    @State private var path: [UUID] = []
 
     private var rows: [RelayEntry] {
         let entries = store.visibleEntries
@@ -37,7 +39,7 @@ struct RelayListView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             // Bound only while editing: a live selection swallows taps that
             // should push the detail view.
             List(selection: editMode.isEditing ? $selection : nil) {
@@ -61,6 +63,7 @@ struct RelayListView: View {
                         RelayCardView(entry: entry, collecting: store.collectionContaining(entry.id) != nil)
                     }
                     .relayCardRow()
+                    .contextMenu { deliverMenu(entry) }
                     .swipeActions(edge: .trailing) {
                         Button(role: .destructive) { store.delete([entry.id]) } label: { Label("删除", systemImage: "trash") }
                     }
@@ -132,7 +135,41 @@ struct RelayListView: View {
             }
             .onAppear(perform: takeQuickRequest)
             .onChange(of: router.pending) { _ in takeQuickRequest() }
+            .onChange(of: router.open) { open in
+                guard let open, store.entry(open.batchID) != nil else { return }
+                editMode = .inactive
+                // The finished delivery sheet would otherwise sit over the chat.
+                delivering = nil
+                path = [open.batchID]
+            }
         }
+    }
+
+    /// Long-press: straight to a recent target's share sheet, or the full panel.
+    @ViewBuilder
+    private func deliverMenu(_ entry: RelayEntry) -> some View {
+        Section("投递到") {
+            ForEach(preferences.targets.prefix(QuickDeliver.maxTargets)) { profile in
+                Button {
+                    delivering = DeliverySelection(batchIDs: [entry.id], quickTargetID: profile.id)
+                } label: {
+                    if let logo = profile.logo {
+                        Label(profile.displayName, image: logo)
+                    } else {
+                        Label(profile.displayName, systemImage: profile.symbol)
+                    }
+                }
+            }
+            Button {
+                delivering = DeliverySelection(batchIDs: [entry.id])
+            } label: {
+                Label("选择目标…", systemImage: "square.grid.2x2")
+            }
+        }
+        if store.collectionContaining(entry.id) == nil {
+            Button { store.addToCollection(entry.id) } label: { Label("加入收集", systemImage: "tray.and.arrow.down") }
+        }
+        Button(role: .destructive) { store.delete([entry.id]) } label: { Label("删除", systemImage: "trash") }
     }
 
     private func takeQuickRequest() {

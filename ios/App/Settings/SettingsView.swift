@@ -43,10 +43,14 @@ struct SettingsView: View {
                             guard on else { return }
                             Task { _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) }
                         }
+                    Toggle("投递时显示在灵动岛", isOn: $preferences.liveActivity)
+                        .onChange(of: preferences.liveActivity) { on in
+                            if !on { DeliveryActivityController.endAll() }
+                        }
                 } header: {
                     Text("快速投递")
                 } footer: {
-                    Text("从微信分享进来后弹一条通知：点一下直接打开分享面板，投递到上次的目标；长按通知可以换成别的目标。")
+                    Text("从微信分享进来后弹一条通知：点一下直接打开分享面板，投递到上次的目标；长按通知可以换成别的目标。\n投递到别的 App 后，灵动岛和锁屏上会留一个入口：点一下回到这段聊天，也能再复制一次提示词。")
                 }
                 Section("投递目标") {
                     NavigationLink("调整目标") { TargetSettingsView() }

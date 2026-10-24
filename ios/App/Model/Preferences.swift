@@ -19,6 +19,7 @@ final class Preferences: ObservableObject {
         static let targetOrder = "com.xiangming.wechatbridge.ios.targetOrder"
         static let lastTarget = "com.xiangming.wechatbridge.ios.lastTarget"
         static let onboardingDone = "com.xiangming.wechatbridge.ios.onboardingDone"
+        static let liveActivity = "com.xiangming.wechatbridge.ios.liveActivity"
     }
 
     static let defaultRetentionDays = 7
@@ -39,6 +40,8 @@ final class Preferences: ObservableObject {
     @Published var lastTarget: String? { didSet { defaults.set(lastTarget, forKey: Key.lastTarget); publishQuickTargets() } }
     /// 「分享后提醒我投递」; the extension reads the same key.
     @Published var quickDeliver: Bool { didSet { defaults.set(quickDeliver, forKey: QuickDeliver.enabledKey) } }
+    /// 「投递时显示在灵动岛」.
+    @Published var liveActivity: Bool { didSet { defaults.set(liveActivity, forKey: Key.liveActivity) } }
     @Published var onboardingDone: Bool { didSet { defaults.set(onboardingDone, forKey: Key.onboardingDone) } }
 
     init(defaults: UserDefaults = Preferences.sharedDefaults) {
@@ -58,6 +61,7 @@ final class Preferences: ObservableObject {
         lastTarget = defaults.string(forKey: Key.lastTarget)
         onboardingDone = defaults.bool(forKey: Key.onboardingDone)
         quickDeliver = QuickDeliver.isEnabled(defaults)
+        liveActivity = defaults.object(forKey: Key.liveActivity) as? Bool ?? true
         publishQuickTargets()
     }
 

@@ -18,6 +18,8 @@ enum QuickDeliver {
     static let targetKey = "targetID"
     /// An action's identifier is this plus a target id.
     static let actionPrefix = "deliver."
+    /// Notification buttons, and the card menu's quick entries.
+    static let maxTargets = 3
 
     struct Target: Equatable {
         let id: String
@@ -36,7 +38,7 @@ enum QuickDeliver {
     }
 
     static func store(_ targets: [Target], in defaults: UserDefaults) {
-        defaults.set(targets.prefix(3).map { [$0.id, $0.name] }, forKey: targetsKey)
+        defaults.set(targets.prefix(maxTargets).map { [$0.id, $0.name] }, forKey: targetsKey)
     }
 
     static func content(batchID: UUID, head: String, targets: [Target]) -> UNMutableNotificationContent {

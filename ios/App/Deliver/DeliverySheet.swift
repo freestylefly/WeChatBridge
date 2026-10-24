@@ -279,6 +279,16 @@ struct DeliverySheet: View {
             busy = true
             let message = target.sendHint(hasPrompt: !text.isEmpty)
             withAnimation { hint = message.isEmpty ? nil : message }
+            if nextGroup == 0, let batchID = selection.batchIDs.first {
+                DeliveryActivityController.start(
+                    batchID: batchID,
+                    title: chatName ?? entries.first?.batch.items.first?.displayName ?? "聊天记录",
+                    detail: activityDetail,
+                    target: target,
+                    prompt: text,
+                    enabled: preferences.liveActivity
+                )
+            }
             Task {
                 // Long enough to read the second line when there is one.
                 try? await Task.sleep(nanoseconds: message.contains("\n") ? 2_500_000_000 : 1_000_000_000)
@@ -296,12 +306,16 @@ struct DeliverySheet: View {
 
     private func shareFinished(_ result: ActivitySheet.Result, target: TargetProfile, package: DeliveryPackage) {
         guard result.completed else {
+            if nextGroup == 0 { DeliveryActivityController.cancel() }
             if nextGroup == 0, let id = selection.collectionID {
                 store.finishCollectionDelivery(id, succeeded: false, target: target.displayName, scene: sceneName)
             }
             return
         }
-        if nextGroup == 0 { recordDelivery(target: target, detail: "\(target.format.label) · \(result.activityType ?? "未知去向")") }
+        if nextGroup == 0 {
+            recordDelivery(target: target, detail: "\(target.format.label) · \(result.activityType ?? "未知去向")")
+            DeliveryActivityController.markSent()
+        }
         nextGroup += 1
         if nextGroup >= package.shares.count {
             let hasPrompt = !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -338,6 +352,16 @@ struct DeliverySheet: View {
     }
 
     private var sceneName: String? { preferences.scenes.scene(id: sceneID)?.name }
+
+    /// 「4 条消息 · 1 个附件」 for the Live Activity; empty for plain text.
+    private var activityDetail: String {
+        var parts: [String] = []
+        let messages = summaries.compactMap(\.messageCount).reduce(0, +)
+        if messages > 0 { parts.append("\(messages) 条消息") }
+        let media = summaries.map(\.mediaCount).reduce(0, +)
+        if media > 0 { parts.append("\(media) 个附件") }
+        return parts.joined(separator: " · ")
+    }
 
     private func recordDelivery(target: TargetProfile, detail: String) {
         let scene = preferences.scenes.scene(id: sceneID)
