@@ -1,4 +1,3 @@
-import UIKit
 import WeChatBridgeCore
 import XCTest
 @testable import WeChatBridgeiOS
@@ -49,26 +48,12 @@ final class DeliveryPlannerTests: XCTestCase {
         XCTAssertFalse(try String(contentsOf: urls[0], encoding: .utf8).contains("提示"))
     }
 
-    func testQwenGetsOnePDFWithTheImageInside() throws {
+    func testShareCarriesOnlyTheTranscript() throws {
         let planned = try plan([try fixtures.batch("group-a.zip")], target(.transcriptAndImages))
-        let group = try XCTUnwrap(planned.shares.first)
-        // The fixture's PNG is a stub that does not decode; draw a real one.
-        let image = UIGraphicsImageRenderer(size: CGSize(width: 300, height: 200)).pngData { context in
-            UIColor.systemGreen.setFill()
-            context.fill(CGRect(x: 0, y: 0, width: 300, height: 200))
-        }
-        try image.write(to: group[1])
-        let package = try planned.foldedIntoPDF()
-        XCTAssertEqual(package.shares.map { $0.map(\.lastPathComponent) }, [["聊天记录.pdf"]])
-        XCTAssertEqual(package.omitted, planned.omitted)
-        let document = try XCTUnwrap(CGPDFDocument(package.shares[0][0] as CFURL))
-        XCTAssertGreaterThanOrEqual(document.numberOfPages, 1)
-        XCTAssertTrue(try XCTUnwrap(TargetProfile.builtIn.first { $0.id == "qwen" }).wantsPDF)
-    }
-
-    func testTextOnlyShareIsNotFoldedIntoPDF() throws {
-        let planned = try plan([try fixtures.batch("text-note.zip")], target(.transcriptAndImages))
-        XCTAssertEqual(try planned.foldedIntoPDF().shares, planned.shares)
+        let package = planned.transcriptOnly()
+        XCTAssertEqual(package.shares.map { $0.map(\.lastPathComponent) }, [["聊天记录.txt"]])
+        XCTAssertEqual(Set(package.omitted), ["微信图片_20261020_1.png", "录屏_1.mp4", "需求文档.pdf"])
+        XCTAssertTrue(try XCTUnwrap(TargetProfile.builtIn.first { $0.id == "qwen" }).dropsSharedText)
     }
 
     func testMergeRenamesConflictingImageAndRewritesReference() throws {

@@ -135,7 +135,7 @@ struct RelayListView: View {
             .alert("已放到「文件」", isPresented: Binding(get: { exported != nil }, set: { if !$0 { exported = nil } })) {
                 Button("好") { exported = nil }
             } message: {
-                Text("在千问等 App 里点「添加文件」→ 我的iPhone → 微信流 →「\(exported ?? "")」，图片已放进「聊天记录.pdf」，点「全选」一次发出。")
+                Text("在千问等 App 里点「添加文件」→ 我的iPhone → 微信流 →「\(exported ?? "")」，勾选要发的图片或附件。")
             }
             .sheet(item: $delivering) { selection in
                 DeliverySheet(selection: selection)
@@ -189,7 +189,8 @@ struct RelayListView: View {
         Task {
             let result = await Task.detached(priority: .userInitiated) { Result { try FilesExport.export(batch, name: name) } }.value
             switch result {
-            case .success: exported = name
+            case .success(.some): exported = name
+            case .success(.none): store.lastError = "这条聊天只有文字，没有图片或附件要放。"
             case .failure(let error): store.lastError = error.localizedDescription
             }
         }

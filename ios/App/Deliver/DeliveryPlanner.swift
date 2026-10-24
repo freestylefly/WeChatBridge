@@ -19,6 +19,15 @@ struct DeliveryPackage {
     let omitted: [String]
 
     var fileCount: Int { shares.reduce(0) { $0 + $1.count } }
+
+    /// Just the transcript: 豆包 and 千问 read it whole, and the images and
+    /// attachments it names go to 「我的iPhone › 微信流」 instead (seen on
+    /// device: 千问 keeps only the images when a share mixes them with a TXT).
+    func transcriptOnly() -> DeliveryPackage {
+        guard let transcript = shares.first?.first else { return self }
+        let rest = shares.flatMap { $0 }.dropFirst().map(\.lastPathComponent)
+        return DeliveryPackage(workDirectory: workDirectory, shares: [[transcript]], prompt: prompt, omitted: rest + omitted)
+    }
 }
 
 /// Turns batches into the files one share sheet hands over. Pure file work, no

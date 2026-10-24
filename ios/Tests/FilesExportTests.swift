@@ -1,4 +1,3 @@
-import CoreGraphics
 import WeChatBridgeCore
 import XCTest
 @testable import WeChatBridgeiOS
@@ -18,22 +17,20 @@ final class FilesExportTests: XCTestCase {
         fixtures = nil
     }
 
-    func testImagesFoldIntoTranscriptPDFBesideTheOtherFiles() throws {
-        let batch = try fixtures.batch("group-a.zip")
-        let folder = try FilesExport.export(batch, name: "甲等3人的聊天", into: root)
+    func testExportsImagesAndAttachmentsButNotTheTranscript() throws {
+        let folder = try XCTUnwrap(FilesExport.export(try fixtures.batch("group-a.zip"), name: "甲等3人的聊天", into: root))
         let names = try FileManager.default.contentsOfDirectory(atPath: folder.path).sorted()
-        XCTAssertEqual(names, ["录屏_1.mp4", "聊天记录.pdf", "需求文档.pdf"].sorted())
-        XCTAssertNotNil(CGPDFDocument(folder.appendingPathComponent("聊天记录.pdf") as CFURL))
+        XCTAssertEqual(names, ["录屏_1.mp4", "微信图片_20261020_1.png", "需求文档.pdf"].sorted())
     }
 
-    func testTextWithoutImagesStaysText() throws {
-        let folder = try FilesExport.export(try fixtures.batch("text-note.zip"), name: "资料", into: root)
-        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: folder.path), ["资料合集.txt"])
+    func testTextOnlyChatMakesNoFolder() throws {
+        XCTAssertNil(try FilesExport.export(try fixtures.batch("text-note.zip"), name: "资料", into: root))
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.path), [])
     }
 
     func testExportingAgainReplacesTheFolder() throws {
         let batch = try fixtures.batch("group-a.zip")
-        let folder = try FilesExport.export(batch, name: "聊天", into: root)
+        let folder = try XCTUnwrap(FilesExport.export(batch, name: "聊天", into: root))
         try Data("旧".utf8).write(to: folder.appendingPathComponent("stale.txt"))
         _ = try FilesExport.export(batch, name: "聊天", into: root)
         XCTAssertFalse(FileManager.default.fileExists(atPath: folder.appendingPathComponent("stale.txt").path))

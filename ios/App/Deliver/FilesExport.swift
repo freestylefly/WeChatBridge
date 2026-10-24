@@ -11,8 +11,9 @@ enum FilesExport {
     /// that never exported, the user would find no folder to open.
     static func placeGuide(in root: URL = root) {
         let guide = root.appendingPathComponent("使用说明.txt")
-        guard !FileManager.default.fileExists(atPath: guide.path) else { return }
-        let text = "在中转站长按一条聊天，选「放到「文件」」，这里会多出一个以聊天命名的文件夹，里面是聊天记录和全部原文件。\n在千问等 App 里点「添加文件」→ 我的iPhone → 微信流，进文件夹勾选要发的文件。\n"
+        let text = "投递到豆包、千问时，聊天记录 TXT 直接发过去，里面提到的图片和附件会放进这里以聊天命名的文件夹。\n需要时在对方 App 里点「添加文件」→ 我的iPhone → 微信流，进文件夹勾选。也可以在中转站长按一条聊天，选「放到「文件」」。\n"
+        // Rewritten when the wording changes, so an older guide never lingers.
+        guard (try? Data(contentsOf: guide)) != Data(text.utf8) else { return }
         try? Data(text.utf8).write(to: guide)
     }
 
@@ -26,18 +27,19 @@ enum FilesExport {
         return "\(clean) \(formatter.string(from: date))"
     }
 
-    /// One flat folder per chat: the transcript (a PDF with the images inline
-    /// when there are any) and every other file the ZIP held, under their own
-    /// names. Exporting the same chat again replaces it.
-    static func export(_ batch: ReadyBatch, name: String, into root: URL = root, fileManager: FileManager = .default) throws -> URL {
+    /// One flat folder per chat with the images and attachments its TXT
+    /// names, under their own names; the TXT itself goes out by share. nil
+    /// when the chat has nothing beside its text. Exporting again replaces it.
+    @discardableResult
+    static func export(_ batch: ReadyBatch, name: String, into root: URL = root, fileManager: FileManager = .default) throws -> URL? {
         let folder = root.appendingPathComponent(name, isDirectory: true)
         try? fileManager.removeItem(at: folder)
-        try fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
         let staging = fileManager.temporaryDirectory.appendingPathComponent("export-\(UUID().uuidString)", isDirectory: true)
         defer { try? fileManager.removeItem(at: staging) }
 
         var used: Set<String> = []
         func place(_ file: URL, as leaf: String) throws {
+            try fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
             try fileManager.copyItem(at: file, to: folder.appendingPathComponent(DeliveryPlanner.uniqueName(leaf, used: &used)))
         }
         for item in batch.items {
@@ -50,29 +52,15 @@ enum FilesExport {
             }
             let unpacked = staging.appendingPathComponent(item.id.uuidString, isDirectory: true)
             try fileManager.createDirectory(at: unpacked, withIntermediateDirectories: true)
-            var images: [URL] = []
             for path in try WeChatNativeArchive.extract(data, to: unpacked) where path != transcript.path {
                 let leaf = (path as NSString).lastPathComponent
                 var isDirectory: ObjCBool = false
                 let file = unpacked.appendingPathComponent(path)
                 guard !leaf.hasPrefix("."), !path.contains("__MACOSX"),
                       fileManager.fileExists(atPath: file.path, isDirectory: &isDirectory), !isDirectory.boolValue else { continue }
-                if DeliveryPlanner.isImage(leaf) {
-                    images.append(file)
-                } else {
-                    try place(file, as: leaf)
-                }
-            }
-            // 千问's file picker greys out images, so they ride inside the
-            // transcript PDF; select-all then sends the whole chat at once.
-            let text = unpacked.appendingPathComponent(transcript.path)
-            if images.isEmpty {
-                try place(text, as: (transcript.path as NSString).lastPathComponent)
-            } else {
-                let pdf = try TranscriptPDF.make(transcript: text, images: images)
-                try place(pdf, as: pdf.lastPathComponent)
+                try place(file, as: leaf)
             }
         }
-        return folder
+        return fileManager.fileExists(atPath: folder.path) ? folder : nil
     }
 }

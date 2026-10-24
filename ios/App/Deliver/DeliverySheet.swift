@@ -162,16 +162,13 @@ struct DeliverySheet: View {
                     }
                     if !package.omitted.isEmpty {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("不发送：\(package.omitted.joined(separator: "、"))")
+                            Text("发送时放到「我的iPhone › 微信流」：\(package.omitted.joined(separator: "、"))")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(3)
-                            HStack(spacing: 16) {
-                                Button("改发原始 ZIP") { forceArchive = true }
-                                Button("把原文件放到「文件」", action: exportToFiles)
-                            }
-                            .font(.footnote)
-                            .buttonStyle(.borderless)
+                            Button("改发原始 ZIP") { forceArchive = true }
+                                .font(.footnote)
+                                .buttonStyle(.borderless)
                         }
                     }
                 }
@@ -245,7 +242,7 @@ struct DeliverySheet: View {
         Task {
             let result = await Task.detached(priority: .userInitiated) { Result {
                 let package = try DeliveryPlanner.plan(request)
-                return request.target.format == .transcriptAndImages && request.target.wantsPDF ? try package.foldedIntoPDF() : package
+                return request.target.format == .transcriptAndImages ? package.transcriptOnly() : package
             } }.value
             // A newer choice may have replaced this one while it ran.
             guard effectiveTarget == target else {
@@ -272,8 +269,8 @@ struct DeliverySheet: View {
         send()
     }
 
-    /// Every picked chat into 「我的iPhone › 微信流」, for apps that take files
-    /// through their own picker rather than a share.
+    /// The images and attachments the TXT names, into 「我的iPhone › 微信流」,
+    /// where the user can add them from the target app's own file picker.
     private func exportToFiles() {
         let jobs = entries.map { entry in
             (entry.batch, FilesExport.folderName(
@@ -283,13 +280,11 @@ struct DeliverySheet: View {
         }
         Task {
             let result = await Task.detached(priority: .userInitiated) {
-                Result { try jobs.map { try FilesExport.export($0.0, name: $0.1) } }
+                Result { try jobs.compactMap { try FilesExport.export($0.0, name: $0.1) } }
             }.value
-            switch result {
-            case .success(let folders):
-                toast = "已放到「我的iPhone › 微信流 › \(folders.map(\.lastPathComponent).joined(separator: "、"))」"
-            case .failure(let error):
-                toast = "没能放到「文件」：\(error.localizedDescription)"
+            // Success needs no word: the preview already said where they go.
+            if case .failure(let error) = result {
+                toast = "图片和附件没能放到「文件」：\(error.localizedDescription)"
             }
         }
     }
@@ -306,6 +301,7 @@ struct DeliverySheet: View {
                 toast = "提示词已复制，可在对方输入框粘贴"
             }
             let group = package.shares[nextGroup]
+            if nextGroup == 0, target.format == .transcriptAndImages, !package.omitted.isEmpty { exportToFiles() }
             busy = true
             let message = target.sendHint(hasPrompt: !text.isEmpty)
             withAnimation { hint = message.isEmpty ? nil : message }
@@ -323,7 +319,7 @@ struct DeliverySheet: View {
                 // Long enough to read the second line when there is one.
                 try? await Task.sleep(nanoseconds: message.contains("\n") ? 2_500_000_000 : 1_000_000_000)
                 withAnimation { hint = nil }
-                let items: [Any] = (nextGroup == 0 && !text.isEmpty ? [text] : []) + group
+                let items: [Any] = (nextGroup == 0 && !text.isEmpty && !target.dropsSharedText ? [text] : []) + group
                 ActivitySheet.present(items: items) { result in
                     busy = false
                     shareFinished(result, target: target, package: package)

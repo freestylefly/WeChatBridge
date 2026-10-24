@@ -13,7 +13,7 @@ enum DeliveryFormat: String, Codable, CaseIterable {
     var label: String {
         switch self {
         case .archive: "发送 ZIP"
-        case .transcriptAndImages: "发送 TXT 和图片"
+        case .transcriptAndImages: "发送 TXT，图片和附件放到「文件」"
         case .knowledgeNote: "写入 Obsidian"
         case .folder: "写入文件夹"
         }
@@ -51,14 +51,10 @@ struct TargetProfile: Identifiable, Hashable, Codable {
 
     static let pasteHint = "提示词已复制，在输入框长按粘贴"
 
-    /// Seen on device to drop the text in a share (R2, 2026-10-24): the prompt
+    /// Seen on device (R2, 2026-10-24): 豆包 drops the text in a share and
+    /// 千问 answers a text-plus-file share with 「格式不支持」, so the prompt
     /// reaches these apps only through the clipboard.
-    var dropsSharedText: Bool { id == "doubao" }
-
-    /// Seen on device (2026-10-24): 千问 keeps only the images when a share
-    /// mixes them with the TXT, and 「文字+图」 ends in 「格式不支持」; one PDF
-    /// with the images inline arrives whole.
-    var wantsPDF: Bool { id == "qwen" }
+    var dropsSharedText: Bool { id == "doubao" || id == "qwen" }
 
     /// What to show before the share sheet; the paste line only when there is
     /// a prompt the target will not receive.
