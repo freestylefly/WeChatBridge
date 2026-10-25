@@ -7,7 +7,7 @@ import PackageDescription
 // `Scripts/make-app.sh` assembles and signs the bundle around them.
 let package = Package(
     name: "WeChatBridge",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS(.v14), .iOS(.v17)],
     products: [
         .executable(name: "WeChatBridge", targets: ["WeChatBridgeApp"]),
         .executable(name: "WeChatBridgeShare", targets: ["WeChatBridgeShare"]),

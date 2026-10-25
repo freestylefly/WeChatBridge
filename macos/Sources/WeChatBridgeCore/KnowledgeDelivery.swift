@@ -1,4 +1,3 @@
-import WeChatBridgeCore
 import Foundation
 
 /// Writes a WeChat archive into a folder as Markdown plus a durable copy of
@@ -9,12 +8,12 @@ import Foundation
 /// a subfolder of the user's vault, and 「沉淀到文件夹」 lands it in a subfolder
 /// of the folder the user picked — the same shape either way. The note shape —
 /// `聊天名.md` plus `附件/` — is the same too.
-enum KnowledgeDelivery {
-    enum Failure: LocalizedError {
+public enum KnowledgeDelivery {
+    public enum Failure: LocalizedError {
         case notConfigured
         case unreadableArchive
 
-        var errorDescription: String? {
+        public var errorDescription: String? {
             switch self {
             case .notConfigured: return L10n.text("还没有选择 Obsidian 知识库文件夹。")
             case .unreadableArchive: return L10n.text("微信导出的文件无法读取，原始文件已保留。")
@@ -25,7 +24,7 @@ enum KnowledgeDelivery {
     /// The Obsidian entry: the vault is what the user configured, and the note
     /// goes into a `微信流` (or named) subfolder of it.
     @discardableResult
-    static func deliver(
+    public static func deliver(
         urls: [URL],
         vaultPath: String,
         subfolder: String,
@@ -49,7 +48,7 @@ enum KnowledgeDelivery {
     /// goes into a `微信流` (or named) subfolder of it — the same landing
     /// shape the Obsidian entry writes inside its vault.
     @discardableResult
-    static func deliver(
+    public static func deliver(
         urls: [URL],
         folderPath: String,
         subfolder: String,

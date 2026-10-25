@@ -1,16 +1,21 @@
-import WeChatBridgeCore
 import Foundation
 import UniformTypeIdentifiers
 
-struct AttachmentSource {
-    let provider: NSItemProvider
-    let itemIndex: Int
-    let attachmentIndex: Int
+public struct AttachmentSource {
+    public let provider: NSItemProvider
+    public let itemIndex: Int
+    public let attachmentIndex: Int
+
+    public init(provider: NSItemProvider, itemIndex: Int, attachmentIndex: Int) {
+        self.provider = provider
+        self.itemIndex = itemIndex
+        self.attachmentIndex = attachmentIndex
+    }
 }
 
-struct ImportedAttachment {
-    let manifestItem: ManifestItem
-    let diagnostic: AttachmentDiagnostic
+public struct ImportedAttachment: Sendable {
+    public let manifestItem: ManifestItem
+    public let diagnostic: AttachmentDiagnostic
 }
 
 /// Copies one shared attachment into a staging batch.
@@ -19,7 +24,7 @@ struct ImportedAttachment {
 /// to `loadFileRepresentation` is deleted the moment that completion handler
 /// returns. The copy therefore happens *inside* the callback, and the only
 /// things crossing the queue boundary are value types.
-enum AttachmentImporter {
+public enum AttachmentImporter {
     private struct CopiedFile: Sendable {
         let displayName: String
         let byteCount: Int64
@@ -35,7 +40,7 @@ enum AttachmentImporter {
         }
     }
 
-    static func importAttachment(
+    public static func importAttachment(
         _ source: AttachmentSource,
         into staging: BatchStaging,
         itemID: UUID = UUID()
@@ -259,11 +264,11 @@ enum AttachmentImporter {
 
 /// Carries the redacted diagnostic alongside the failure so a rejected batch
 /// still explains itself in the P0 report.
-struct ImportRejection: Error, LocalizedError {
-    let error: Error
-    let diagnostic: AttachmentDiagnostic
+public struct ImportRejection: Error, LocalizedError {
+    public let error: Error
+    public let diagnostic: AttachmentDiagnostic
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
     }
 }

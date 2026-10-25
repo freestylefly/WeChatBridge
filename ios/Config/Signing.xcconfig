@@ -1,0 +1,9 @@
+// Simulator builds need no account. A device build with the App Group needs a
+// paid team; put DEVELOPMENT_TEAM overrides in Signing.local.xcconfig (ignored).
+DEVELOPMENT_TEAM = DLKMC3ZRZQ
+CODE_SIGN_STYLE = Automatic
+// A free Apple ID (Personal Team) cannot use com.xiangming IDs, which belong
+// to the paid team; override these two together with DEVELOPMENT_TEAM.
+APP_BUNDLE_ID = com.xiangming.wechatbridge.ios
+APP_GROUP_ID = group.com.xiangming.wechatbridge
+#include? "Signing.local.xcconfig"
