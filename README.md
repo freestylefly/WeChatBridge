@@ -1,46 +1,123 @@
 <div align="center">
-  <img src="shared/Screenshots/app-icon-rounded.png" width="144" alt="WeChatBridge 图标" />
+  <img src="shared/Screenshots/app-icon-rounded.png" width="128" alt="WeChatBridge 图标" />
   <h1>WeChatBridge（微信流）</h1>
-  <p><strong>从微信转发菜单，把聊天记录送进 AI Agent 与本地知识库。</strong></p>
-  <p>原生、轻量、完全本地的 macOS 微信聊天记录转发与归档工具。</p>
+  <p><strong>群里几百条消息没空翻？多选、转发，一步交给 AI 总结，或存进你的知识库。</strong></p>
+  <p>在微信「转发到其他应用」里直接选 Codex、Claude、豆包、千问、Obsidian……不读数据库、不注入微信，全程本地。</p>
 
   <p>
-    <a href="https://github.com/freestylefly/WeChatBridge/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/freestylefly/WeChatBridge/ci.yml?branch=main&style=flat-square&label=build" alt="构建状态" /></a>
-    <a href="#下载安装"><img src="https://img.shields.io/badge/download-蓝奏云-blue?style=flat-square" alt="下载最新版本" /></a>
-    <img src="https://img.shields.io/badge/macOS-14%2B-black?style=flat-square&logo=apple" alt="macOS 14+" />
-    <img src="https://img.shields.io/badge/Swift-6.0-F05138?style=flat-square&logo=swift&logoColor=white" alt="Swift 6.0" />
+    <a href="#下载安装"><img src="https://img.shields.io/badge/免费下载-macOS%20%7C%20Windows-07C160?style=flat-square" alt="免费下载" /></a>
+    <a href="#加入交流群"><img src="https://img.shields.io/badge/交流群-微信扫码-07C160?style=flat-square&logo=wechat&logoColor=white" alt="加入交流群" /></a>
+    <a href="https://github.com/freestylefly/WeChatBridge/stargazers"><img src="https://img.shields.io/github/stars/freestylefly/WeChatBridge?style=flat-square" alt="GitHub Stars" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT License" /></a>
   </p>
 
-  <p>简体中文 · <a href="README_EN.md">English</a></p>
-  <p><a href="https://render.qmuse.pub/p/muse/2413870555736078">官网 · render.qmuse.pub</a></p>
+  <p>
+    <a href="#下载安装"><strong>下载</strong></a> ·
+    <a href="#加入交流群"><strong>交流群</strong></a> ·
+    <a href="USAGE.zh-CN.md">使用指南</a> ·
+    <a href="https://render.qmuse.pub/p/muse/2413870555736078">官网</a> ·
+    <a href="README_EN.md">English</a>
+  </p>
+
+  <img src="shared/Screenshots/demo-wechat-to-agent.gif" width="800" alt="演示：在微信多选群聊消息，转发到微信流，选择场景后交给 Codex 总结" />
+  <br />
+  <sub>多选群聊 → 转发到其他应用 → 选「发给 Codex」和场景 → Agent 收到聊天记录并开始总结</sub>
 </div>
 
-> [!NOTE]
-> 安装包统一通过蓝奏云发布：[Windows 版](https://wwbsr.lanzout.com/b0umjur4d)与 [macOS 版](https://wwbsr.lanzout.com/b0umjur8h)的提取密码均为 `向明`，详见[下载安装](#下载安装)。
+## 它能帮你做什么
+
+<table>
+  <tr>
+    <th align="center" width="33%">群聊一键交给 AI</th>
+    <th align="center" width="33%">沉淀进知识库</th>
+    <th align="center" width="33%">一个群一个场景</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="shared/Screenshots/usage-skill-result-top.png" alt="Agent 根据群聊生成的总结" /></td>
+    <td align="center"><img src="shared/Screenshots/usage-obsidian-attachments.png" alt="Obsidian 中的聊天记录与附件" /></td>
+    <td align="center"><img src="shared/Screenshots/usage-scene-picker.png" alt="转发时选择场景" /></td>
+  </tr>
+  <tr>
+    <td><sub>转发到 Codex、Claude、豆包、千问办公、WorkBuddy 等，自动带上提示词并粘贴好聊天记录，回车就出总结、待办和纪要。</sub></td>
+    <td><sub>一键存成 Obsidian 笔记或任意文件夹里的 Markdown，图片和附件原样保留，按聊天名归档。</sub></td>
+    <td><sub>给不同的群存好各自的提示词，比如「群聊总结」「日常摘要」，转发时选一个就行；还能给 Agent 装技能包，读懂群里的链接和视频。</sub></td>
+  </tr>
+</table>
+
+超过 100 条也不怕：微信一次最多转发 100 条，用「分批收集到微信流」分几批选，收齐后一次发出去。
+
+<div align="center">
+  <img src="shared/Screenshots/usage-supported-agents.png" width="520" alt="支持的 Agent：Codex、Claude、豆包、千问办公、WorkBuddy、WeSight、DeepSeek Harness 等" />
+  <br />
+  <sub>内置十二个入口，还能添加任意应用作为自定义目标</sub>
+</div>
+
+## 三步上手
+
+1. **安装**：从下面的蓝奏云链接下载，macOS 把「微信流」拖进「应用程序」。
+2. **打开入口**：在「微信流 → 设置 → 入口」里勾选要用的目标，例如「发给 Codex」「沉淀到 Obsidian」。
+3. **转发**：在微信里多选聊天记录 →「合并转发」→「转发到其他应用」→ 选择微信流的入口。
+
+需要 macOS 微信 4.1.13 或更高版本。完整步骤、权限说明和常见问题见 [使用指南](USAGE.zh-CN.md)。
+
+## 下载安装
+
+免费下载，全部安装包通过蓝奏云发布，提取密码都是 **`向明`**：
+
+| 平台 | 下载地址 | 提取密码 |
+| --- | --- | --- |
+| macOS 14+（Apple Silicon 与 Intel） | [wwbsr.lanzout.com/b0umjur8h](https://wwbsr.lanzout.com/b0umjur8h) | `向明` |
+| Windows | [wwbsr.lanzout.com/b0umjur4d](https://wwbsr.lanzout.com/b0umjur4d) | `向明` |
+
+macOS 版打开 DMG，把「微信流」拖入「应用程序」即可；Windows 版解压后按目录内说明运行。iOS 版正在开发中，进群可以第一时间知道进展。
+
+## 加入交流群
+
+<table>
+  <tr>
+    <td width="300" align="center">
+      <img src="shared/Screenshots/wechat-community-group.png" width="260" alt="WeChatBridge 微信交流群二维码" />
+      <br />
+      <sub>微信扫码加入</sub>
+    </td>
+    <td>
+      <strong>进群你可以：</strong>
+      <ul>
+        <li>第一时间拿到新版本和新平台（iOS 等）的消息</li>
+        <li>遇到装不上、找不到入口、粘贴失败，直接问开发者</li>
+        <li>拿到群友在用的场景提示词和技能包，抄作业比自己写快</li>
+        <li>提需求：你想把聊天记录送到哪个应用，告诉我们</li>
+      </ul>
+      二维码过期的话，扫下方「关于我们」里苍何的微信，备注「微信流」。
+    </td>
+  </tr>
+</table>
 
 ## 为什么做微信流
 
-macOS 微信 4.1.13 起，多选聊天记录后可以“合并转发”给第三方应用。微信会生成一份包含 TXT、图片和视频的 ZIP，天然适合交给 AI Agent 处理，也适合沉淀进本地知识库。
+macOS 微信 4.1.13 起，多选聊天记录后可以「合并转发」给第三方应用：微信会生成一份包含 TXT、图片和视频的 ZIP，正好适合交给 AI Agent 处理，或沉淀进本地知识库。
 
-系统的“转发到其他应用”列表只展示带有 Share Extension 的 App。微信流补齐这层入口，让一次转发直接抵达 Codex、Claude、豆包、千问办公、WorkBuddy、WeSight、DeepSeek Harness、Obsidian、剪贴板或你指定的其他应用。
+但系统的「转发到其他应用」列表只显示带有 Share Extension 的应用，大多数 AI 工具并不在里面。微信流补上了这层入口，让一次转发直接到达你常用的 Agent、Obsidian、剪贴板或你指定的任何应用。
 
 ```mermaid
 flowchart LR
     A[微信多选聊天记录] --> B[合并转发]
-    B --> C[WeChatBridge Share Extension]
+    B --> C[微信流]
     C --> D[AI Agent]
-    C --> E[Obsidian]
+    C --> E[Obsidian / 文件夹]
     C --> F[剪贴板]
     C --> G[自定义应用]
 ```
 
-## 核心能力
+## 全部功能
+
+<details>
+<summary><strong>核心能力</strong></summary>
 
 | 能力 | 使用体验 |
 | --- | --- |
 | 十二个原生入口 | 在微信转发菜单直接选择目标，无需打开微信流主窗口 |
-| AI Agent 转发 | 激活目标 App，附加场景指令并自动粘贴聊天归档 |
+| AI Agent 转发 | 激活目标应用，附加场景指令并自动粘贴聊天归档 |
 | Obsidian 沉淀 | 生成 Markdown 笔记，保存原始 ZIP，并按聊天名组织内容 |
 | 自定义目标 | 添加任意 macOS 应用，终端类应用可只接收文件路径 |
 | 场景与技能 | 为不同群聊保留场景提示词，并管理兼容 Agent 的 `SKILL.md` |
@@ -48,7 +125,10 @@ flowchart LR
 | 失败兜底 | 目标未安装或权限不足时，文件仍会保留在剪贴板 |
 | 双语界面 | 完整支持简体中文与 English |
 
-### 内置转发入口
+</details>
+
+<details>
+<summary><strong>十二个内置入口</strong></summary>
 
 | 入口 | 行为 |
 | --- | --- |
@@ -65,48 +145,37 @@ flowchart LR
 | 复制到剪贴板 | 保留文件，交给用户手动粘贴 |
 | 发送到自定义 | 转发到用户维护的应用列表 |
 
-需要整理超过 100 条时，每批在微信手动选取并分享到「分批收集到微信流」。浮条显示已收批次和上一批首尾参考；收齐后点击「完成并发送」。原始图片、视频保留在 ZIP 中，未完成的收集可在记录页继续，失败可重试。微信的单次多选上限保持不变。
+分批收集时，每批在微信手动选取并分享到「分批收集到微信流」。浮条显示已收批次和上一批首尾参考；收齐后点击「完成并发送」。原始图片、视频保留在 ZIP 中，未完成的收集可在记录页继续，失败可重试。
 
-## 实际效果
+</details>
 
-在微信「转发到其他应用」里直接选择目标，不需要先打开微信流主窗口：
-
-<div align="center">
-  <img src="shared/Screenshots/usage-wechat-share-menu.png" width="380" alt="微信转发菜单中的微信流入口" />
-</div>
+<details>
+<summary><strong>更多截图</strong></summary>
 
 <table>
   <tr>
+    <th align="center">微信转发菜单</th>
     <th align="center">入口开关</th>
-    <th align="center">场景化</th>
   </tr>
   <tr>
+    <td align="center"><img src="shared/Screenshots/usage-wechat-share-menu.png" width="380" alt="微信转发菜单中的微信流入口" /></td>
     <td align="center"><img src="shared/Screenshots/usage-entries.png" width="420" alt="入口设置页" /></td>
-    <td align="center"><img src="shared/Screenshots/usage-scenes.png" width="420" alt="场景管理页" /></td>
   </tr>
   <tr>
-    <td align="center"><sub>十二个入口随时开关，未安装的应用直接标注</sub></td>
-    <td align="center"><sub>场景保存提示词与适用 Agent，转发时挑一个</sub></td>
-  </tr>
-  <tr>
+    <th align="center">场景管理</th>
     <th align="center">技能中心</th>
-    <th align="center">沉淀到 Obsidian</th>
   </tr>
   <tr>
+    <td align="center"><img src="shared/Screenshots/usage-scenes.png" width="420" alt="场景管理页" /></td>
     <td align="center"><img src="shared/Screenshots/usage-skills.png" width="420" alt="技能中心" /></td>
-    <td align="center"><img src="shared/Screenshots/usage-obsidian-attachments.png" width="420" alt="Obsidian 中的聊天记录与附件" /></td>
-  </tr>
-  <tr>
-    <td align="center"><sub>给 Agent 装上能力包，群里的链接和视频都能读</sub></td>
-    <td align="center"><sub>笔记保留原始归档，附件按微信样式渲染</sub></td>
   </tr>
 </table>
 
-完整操作步骤、权限说明和常见问题见 [使用指南](USAGE.zh-CN.md)。
+</details>
 
 ## 隐私设计
 
-微信流的处理边界保持清晰：
+聊天记录只在你的电脑上流转：
 
 - 聊天内容只来自微信主动导出的文件。
 - 不读取微信数据库，不解密、不注入、不修改微信进程。
@@ -114,29 +183,31 @@ flowchart LR
 - Share Extension 在 macOS 沙盒中运行且没有网络权限。
 - 屏幕录制权限只用于识别微信标题栏中的聊天名，图像仅在内存中处理。
 - 辅助功能权限只用于激活目标应用和执行粘贴。
-- 更新包统一从蓝奏云获取，当前源码配置尚未启用自动检查。
 
 更完整的能力边界见 [产品能力文档](PRODUCT_CAPABILITIES.zh-CN.md)。
 
-## 系统要求
+## 关于我们
 
-- macOS 14 Sonoma 或更高版本
-- Xcode 16 或兼容 Swift 6 的 Command Line Tools
-- 使用自动粘贴时，需要在系统设置中授予辅助功能权限
-- 使用聊天名识别时，需要授予屏幕录制权限
+关注项目动态、交流使用心得，可以关注我们的公众号或加微信：
 
-## 下载安装
+<table>
+  <tr>
+    <th align="center">向明</th>
+    <th align="center">苍何</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="shared/Screenshots/wechat-xiangming.jpg" width="360" alt="公众号「向明」二维码" /></td>
+    <td align="center"><img src="shared/Screenshots/wechat-canghe.jpg" width="360" alt="苍何微信二维码" /></td>
+  </tr>
+</table>
 
-全部安装包统一在蓝奏云发布，请按下表选择对应平台，提取密码均为 `向明`：
+---
 
-| 平台 | 下载地址 | 提取密码 |
-| --- | --- | --- |
-| Windows | [wwbsr.lanzout.com/b0umjur4d](https://wwbsr.lanzout.com/b0umjur4d) | `向明` |
-| macOS | [wwbsr.lanzout.com/b0umjur8h](https://wwbsr.lanzout.com/b0umjur8h) | `向明` |
+## 开发者
 
-macOS 版下载后打开 DMG，将“微信流”拖入“应用程序”，安装包同时支持 Apple Silicon 和 Intel Mac；Windows 版解压后按目录内说明运行。
+### 从源码构建
 
-## 从源码构建
+需要 macOS 14+，以及 Xcode 16 或兼容 Swift 6 的 Command Line Tools。
 
 ```bash
 git clone https://github.com/freestylefly/WeChatBridge.git
@@ -145,50 +216,18 @@ swift test
 CONFIG=release Scripts/make-app.sh
 ```
 
-构建产物位于 `macos/dist/微信流.app`。安装到当前用户的“应用程序”目录并注册分享扩展：
+构建产物位于 `macos/dist/微信流.app`。安装到当前用户的「应用程序」目录并注册分享扩展：
 
 ```bash
 Scripts/install-dev-build.sh
 ```
 
-随后打开“微信流 → 设置 → 入口”，启用需要的分享入口。也可以前往“系统设置 → 通用 → 登录项与扩展 → 共享”管理它们。
+随后打开「微信流 → 设置 → 入口」，启用需要的分享入口。也可以前往「系统设置 → 通用 → 登录项与扩展 → 共享」管理它们。
 
 > [!TIP]
 > 本地构建会优先使用钥匙串中的 Apple Development 或 Developer ID 签名。没有可用证书时会使用 ad-hoc 签名，macOS 可能要求重新授予辅助功能权限。
 
-## 项目结构
-
-```text
-macos/                  # macOS 端 — 完整 SwiftPM 包
-├── Sources/
-│   ├── WeChatBridgeApp/      # 主应用、设置、转发编排与权限管理
-│   ├── WeChatBridgeCore/     # 批次、场景、归档和剪贴板核心逻辑
-│   └── WeChatBridgeShare/    # macOS Share Extension
-├── Resources/          # 图标、Plist、entitlements、本地化与 DMG 素材
-├── Scripts/            # 构建、安装、签名和发布脚本
-└── Tests/              # Swift Testing / XCTest 测试
-
-windows/                # Windows 端 — .NET WPF 解决方案
-├── src/WeChatBridge.Windows/        # 主程序（WPF）
-├── src/WeChatBridge.Windows.Core/   # Inbox 契约、投递、场景、技能（无 UI 依赖）
-├── src/WeChatBridge.ShareTarget/    # Windows Share Target 助手
-├── packaging/SparsePackage/         # 稀疏包 MSIX（Share Target 注册）
-├── scripts/            # 打包与开发注册脚本
-└── tests/              # xUnit 测试
-
-shared/                 # 两端共用的资产与契约
-├── AppLogos/           # 各 Agent 的 logo（两端 UI 都用）
-├── Design/             # 品牌源图与图标生成基准
-├── Screenshots/        # macOS 截图（Windows 视觉移植的对照基准）
-├── Skills/             # 技能目录与技能包
-└── README.md           # Inbox 共享契约 + 文件级端口对照表
-
-site/                   # Sparkle 更新源与版本说明
-```
-
-项目使用 Swift Package Manager 管理 macOS 源码和 Sparkle 依赖。`macos/Scripts/make-app.sh` 会把主程序与十二个 Share Extension 组装成完整的 `.app`。Windows 侧见 `windows/AGENTS.md` 与 `windows/docs/README.zh-CN.md`。
-
-## 开发与验证
+### 开发与验证
 
 ```bash
 # macOS（在 macos/ 目录下运行）
@@ -202,7 +241,44 @@ Scripts/dev-preview.sh                        # 构建、安装并打开开发�
 dotnet test windows/WeChatBridge.Windows.sln -c Release
 ```
 
-## 参与贡献
+<details>
+<summary><strong>项目结构</strong></summary>
+
+```text
+macos/                  # macOS 端 — 完整 SwiftPM 包
+├── Sources/
+│   ├── WeChatBridgeApp/      # 主应用、设置、转发编排与权限管理
+│   ├── WeChatBridgeCore/     # 批次、场景、归档和剪贴板核心逻辑
+│   └── WeChatBridgeShare/    # macOS Share Extension
+├── Resources/          # 图标、Plist、entitlements、本地化与 DMG 素材
+├── Scripts/            # 构建、安装、签名和发布脚本
+└── Tests/              # Swift Testing / XCTest 测试
+
+ios/                    # iOS 端（开发中）— XcodeGen 工程，复用 WeChatBridgeCore
+
+windows/                # Windows 端 — .NET WPF 解决方案
+├── src/WeChatBridge.Windows/        # 主程序（WPF）
+├── src/WeChatBridge.Windows.Core/   # Inbox 契约、投递、场景、技能（无 UI 依赖）
+├── src/WeChatBridge.ShareTarget/    # Windows Share Target 助手
+├── packaging/SparsePackage/         # 稀疏包 MSIX（Share Target 注册）
+├── scripts/            # 打包与开发注册脚本
+└── tests/              # xUnit 测试
+
+shared/                 # 多端共用的资产与契约
+├── AppLogos/           # 各 Agent 的 logo（各端 UI 都用）
+├── Design/             # 品牌源图与图标生成基准
+├── Screenshots/        # 截图与演示（Windows 视觉移植的对照基准）
+├── Skills/             # 技能目录与技能包
+└── README.md           # Inbox 共享契约 + 文件级端口对照表
+
+site/                   # Sparkle 更新源与版本说明
+```
+
+项目使用 Swift Package Manager 管理 macOS 源码和 Sparkle 依赖。`macos/Scripts/make-app.sh` 会把主程序与十二个 Share Extension 组装成完整的 `.app`。iOS 侧见 `ios/project.yml`，Windows 侧见 `windows/AGENTS.md` 与 `windows/docs/README.zh-CN.md`。
+
+</details>
+
+### 参与贡献
 
 欢迎提交 Issue 和 Pull Request：
 
@@ -214,7 +290,7 @@ dotnet test windows/WeChatBridge.Windows.sln -c Release
 
 涉及安全问题时，请通过 GitHub 的 [Security Advisories](https://github.com/freestylefly/WeChatBridge/security/advisories/new) 私下报告，避免在公开 Issue 中附上敏感细节。
 
-## 路线图
+### 路线图
 
 - [x] 微信原生合并转发接入
 - [x] Codex、Claude、豆包、千问办公、WorkBuddy 与 WeSight
@@ -222,33 +298,10 @@ dotnet test windows/WeChatBridge.Windows.sln -c Release
 - [x] 场景提示词与技能管理
 - [x] Universal 2 构建、签名与公证流程
 - [x] 首个公开 DMG Release
+- [x] Windows 版
+- [ ] iOS 版
 - [ ] Homebrew Cask
 - [ ] 更多社区场景和技能包
-
-## 交流群
-
-欢迎加入 WeChatBridge 交流群，与开发者和社区用户交流使用经验、反馈问题与分享工作流。
-
-<div align="center">
-  <img src="shared/Screenshots/wechat-community-group.png" width="280" alt="WeChatBridge 微信交流群二维码" />
-  <br />
-  <sub>使用微信扫码加入交流群</sub>
-</div>
-
-## 关于我们
-
-关注项目动态、使用交流与后续更新，可通过微信搜索“向明”或“苍何”联系我们。
-
-<table>
-  <tr>
-    <th align="center">向明</th>
-    <th align="center">苍何</th>
-  </tr>
-  <tr>
-    <td align="center"><img src="shared/Screenshots/wechat-xiangming.jpg" width="420" alt="公众号「向明」二维码" /></td>
-    <td align="center"><img src="shared/Screenshots/wechat-canghe.jpg" width="420" alt="苍何微信二维码" /></td>
-  </tr>
-</table>
 
 ## 许可证
 
@@ -261,5 +314,8 @@ WeChatBridge 使用 [MIT License](LICENSE) 发布。
 - 感谢所有参与测试、提出建议和贡献代码的朋友。
 
 <div align="center">
-  <sub>如果微信流对你有帮助，欢迎点亮 ⭐️，让更多需要本地工作流的人看到它。</sub>
+  <br />
+  <strong>如果微信流帮你省下了翻群聊的时间，点个 ⭐️ Star，让更多人看到它。</strong>
+  <br />
+  <sub>有问题或想法？<a href="#加入交流群">进群聊聊</a>。</sub>
 </div>
