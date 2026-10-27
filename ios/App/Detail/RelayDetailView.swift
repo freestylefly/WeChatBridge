@@ -51,7 +51,9 @@ struct RelayDetailView: View {
 
     @ViewBuilder
     private func content(_ entry: RelayEntry) -> some View {
-        if let loaded, let text = loaded.text {
+        if entry.summary?.kind == .link {
+            linkContent(entry)
+        } else if let loaded, let text = loaded.text {
             PlainTextView(text: text)
         } else if let loaded {
             TranscriptView(transcript: loaded)
@@ -72,6 +74,35 @@ struct RelayDetailView: View {
             }
         } else {
             ProgressView("正在读取…").frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    /// A shared link: open it, read the text that came with it, and any files.
+    private func linkContent(_ entry: RelayEntry) -> some View {
+        let origin = ShareOrigin.read(in: entry.batch.directory)
+        let files = entry.batch.items.filter { $0.contentType != ShareOrigin.noteContentType }
+        return List {
+            Section {
+                if let title = origin?.title { Text(title).font(.headline) }
+                if let url = origin?.url {
+                    Link(destination: url) {
+                        Label(url.absoluteString, systemImage: "safari").lineLimit(2)
+                    }
+                    .contextMenu {
+                        Button { UIPasteboard.general.url = url } label: { Label("复制链接", systemImage: "doc.on.doc") }
+                    }
+                }
+                if let text = origin?.text { Text(text).textSelection(.enabled) }
+            } footer: {
+                if let source = entry.summary?.source { Text("来自 \(source)") }
+            }
+            if !files.isEmpty {
+                Section("文件") {
+                    ForEach(files) { item in
+                        Button { previewURL = item.url } label: { Label(item.displayName, systemImage: "doc") }
+                    }
+                }
+            }
         }
     }
 

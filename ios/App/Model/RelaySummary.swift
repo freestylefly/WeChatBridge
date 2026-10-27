@@ -11,11 +11,13 @@ struct RelaySummary: Codable, Hashable {
         /// A text file in another layout, such as a single long message or a
         /// note exported on its own. Read and delivered as the text it is.
         case text
+        /// A link or text another app shared (X, Safari, 抖音…), see `ShareOrigin`.
+        case link
         /// No readable text at all: delivered only as the original files.
         case files
     }
 
-    static let currentSchemaVersion = 3
+    static let currentSchemaVersion = 4
     static let cacheFileName = "relay-cache.json"
     static let mediaFolder = "聊天记录内的图片、视频和文件/"
 
@@ -29,6 +31,10 @@ struct RelaySummary: Codable, Hashable {
     var preview: [String]
     var mediaCount: Int
     var kind: Kind
+    /// The app the batch came from, as read off its content (`ShareSource`).
+    var source = ShareSource.files
+    /// The shared link, for `.link`.
+    var url: URL?
     /// No text in any of the batch's files: a plain file someone shared.
     /// Still deliverable, as itself.
     var parseFailed: Bool { kind == .files }
@@ -51,6 +57,28 @@ struct RelaySummary: Codable, Hashable {
     var hitsForwardLimit: Bool { messageCount == SearchAnchor.forwardLimit }
 
     static func make(for batch: ReadyBatch) -> RelaySummary {
+        var summary = makeContent(for: batch)
+        summary.source = source(origin: ShareOrigin.read(in: batch.directory), kind: summary.kind, items: batch.items)
+        return summary
+    }
+
+    /// iOS never tells a share extension its host app, so the source is read
+    /// off what was shared: the link's domain, or a WeChat export.
+    static func source(origin: ShareOrigin?, kind: Kind, items: [ReadyItem]) -> String {
+        if let url = origin?.url { return ShareSource.app(for: url) ?? ShareSource.web }
+        if origin != nil { return ShareSource.text }
+        switch kind {
+        case .chat, .text: return ShareSource.wechat
+        case .link: return ShareSource.web
+        case .files:
+            return items.allSatisfy({ DeliveryPlanner.isImage($0.displayName) }) ? ShareSource.images : ShareSource.files
+        }
+    }
+
+    private static func makeContent(for batch: ReadyBatch) -> RelaySummary {
+        if let origin = ShareOrigin.read(in: batch.directory) {
+            return make(origin: origin, otherFiles: batch.items.filter { $0.contentType != ShareOrigin.noteContentType }.count)
+        }
         // A chat export anywhere in the batch wins over a plain text file.
         // Only the chosen archive is unpacked: the batch has one unpack folder.
         var text: (item: ReadyItem, data: Data, transcript: WeChatNativeArchive.Transcript)?
@@ -142,6 +170,29 @@ struct RelaySummary: Codable, Hashable {
             mediaCount: mediaCount,
             kind: .text,
             archiveItemID: archiveItemID
+        )
+    }
+
+    static func make(origin: ShareOrigin, otherFiles: Int) -> RelaySummary {
+        var preview: [String] = []
+        if let text = origin.text {
+            let lines = text.components(separatedBy: .newlines)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty && $0 != origin.heading }
+            preview += lines.prefix(origin.url == nil ? 2 : 1).map { String($0.prefix(40)) }
+        }
+        if let host = origin.url.flatMap(ShareSource.displayHost) { preview.append("🔗 \(host)") }
+        return RelaySummary(
+            title: origin.heading,
+            messageCount: nil,
+            senders: [],
+            start: nil,
+            end: nil,
+            preview: preview,
+            mediaCount: otherFiles,
+            kind: .link,
+            url: origin.url,
+            archiveItemID: nil
         )
     }
 

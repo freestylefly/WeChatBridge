@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 import WeChatBridgeCore
 
 /// The entry point of both extensions: 「微信流」 in the share row
@@ -49,9 +50,15 @@ final class ShareViewController: UIViewController {
 
     @MainActor
     private func run(context: NSExtensionContext) async {
-        let sources = Self.flatten(inputItems: context.inputItems)
+        let all = Self.flatten(inputItems: context.inputItems)
+        // Links and text are read as values; everything else is a file.
+        let sources = all.filter { !Self.isLinkOrText($0.provider) }
+        let origin = await Self.loadOrigin(
+            all.map(\.provider).filter(Self.isLinkOrText),
+            items: context.inputItems.compactMap { $0 as? NSExtensionItem }
+        )
         let inbox = try? Inbox.resolve()
-        guard !sources.isEmpty else {
+        guard !sources.isEmpty || origin != nil else {
             fail(InboxError.emptyShare, inbox: inbox)
             return
         }
@@ -90,6 +97,15 @@ final class ShareViewController: UIViewController {
             }
             if failure != nil { break }
         }
+        if failure == nil, let origin {
+            do {
+                let (item, diagnostic) = try Self.writeNote(origin, into: staging, attachmentIndex: all.count)
+                manifestItems.append(item)
+                diagnostics.append(diagnostic)
+            } catch {
+                failure = error
+            }
+        }
 
         let record = ImportDiagnostics(
             batchID: staging.batchID,
@@ -113,6 +129,7 @@ final class ShareViewController: UIViewController {
         let committed: URL
         do {
             if joinsCollection { try CollectMarker.mark(staging.directory) }
+            try origin?.write(to: staging.directory)
             committed = try staging.commit(
                 manifest: BatchManifest(
                     batchID: staging.batchID,
@@ -217,6 +234,78 @@ final class ShareViewController: UIViewController {
     }
 
     static let installBroken = "微信流没装好，请重新安装后再试。"
+
+    /// A provider offering a web link or text but no file. A text file from
+    /// Files names itself (`suggestedName` has an extension) and stays a file.
+    static func isLinkOrText(_ provider: NSItemProvider) -> Bool {
+        let types = provider.registeredTypeIdentifiers.compactMap(UTType.init)
+        if types.contains(where: { $0.conforms(to: .fileURL) }) { return false }
+        if let name = provider.suggestedName, !(name as NSString).pathExtension.isEmpty { return false }
+        let isValue: (UTType) -> Bool = { $0.conforms(to: .url) || $0.conforms(to: .text) }
+        // Images and movies conform to `public.data` too; any such type makes it a file.
+        let hasFile = types.contains { $0.conforms(to: .data) && !isValue($0) }
+        return !hasFile && types.contains(where: isValue)
+    }
+
+    /// The link, the text and the host's title, merged into one note.
+    static func loadOrigin(_ providers: [NSItemProvider], items: [NSExtensionItem]) async -> ShareOrigin? {
+        guard !providers.isEmpty else { return nil }
+        var url: URL?
+        var texts: [String] = []
+        for provider in providers {
+            if url == nil, provider.canLoadObject(ofClass: URL.self),
+               let loaded = await load(URL.self, from: provider), !loaded.isFileURL {
+                if ShareOrigin.isWeb(loaded) { url = loaded } else { texts.append(loaded.absoluteString) }
+                continue
+            }
+            if provider.canLoadObject(ofClass: String.self), let text = await load(String.self, from: provider) {
+                texts.append(text)
+            }
+        }
+        let title = items.lazy.compactMap { $0.attributedTitle?.string }.first
+        texts += items.compactMap { $0.attributedContentText?.string }
+        return ShareOrigin.make(url: url, title: title, texts: texts)
+    }
+
+    private static func load<T: _ObjectiveCBridgeable>(_ type: T.Type, from provider: NSItemProvider) async -> T?
+    where T._ObjectiveCType: NSItemProviderReading {
+        await withCheckedContinuation { continuation in
+            _ = provider.loadObject(ofClass: type) { object, _ in
+                continuation.resume(returning: object)
+            }
+        }
+    }
+
+    /// The TXT that carries the link to wherever the batch is delivered.
+    static func writeNote(_ origin: ShareOrigin, into staging: BatchStaging, attachmentIndex: Int) throws -> (ManifestItem, AttachmentDiagnostic) {
+        let id = UUID()
+        let name = origin.noteFileName
+        let data = Data(origin.note.utf8)
+        try data.write(to: staging.destination(for: id, displayName: name), options: .atomic)
+        let item = ManifestItem(
+            id: id,
+            displayName: name,
+            relativePath: staging.relativePath(for: id, displayName: name),
+            contentType: ShareOrigin.noteContentType,
+            byteCount: Int64(data.count),
+            itemIndex: 0,
+            attachmentIndex: attachmentIndex,
+            loadStrategy: .fileRepresentation
+        )
+        let diagnostic = AttachmentDiagnostic(
+            itemIndex: 0,
+            attachmentIndex: attachmentIndex,
+            registeredTypeIdentifiers: [ShareOrigin.noteContentType],
+            hasSuggestedName: false,
+            suggestedNameExtension: nil,
+            nameSource: nil,
+            selectedTypeIdentifier: ShareOrigin.noteContentType,
+            loadStrategy: nil,
+            byteCount: Int64(data.count),
+            failure: nil
+        )
+        return (item, diagnostic)
+    }
 
     static func flatten(inputItems: [Any]) -> [AttachmentSource] {
         var sources: [AttachmentSource] = []

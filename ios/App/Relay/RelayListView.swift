@@ -22,6 +22,8 @@ struct RelayListView: View {
     @EnvironmentObject private var store: RelayStore
     @Binding var showsOnboarding: Bool
     @State private var filter: RelayFilter = .all
+    /// The app shared from (`RelaySummary.source`); nil shows every app.
+    @State private var source: String?
     @State private var editMode: EditMode = .inactive
     @State private var selection = Set<UUID>()
     @State private var delivering: DeliverySelection?
@@ -33,8 +35,22 @@ struct RelayListView: View {
     /// How to pick up the next batch in WeChat, after 「继续收集」.
     @State private var collectNote: String?
 
+    /// Each app that shared something, most items first.
+    private var sources: [(name: String, count: Int)] {
+        let names = store.visibleEntries.compactMap { $0.summary?.source }
+        let counts = Dictionary(names.map { ($0, 1) }, uniquingKeysWith: +)
+        return counts.map { (name: $0.key, count: $0.value) }
+            .sorted { $0.count == $1.count ? $0.name < $1.name : $0.count > $1.count }
+    }
+
+    /// A source whose last item was deleted no longer filters.
+    private var activeSource: String? {
+        source.flatMap { name in sources.contains { $0.name == name } ? name : nil }
+    }
+
     private var rows: [RelayEntry] {
-        let entries = store.visibleEntries
+        var entries = store.visibleEntries
+        if let activeSource { entries = entries.filter { $0.summary?.source == activeSource } }
         switch filter {
         case .all: return entries
         case .undelivered: return entries.filter { !$0.isDelivered }
@@ -51,7 +67,15 @@ struct RelayListView: View {
                     FailureBanner(failures: store.failures) { store.failures = [] }
                         .relayCardRow()
                 }
-                if filter != .undelivered {
+                if sources.count > 1 {
+                    SourceBar(sources: sources, selection: $source)
+                        .selectionDisabled()
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                }
+                // Collections gather WeChat chats only.
+                if filter != .undelivered, activeSource == nil || activeSource == ShareSource.wechat {
                     ForEach(store.collections) { collection in
                         NavigationLink {
                             CollectionDetailView(collectionID: collection.id)
@@ -241,6 +265,41 @@ struct RelayListView: View {
     }
 }
 
+/// One chip per app that shared something, with how many items each.
+private struct SourceBar: View {
+    let sources: [(name: String, count: Int)]
+    @Binding var selection: String?
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                chip("全部", count: sources.reduce(0) { $0 + $1.count }, selected: selection == nil) { selection = nil }
+                ForEach(sources, id: \.name) { source in
+                    chip(source.name, count: source.count, selected: selection == source.name) {
+                        selection = selection == source.name ? nil : source.name
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    private func chip(_ title: String, count: Int, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Text(title)
+                Text("\(count)").foregroundStyle(selected ? Color.white.opacity(0.8) : Color.secondary)
+            }
+            .font(.subheadline.weight(.medium))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .foregroundStyle(selected ? Color.white : Color.primary)
+            .background(selected ? Color.accentColor : Color(.secondarySystemGroupedBackground), in: Capsule())
+        }
+        .buttonStyle(.borderless)
+    }
+}
+
 private struct FailureBanner: View {
     let failures: [ShareFailure]
     let dismiss: () -> Void
@@ -274,7 +333,7 @@ private struct EmptyRelayView: View {
                 .frame(width: 88, height: 88)
                 .background(Color.accentColor.opacity(0.12), in: Circle())
             Text("还没有收到聊天记录").font(.title3.weight(.semibold))
-            Text("在微信里把聊天记录导出，分享到「微信流」，就会出现在这里。")
+            Text("在微信里把聊天记录导出，分享到「微信流」，就会出现在这里。X、Safari 等应用里的链接也可以分享进来。")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

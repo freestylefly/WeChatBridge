@@ -23,7 +23,8 @@ struct RelayCardView: View {
                         Text(line).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                     }
                     HStack(spacing: 6) {
-                        Text(Self.counts(summary))
+                        // Where it came from leads: the list is filtered by it.
+                        Text([summary.source, Self.counts(summary)].filter { !$0.isEmpty }.joined(separator: " · "))
                         Spacer()
                         Text(RelayFormat.range(summary.start, summary.end) ?? "收到于 \(RelayFormat.day(entry.batch.createdAt))")
                     }
@@ -74,6 +75,7 @@ private struct KindBadge: View {
         let (symbol, color): (String, Color) = switch kind {
         case .chat: ("bubble.left.and.bubble.right.fill", .accentColor)
         case .text: ("doc.plaintext.fill", .blue)
+        case .link: ("link", .teal)
         case .files: ("exclamationmark.triangle.fill", .orange)
         case nil: ("tray.fill", .secondary)
         }
@@ -100,13 +102,15 @@ extension RelayCardView {
         }
     }
 
-    /// `8 条消息 · 3 个附件`; a text file reads `文本`, and a lone count has no dot.
+    /// `8 条消息 · 3 个附件`; a text file reads `文本`, a link `链接`, and a lone count has no dot.
     static func counts(_ summary: RelaySummary) -> String {
         var parts: [String] = []
         if let count = summary.messageCount {
             parts.append("\(count) 条消息")
         } else if summary.kind == .text {
             parts.append("文本")
+        } else if summary.kind == .link, summary.url != nil {
+            parts.append("链接")
         }
         if summary.mediaCount > 0 { parts.append("\(summary.mediaCount) 个附件") }
         return parts.joined(separator: " · ")

@@ -123,6 +123,12 @@ enum DeliveryPlanner {
                     let names = try WeChatNativeArchive.extract(data, to: directory)
                     sources.append(Source(body: transcript.body, isChat: transcript.records != nil, transcriptPath: transcript.path, directory: directory, names: names))
                     found = true
+                } else if item.contentType == ShareOrigin.noteContentType,
+                          let body = try? String(contentsOf: item.url, encoding: .utf8) {
+                    // A shared link goes as its note, under its own name.
+                    let name = item.url.lastPathComponent
+                    sources.append(Source(body: body, isChat: false, transcriptPath: name, directory: item.url.deletingLastPathComponent(), names: [name]))
+                    found = true
                 } else {
                     omitted.append(item.displayName)
                 }

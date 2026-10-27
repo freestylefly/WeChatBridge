@@ -25,6 +25,9 @@
 				<key>NSExtensionActivationSupportsFileWithMaxCount</key><integer>32</integer>
 				<key>NSExtensionActivationSupportsImageWithMaxCount</key><integer>32</integer>
 				<key>NSExtensionActivationSupportsMovieWithMaxCount</key><integer>32</integer>
+				<!-- X, Safari, 抖音… share a link or text, not a file. -->
+				<key>NSExtensionActivationSupportsWebURLWithMaxCount</key><integer>1</integer>
+				<key>NSExtensionActivationSupportsText</key><true/>
 			</dict>
 		</dict>
 	</dict>
