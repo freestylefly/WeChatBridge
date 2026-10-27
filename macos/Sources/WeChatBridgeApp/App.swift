@@ -217,6 +217,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             model: model, updater: updater,
             openSettings: { [weak self] tab in self?.openMainWindow(tab) }
         )
+        updater.showUpdatePane = { [weak self] in self?.openMainWindow(.about) }
+        updater.checkForUpdatesInBackgroundIfDue()
         model.start()
         model.reload()
         if let tab = pendingSettingsTab {

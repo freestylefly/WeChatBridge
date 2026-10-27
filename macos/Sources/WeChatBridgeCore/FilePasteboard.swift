@@ -1,4 +1,6 @@
+#if canImport(AppKit)
 import AppKit
+#endif
 import Foundation
 
 /// Puts staged files on the general pasteboard as real file URLs.
@@ -11,6 +13,8 @@ import Foundation
 /// The targets WeChatBridge pastes into are not sandboxed, so a plain file URL pointing
 /// into the group container is readable by them as-is.
 public enum FilePasteboard {
+    // iOS has no NSPasteboard; only the shell quoting below is shared there.
+    #if canImport(AppKit)
     @discardableResult
     public static func write(_ urls: [URL], to pasteboard: NSPasteboard = .general) -> Bool {
         guard !urls.isEmpty else { return false }
@@ -45,6 +49,7 @@ public enum FilePasteboard {
         case .text(let text): return writeText(text, to: pasteboard)
         }
     }
+    #endif
 
     /// What dropping the same files on a terminal window would have typed.
     ///

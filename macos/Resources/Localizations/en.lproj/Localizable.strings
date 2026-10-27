@@ -226,6 +226,22 @@
 
 /* Software updates — About pane and status menu */
 "检查更新…" = "Check for Updates…";
+"软件更新" = "Software Update";
+"自动检查并安装新版本。" = "Checks for and installs new versions automatically.";
+"从蓝奏云分享页检查新版本。" = "Checks the Lanzou share folder for new builds.";
+"尚未检查更新。" = "No update check has run yet.";
+"正在检查更新…" = "Checking for updates…";
+"已是最新版本 %@ (%@)。" = "%@ (%@) is up to date.";
+"发现新版本 %@ (%@)，大小 %@。" = "New version %@ (%@) is available — %@.";
+"检查更新失败：%@" = "Update check failed: %@";
+"前往下载" = "Download";
+"网盘密码：%@" = "Share password: %@";
+"下载新版本 %@…" = "Download %@…";
+"蓝奏云返回 HTTP %d" = "Lanzou returned HTTP %d";
+"无法解析蓝奏云分享页" = "Could not parse the Lanzou share page";
+"蓝奏云拒绝了文件列表请求" = "The Lanzou share rejected the listing request";
+"蓝奏云：%@" = "Lanzou: %@";
+"分享文件夹里没有可识别的安装包" = "No installer found in the share folder";
 
 /* Software updates — General pane */
 "自动检查更新" = "Check for updates automatically";
