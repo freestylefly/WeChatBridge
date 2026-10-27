@@ -3,9 +3,10 @@ import UIKit
 import UniformTypeIdentifiers
 import WeChatBridgeCore
 
-/// The entry point of both extensions: 「微信流」 in the share row
-/// (`com.apple.share-services`) and 「分批收集到微信流」 in the action list
-/// (`com.apple.ui-services`, `CollectMarker.declared`). Copy what was shared
+/// The entry point of all three extensions: 「微信流」 in the share row
+/// (`com.apple.share-services`), and in the action list
+/// (`com.apple.ui-services`) 「存入微信流」, the same save, and
+/// 「分批收集到微信流」 (`CollectMarker.declared`). Copy what was shared
 /// into the group container and stop. Only the chat's TXT is read, for the
 /// receipt and the search anchor; nothing is delivered here — an
 /// extension has a small memory ceiling, cannot present a second share sheet
