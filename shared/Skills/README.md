@@ -4,12 +4,18 @@
 的包目录；包目录必须至少包含 `SKILL.md`，也可以包含 `scripts/`、`references/`
 和 `assets/`。
 
-当前已随仓库发布两个官方包：
+当前已随仓库发布三个官方包：
 
 ```text
 shared/Skills/wechat-article-extract/SKILL.md
+shared/Skills/wechat-article-fetch/SKILL.md
 shared/Skills/video-information-reading/SKILL.md
 ```
+
+`wechat-article-fetch` 是第一个带 `scripts/` 的包，它的 `scripts/wechat-article.ts` 需要目标
+机器上有 Node ≥ 22.18（单文件、零依赖，靠 Node 原生 type stripping 运行）。包只负责把
+脚本一起发下去；本仓库不安装、也不代装任何外部运行时，缺 Node 时由 `SKILL.md` 里的降级
+写法如实说明，而不是让整条流程失败。
 
 新增官方技能时，把目录放进本目录并把 `package` 写成目录名即可。
 
@@ -20,7 +26,7 @@ shared/Skills/video-information-reading/SKILL.md
 打包时 macOS 会把它复制进 `.app` 的 `Resources/Skills`，Windows 会发布到输出目录的
 `Resources/Skills`——两端运行期读的都是这个名字。
 
-微信流不会解析技能的执行结果，也不会自动安装 Homebrew、pip 等外部依赖。
+微信流不会解析技能的执行结果，也不会自动安装 Homebrew、pip、Node 等外部依赖。
 
 ## 开发约定（Windows 端已实现，macOS 待同步）
 
