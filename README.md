@@ -93,6 +93,12 @@ macOS 版打开 DMG，把「微信流」拖入「应用程序」即可；Windows
   </tr>
 </table>
 
+## ❤️ 赞助商
+
+| 赞助商 | 介绍 |
+| ------ | ---- |
+| <a href="https://apixo.ai/?utm_source=github&utm_medium=sponsorship&utm_campaign=github_readme&utm_content=freestylefly_wechatbridge"><img src="shared/Sponsors/apixo.jpg" alt="APIXO" width="240"></a> | **APIXO：一站式 AI 图片与视频创作平台**<br><br>APIXO 汇集多款 AI 图片与视频模型，无需编程，打开网页即可创作；也支持通过 API 接入自己的应用与自动化工作流。[Seedream 5.5](https://apixo.ai/models/seedream-5-5?utm_source=github&utm_medium=sponsorship&utm_campaign=github_readme&utm_content=freestylefly) 抢先体验，1K 文生图仅 $0.014/张起，享官价七折优惠。**优惠自动生效，无需优惠码，让更多创意轻松落地。**<br><br>[探索 APIXO 模型与优惠](https://apixo.ai/?utm_source=github&utm_medium=sponsorship&utm_campaign=github_readme&utm_content=freestylefly_wechatbridge)<br><br>活动截至北京时间 2026 年 12 月 31 日 23:59。 |
+
 ## 为什么做微信流
 
 macOS 微信 4.1.13 起，多选聊天记录后可以「合并转发」给第三方应用：微信会生成一份包含 TXT、图片和视频的 ZIP，正好适合交给 AI Agent 处理，或沉淀进本地知识库。

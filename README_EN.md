@@ -93,6 +93,12 @@ On macOS, open the DMG and drag WeChatBridge into Applications. On Windows, unzi
   </tr>
 </table>
 
+## ❤️ Sponsors
+
+| Sponsor | Description |
+| ------- | ----------- |
+| <a href="https://apixo.ai/?utm_source=github&utm_medium=sponsorship&utm_campaign=github_readme&utm_content=freestylefly_wechatbridge"><img src="shared/Sponsors/apixo.jpg" alt="APIXO" width="240"></a> | **APIXO — An all-in-one AI image and video creation platform**<br><br>APIXO brings together multiple AI image and video models. Create directly in your browser without coding, or use the API to integrate them into your own applications and automated workflows. Get early access to [Seedream 5.5](https://apixo.ai/models/seedream-5-5?utm_source=github&utm_medium=sponsorship&utm_campaign=github_readme&utm_content=freestylefly), with 1K text-to-image generation starting at just $0.014 per image, 30% off the official price. **The discount applies automatically, with no promo code required, helping more creative ideas come to life.**<br><br>[Explore APIXO models and offers](https://apixo.ai/?utm_source=github&utm_medium=sponsorship&utm_campaign=github_readme&utm_content=freestylefly_wechatbridge)<br><br>Offer ends on December 31, 2026 at 23:59 Beijing time (UTC+8). |
+
 ## Why WeChatBridge
 
 Starting with WeChat 4.1.13 for macOS, you can select messages and “merge forward” them to third-party apps. WeChat exports a ZIP containing the text transcript, images, and videos—a good fit for AI agents and local knowledge bases.
