@@ -324,6 +324,38 @@ final class SkillStoreTests: XCTestCase {
         )
     }
 
+    /// A package may ship `scripts/` next to its `SKILL.md`. The sync has to
+    /// copy the whole tree — the digest covers every file, so a SKILL.md-only
+    /// copy would land as `conflict` instead of `ready`.
+    func testSyncCopiesNestedPackageFilesAndKeepsTheDigestStable() throws {
+        let skill = try makePackage(id: "with-scripts")
+        let source = resources
+            .appendingPathComponent("Skills", isDirectory: true)
+            .appendingPathComponent("with-scripts", isDirectory: true)
+            .appendingPathComponent("scripts/wechat-article.ts")
+        try FileManager.default.createDirectory(
+            at: source.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        let body = "#!/usr/bin/env node\nconsole.error('progress')\n"
+        try Data(body.utf8).write(to: source)
+
+        let report = try store.syncOfficial(
+            catalog: OfficialSkillCatalog(skills: [skill]),
+            resourcesRoot: resources
+        )
+        XCTAssertEqual(report.added, 1)
+        XCTAssertEqual(store.state(skill.id), .ready)
+
+        let copied = store.skillDirectory(skill.id)
+            .appendingPathComponent("scripts/wechat-article.ts")
+        XCTAssertEqual(try String(contentsOf: copied, encoding: .utf8), body)
+
+        // Tampering with the shipped script is an external change, not an update.
+        try Data("tampered\n".utf8).write(to: copied)
+        XCTAssertEqual(store.state(skill.id), .conflict)
+    }
+
     func testImportRegistersAndReplacesWithBackup() throws {
         let source = root.appendingPathComponent("incoming", isDirectory: true)
         try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
