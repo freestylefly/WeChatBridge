@@ -97,7 +97,7 @@ macOS 版打开 DMG，把「微信流」拖入「应用程序」即可；Windows
 
 | 赞助商 | 介绍 |
 | ------ | ---- |
-| <a href="https://apixo.ai/?utm_source=github&utm_medium=sponsorship&utm_campaign=github_readme&utm_content=freestylefly_wechatbridge"><img src="shared/Sponsors/apixo.jpg" alt="APIXO" width="240"></a> | **APIXO：一站式 AI 图片与视频创作平台**<br><br>APIXO 汇集多款 AI 图片与视频模型，无需编程，打开网页即可创作；也支持通过 API 接入自己的应用与自动化工作流。[Seedream 5.5](https://apixo.ai/models/seedream-5-5?utm_source=github&utm_medium=sponsorship&utm_campaign=github_readme&utm_content=freestylefly) 抢先体验，1K 文生图仅 $0.014/张起，享官价七折优惠。**优惠自动生效，无需优惠码，让更多创意轻松落地。**<br><br>[探索 APIXO 模型与优惠](https://apixo.ai/?utm_source=github&utm_medium=sponsorship&utm_campaign=github_readme&utm_content=freestylefly_wechatbridge)<br><br>活动截至北京时间 2026 年 12 月 31 日 23:59。 |
+| <a href="https://apixo.ai/zh?utm_source=github&utm_medium=sponsorship&utm_campaign=wechat_bridge&utm_content=brand_mention" target="_blank" rel="noopener noreferrer"><img src="shared/Sponsors/apixo-ai-stacked-on-black.png" width="90" alt="APIXO AI: 一站式 AI 视频制作与多模态创作平台"></a> | **[APIXO AI](https://apixo.ai/zh?utm_source=github&utm_medium=sponsorship&utm_campaign=wechat_bridge&utm_content=brand_mention)：一站式 AI 视频制作与多模态创作平台**<br><br>为微信群聊机器人与智能助手轻松赋予文生图、视频生成与视觉理解能力，低延迟稳定高并发。<br>🔥 **[Seedream 5.5](https://apixo.ai/zh/models/seedream-5-5?utm_source=github&utm_medium=sponsorship&utm_campaign=wechat_bridge&utm_content=seedream_5_5) 旗舰文生图 API 官价七折，低至 $0.014/次！**<br>支持 **[MCP 协议无缝接入](https://apixo.ai/zh/mcp?utm_source=github&utm_medium=sponsorship&utm_campaign=wechat_bridge&utm_content=mcp_page)**，中国开发者免海外信用卡、银联直充即用，注册即赠免费额度。 |
 
 ## 为什么做微信流
 
