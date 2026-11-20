@@ -6,7 +6,7 @@
 
   <p>
     <a href="#download"><img src="https://img.shields.io/badge/free%20download-macOS%20%7C%20Windows-07C160?style=flat-square" alt="Free download" /></a>
-    <a href="#join-the-community"><img src="https://img.shields.io/badge/community-WeChat%20group-07C160?style=flat-square&logo=wechat&logoColor=white" alt="Join the community group" /></a>
+    <a href="#join-the-community"><img src="https://img.shields.io/badge/community-join%20WeChat%20group-07C160?style=flat-square&logo=wechat&logoColor=white" alt="Join the community group" /></a>
     <a href="https://github.com/freestylefly/WeChatBridge/stargazers"><img src="https://img.shields.io/github/stars/freestylefly/WeChatBridge?style=flat-square" alt="GitHub Stars" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT License" /></a>
   </p>
@@ -76,9 +76,9 @@ On macOS, open the DMG and drag WeChatBridge into Applications. On Windows, unzi
 <table>
   <tr>
     <td width="300" align="center">
-      <img src="shared/Screenshots/wechat-community-group.png" width="260" alt="QR code for the WeChatBridge community group" />
+      <a href="https://my.feishu.cn/wiki/Eq6twbgv5irYgikOa8Pc2fHfnKg#share-RNMedgl3VoT0M5xZRNVcCXPBnSe"><img src="https://img.shields.io/badge/👉%20Get%20the%20group%20QR%20code-07C160?style=for-the-badge&logo=wechat&logoColor=white" alt="Get the community group QR code" /></a>
       <br />
-      <sub>Scan with WeChat to join</sub>
+      <sub>Open the page and scan the current QR code with WeChat; it is kept up to date</sub>
     </td>
     <td>
       <strong>In the group you can:</strong>
@@ -88,7 +88,7 @@ On macOS, open the DMG and drag WeChatBridge into Applications. On Windows, unzi
         <li>Pick up the scene prompts and skill packs other members use—faster than writing your own</li>
         <li>Request features: tell us which app you want your conversations sent to</li>
       </ul>
-      If the QR code has expired, scan 苍何's WeChat under “About us” below and mention “WeChatBridge”.
+      If the group is full or you can't get in, scan 苍何's WeChat under “About us” below and mention “WeChatBridge”.
     </td>
   </tr>
 </table>

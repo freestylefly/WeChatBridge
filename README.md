@@ -6,7 +6,7 @@
 
   <p>
     <a href="#下载安装"><img src="https://img.shields.io/badge/免费下载-macOS%20%7C%20Windows-07C160?style=flat-square" alt="免费下载" /></a>
-    <a href="#加入交流群"><img src="https://img.shields.io/badge/交流群-微信扫码-07C160?style=flat-square&logo=wechat&logoColor=white" alt="加入交流群" /></a>
+    <a href="#加入交流群"><img src="https://img.shields.io/badge/交流群-点击进群-07C160?style=flat-square&logo=wechat&logoColor=white" alt="加入交流群" /></a>
     <a href="https://github.com/freestylefly/WeChatBridge/stargazers"><img src="https://img.shields.io/github/stars/freestylefly/WeChatBridge?style=flat-square" alt="GitHub Stars" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT License" /></a>
   </p>
@@ -76,9 +76,9 @@ macOS 版打开 DMG，把「微信流」拖入「应用程序」即可；Windows
 <table>
   <tr>
     <td width="300" align="center">
-      <img src="shared/Screenshots/wechat-community-group.png" width="260" alt="WeChatBridge 微信交流群二维码" />
+      <a href="https://my.feishu.cn/wiki/Eq6twbgv5irYgikOa8Pc2fHfnKg#share-RNMedgl3VoT0M5xZRNVcCXPBnSe"><img src="https://img.shields.io/badge/👉%20点击获取进群二维码-07C160?style=for-the-badge&logo=wechat&logoColor=white" alt="点击获取进群二维码" /></a>
       <br />
-      <sub>微信扫码加入</sub>
+      <sub>打开后用微信扫码即可进群，二维码会持续更新</sub>
     </td>
     <td>
       <strong>进群你可以：</strong>
@@ -88,7 +88,7 @@ macOS 版打开 DMG，把「微信流」拖入「应用程序」即可；Windows
         <li>拿到群友在用的场景提示词和技能包，抄作业比自己写快</li>
         <li>提需求：你想把聊天记录送到哪个应用，告诉我们</li>
       </ul>
-      二维码过期的话，扫下方「关于我们」里苍何的微信，备注「微信流」。
+      群满或进不去的话，扫下方「关于我们」里苍何的微信，备注「微信流」。
     </td>
   </tr>
 </table>
