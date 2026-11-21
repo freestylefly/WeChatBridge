@@ -16,7 +16,8 @@
     <a href="#join-the-community"><strong>Community</strong></a> ·
     <a href="USAGE_EN.md">Usage guide</a> ·
     <a href="https://render.qmuse.pub/p/muse/2413870555736078">Website</a> ·
-    <a href="README.md">简体中文</a>
+    <a href="README.md">简体中文</a> ·
+    <a href="README_JA.md">日本語</a>
   </p>
 
   <img src="shared/Screenshots/demo-wechat-to-agent.gif" width="800" alt="Demo: select group messages in WeChat, forward them to WeChatBridge, pick a scene, and Codex starts summarizing" />
