@@ -16,6 +16,20 @@
       ]
     },
     {
+      "id": "wechat-article-fetch",
+      "name": "公众号正文抓取",
+      "summary": "用文章链接抓取公众号正文、图片和元信息，补上聊天记录里只有链接的那部分。",
+      "version": "1.0.0",
+      "package": "wechat-article-fetch",
+      "supported_agents": [
+        "chatGPTCodex",
+        "claude",
+        "doubao",
+        "qwenWork",
+        "workBuddy"
+      ]
+    },
+    {
       "id": "video-information-reading",
       "name": "视频信息读取",
       "summary": "读取视频链接或文件，整理逐字稿、摘要和关键时间点。",
