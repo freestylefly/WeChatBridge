@@ -74,22 +74,33 @@ public enum ShareAction: String, Codable, Sendable, CaseIterable {
 
     /// The app this action drives, if any. Resolved by bundle identifier rather
     /// than by name so a renamed or relocated app still works.
-    public var targetBundleIdentifier: String? {
+    ///
+    /// This is the primary identifier only. Code that looks the app up on this
+    /// Mac should try every entry of `targetBundleIdentifiers`.
+    public var targetBundleIdentifier: String? { targetBundleIdentifiers.first }
+
+    /// Every bundle identifier the target app is known to ship under, primary
+    /// first. Empty when the action drives no app.
+    ///
+    /// WorkBuddy has two: the WeChat-distributed build is
+    /// `com.tencent.workbuddy.mac`, the public download is
+    /// `com.workbuddy.workbuddy` (issue #44).
+    public var targetBundleIdentifiers: [String] {
         switch self {
-        case .codex: return "com.openai.codex"
-        case .claude: return "com.anthropic.claudefordesktop"
-        case .doubao: return "com.bot.pc.doubao"
-        case .qwen: return "com.alibaba.qwenwork"
-        case .workBuddy: return "com.tencent.workbuddy.mac"
-        case .weSight: return "ai.wesight.app"
-        case .deepSeekHarness: return "com.deepseek.dsh"
-        case .obsidian: return "md.obsidian"
+        case .codex: return ["com.openai.codex"]
+        case .claude: return ["com.anthropic.claudefordesktop"]
+        case .doubao: return ["com.bot.pc.doubao"]
+        case .qwen: return ["com.alibaba.qwenwork"]
+        case .workBuddy: return ["com.tencent.workbuddy.mac", "com.workbuddy.workbuddy"]
+        case .weSight: return ["ai.wesight.app"]
+        case .deepSeekHarness: return ["com.deepseek.dsh"]
+        case .obsidian: return ["md.obsidian"]
         // `.custom` has no fixed destination and no destination in its intent
         // either. `ActionRunner` resolves one from the user's own list, or takes
         // the one a 发给 ▸ menu inside WeChatBridge named.
         // `.folder` delivers to a path, not a process — the app writes the
         // note itself and no app is ever launched.
-        case .collect, .clipboard, .custom, .folder: return nil
+        case .collect, .clipboard, .custom, .folder: return []
         }
     }
 

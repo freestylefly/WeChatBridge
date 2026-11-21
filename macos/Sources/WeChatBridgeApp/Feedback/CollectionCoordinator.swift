@@ -48,7 +48,7 @@ final class CollectionCoordinator: ObservableObject {
     var destinations: [ForwardDestination] {
         targets.destinations.filter { destination in
             if destination.action == .obsidian { return preferences.obsidianVaultPath?.isEmpty == false }
-            guard let bundle = destination.target?.bundleIdentifier ?? destination.action.targetBundleIdentifier else { return false }
+            guard let bundle = destination.target?.bundleIdentifier ?? destination.action.installedTargetBundleIdentifier else { return false }
             return InstalledApp.lookup(bundle).isInstalled
         }
     }
@@ -56,7 +56,7 @@ final class CollectionCoordinator: ObservableObject {
     var isFileDestination: Bool { selection == "copy" || selection == "folder" }
     var scenes: [WeChatScene] {
         guard !isFileDestination else { return [] }
-        let bundle = chosenDestination?.target?.bundleIdentifier ?? chosenDestination?.action.targetBundleIdentifier
+        let bundle = chosenDestination?.target?.bundleIdentifier ?? chosenDestination?.action.installedTargetBundleIdentifier
         let agent = bundle.flatMap(AgentID.matching(bundleIdentifier:))
         return preferences.scenes.enabledScenes.filter { scene in agent.map { scene.compatibleAgents.contains($0) } ?? true }
     }
