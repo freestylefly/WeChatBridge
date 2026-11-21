@@ -52,7 +52,11 @@ public static class WeChatUiTitleReader
     /// </summary>
     public static GroupTitleParser.Title? Read()
     {
-        var candidates = ChatTitleCandidates();
+        // A bare 「微信」 is the app, not the chat: dropping it lets the caller
+        // fall through to the next reader (issue #41).
+        var candidates = ChatTitleCandidates()
+            .Where(candidate => !WeChatWindowTitleReader.IsAppName(candidate))
+            .ToList();
         if (candidates.Count == 0)
             return null;
         foreach (var candidate in candidates)
