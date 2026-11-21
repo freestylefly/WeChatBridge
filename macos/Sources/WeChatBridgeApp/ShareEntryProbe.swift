@@ -127,7 +127,8 @@ final class ShareEntryProbe: ObservableObject {
     }
 
     func installationFailure(for action: ShareAction) -> String? {
-        if let identifier = action.targetBundleIdentifier, !isAppInstalled(identifier) {
+        let identifiers = action.targetBundleIdentifiers
+        if !identifiers.isEmpty, !identifiers.contains(where: isAppInstalled) {
             return L10n.format("请先安装 %@，再开启此入口。", action.targetDisplayName)
         }
         if action == .custom && !customTargets().contains(where: { isAppInstalled($0.bundleIdentifier) }) {
