@@ -9,7 +9,7 @@
 打包出来的安装包（0.1.16 → 1.0.7 多个版本）安装后一切看似正常——
 
 - `Get-AppxPackage` 能查到 `ChatBridge.Windows.ShareTarget_1.0.7.0_neutral__k2gw8zhv15c4m`，Status=Ok
-- `share-target\WeChatBridge.ShareTarget.exe --registration-check` 返回正确 AUMID
+- `WeChatBridge.ShareTarget.exe --registration-check` 返回正确 AUMID
 - `Microsoft-Windows-AppXDeploymentServer/Operational` 日志显示注册成功，无错误
 
 但微信（Weixin 4.x）的「转发到其他应用」菜单里始终没有「聊天桥」。
