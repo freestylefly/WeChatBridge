@@ -397,7 +397,7 @@ final class ActionRunner {
         // resolves one or stops — so reaching here means a build mismatch about
         // the intent schema. The files are still on the clipboard, and saying so
         // beats pretending an app is missing.
-        guard let bundleIdentifier = target?.bundleIdentifier ?? action.targetBundleIdentifier else {
+        guard let bundleIdentifier = target?.bundleIdentifier ?? action.installedTargetBundleIdentifier else {
             fallBack(arrival, message: L10n.text("这条转发没有指定目标 App。"))
             return
         }

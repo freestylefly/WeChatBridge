@@ -23,14 +23,22 @@ public enum AgentID: String, Codable, CaseIterable, Hashable, Identifiable, Send
         }
     }
 
-    public var bundleIdentifier: String {
+    /// The primary bundle identifier. See `bundleIdentifiers` for every
+    /// identifier the same agent ships under.
+    public var bundleIdentifier: String { bundleIdentifiers[0] }
+
+    /// Every bundle identifier this agent is known to ship under, primary first.
+    /// WorkBuddy has two: the WeChat-distributed build is
+    /// `com.tencent.workbuddy.mac`, the public download is
+    /// `com.workbuddy.workbuddy` (issue #44).
+    public var bundleIdentifiers: [String] {
         switch self {
-        case .chatGPTCodex: return "com.openai.codex"
-        case .claude: return "com.anthropic.claudefordesktop"
-        case .doubao: return "com.bot.pc.doubao"
-        case .qwenWork: return "com.alibaba.qwenwork"
-        case .workBuddy: return "com.tencent.workbuddy.mac"
-        case .weSight: return "ai.wesight.app"
+        case .chatGPTCodex: return ["com.openai.codex"]
+        case .claude: return ["com.anthropic.claudefordesktop"]
+        case .doubao: return ["com.bot.pc.doubao"]
+        case .qwenWork: return ["com.alibaba.qwenwork"]
+        case .workBuddy: return ["com.tencent.workbuddy.mac", "com.workbuddy.workbuddy"]
+        case .weSight: return ["ai.wesight.app"]
         }
     }
 
@@ -46,7 +54,7 @@ public enum AgentID: String, Codable, CaseIterable, Hashable, Identifiable, Send
     }
 
     public static func matching(bundleIdentifier: String) -> AgentID? {
-        allCases.first { $0.bundleIdentifier == bundleIdentifier }
+        allCases.first { $0.bundleIdentifiers.contains(bundleIdentifier) }
     }
 
     public static func matching(_ action: ShareAction) -> AgentID? {
