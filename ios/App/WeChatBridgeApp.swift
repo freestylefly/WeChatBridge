@@ -97,7 +97,11 @@ struct RootView: View {
         }
         .onOpenURL { router.handle($0) }
         .fullScreenCover(isPresented: $showsOnboarding) {
-            OnboardingView { preferences.onboardingDone = true; showsOnboarding = false }
+            OnboardingView {
+                preferences.onboardingDone = true
+                showsOnboarding = false
+                requestNotificationsIfNeeded()
+            }
         }
         .onAppear(perform: launch)
         .onChange(of: scenePhase) { phase in
@@ -118,8 +122,12 @@ struct RootView: View {
         store.reload()
         store.pruneHistory(retentionDays: preferences.retentionDays)
         if !preferences.onboardingDone && router.pending == nil { showsOnboarding = true }
-        if preferences.quickDeliver {
-            Task { _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) }
-        }
+        // On first launch the prompt waits for onboarding to finish, so it doesn't cover the intro.
+        if !showsOnboarding { requestNotificationsIfNeeded() }
+    }
+
+    private func requestNotificationsIfNeeded() {
+        guard preferences.quickDeliver else { return }
+        Task { _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) }
     }
 }
