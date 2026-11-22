@@ -50,6 +50,30 @@ struct OnboardingFlow: View {
     }
 
     var body: some View {
+        OnboardingFrame(width: Metrics.onboardingWidth, minHeight: Metrics.onboardingHeight) {
+            content
+        }
+        .background(Theme.raised)
+        .onAppear {
+            authorization.refresh()
+            probe.refresh()
+            preferences.onboardingStep = step.rawValue
+        }
+        .onChange(of: step) { _, new in preferences.onboardingStep = new.rawValue }
+        // The permission is granted, and the entries can be switched, in System
+        // Settings — in another process, while this window waits. Both have to
+        // be re-read the moment the user comes back.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            authorization.refresh()
+            probe.refresh()
+        }
+        .animation(Motion.reduced(.easeInOut(duration: 0.22)), value: step)
+    }
+
+    /// The guide itself, at the design's width. Its height is the step's own:
+    /// the entry roster has grown past the height the design was drawn at, and
+    /// a fixed one clipped the footer button off the bottom of step one.
+    private var content: some View {
         VStack(spacing: 0) {
             StepBar(steps: Step.allCases.map(\.title), current: step.rawValue)
                 .frame(height: 52)
@@ -75,27 +99,6 @@ struct OnboardingFlow: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
-        // The design's width, and only its width: the height is whatever the
-        // step showing asks for. It has to be — the entry roster has grown past
-        // the height the design was drawn at, and a fixed one clipped the
-        // footer button off the bottom of step one. The window follows this
-        // view's own size.
-        .frame(width: Metrics.onboardingWidth)
-        .background(Theme.raised)
-        .onAppear {
-            authorization.refresh()
-            probe.refresh()
-            preferences.onboardingStep = step.rawValue
-        }
-        .onChange(of: step) { _, new in preferences.onboardingStep = new.rawValue }
-        // The permission is granted, and the entries can be switched, in System
-        // Settings — in another process, while this window waits. Both have to
-        // be re-read the moment the user comes back.
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            authorization.refresh()
-            probe.refresh()
-        }
-        .animation(Motion.reduced(.easeInOut(duration: 0.22)), value: step)
     }
 
     // MARK: - Art column
@@ -339,5 +342,41 @@ private struct PermissionArt: View {
         )
         .shadow(color: .black.opacity(0.08), radius: 16, y: 6)
         .accessibilityHidden(true)
+    }
+}
+
+// MARK: - Window sizing
+
+/// Sizes the guide at `width` × max(`minHeight`, the content's own ideal
+/// height), whatever size it is offered.
+///
+/// The window follows this view's preferred size (`.preferredContentSize`, so
+/// a step taller than the design is not clipped — macOS 15). The view must not
+/// follow the window back: the panes stretch with `maxHeight: .infinity`, so a
+/// size read from the offer feeds the window's height back into itself. On
+/// macOS 14 that loop ends in AppKit's "more Update Constraints in Window
+/// passes than there are views" exception and the app exits at launch (issue
+/// #54). Measuring at an unspecified height makes the answer depend on the
+/// step alone.
+struct OnboardingFrame: Layout {
+    var width: CGFloat
+    var minHeight: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        CGSize(width: width, height: height(of: subviews))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let size = ProposedViewSize(width: width, height: height(of: subviews))
+        for subview in subviews {
+            subview.place(at: bounds.origin, anchor: .topLeading, proposal: size)
+        }
+    }
+
+    func height(of subviews: Subviews) -> CGFloat {
+        let ideal = subviews
+            .map { $0.sizeThatFits(ProposedViewSize(width: width, height: nil)).height }
+            .max() ?? 0
+        return max(minHeight, ideal)
     }
 }
