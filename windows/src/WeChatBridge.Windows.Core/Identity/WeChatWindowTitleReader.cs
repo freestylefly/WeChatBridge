@@ -19,19 +19,29 @@ public sealed class WeChatTitleReaderException(WeChatTitleReaderErrorKind kind, 
 }
 
 /// <summary>
-/// Windows port of <c>WeChatTitleReader</c>. On macOS the group name comes from
-/// Accessibility labels or a Screen-Recording screenshot of the title bar;
-/// Windows needs neither — the WeChat main window's own title bar text already
-/// contains the current chat name, and <c>GetWindowText</c> reads it without
-/// capturing any pixels. The privacy boundary is identical to the macOS
-/// Accessibility path: window titles only, no screen capture, no injection.
+/// Windows port of <c>WeChatTitleReader</c>: reads the chat name from WeChat's
+/// top-level window titles with <c>GetWindowText</c>, without capturing any
+/// pixels. The privacy boundary is identical to the macOS Accessibility path:
+/// window titles only, no screen capture, no injection.
+///
+/// WeChat 4.x (Weixin) titles its main window 「微信」 whatever chat is open, so
+/// a title that is only the app name is not a chat name. It is dropped here, so
+/// the caller falls through to the OCR read instead of filing every group as
+/// 「微信」 (issue #41).
 /// </summary>
 public sealed class WeChatWindowTitleReader
 {
     /// <summary>Weixin.exe is WeChat 4.x; WeChat.exe is the 3.x line.</summary>
     private static readonly string[] WeChatProcessNames = ["weixin", "wechat"];
 
+    /// <summary>What WeChat calls its own windows; never a chat name.</summary>
+    private static readonly HashSet<string> AppNames =
+        new(StringComparer.OrdinalIgnoreCase) { "微信", "Weixin", "WeChat" };
+
     private readonly Func<IReadOnlyList<string>> _windowTitles;
+
+    /// <summary>True for a title that names the app rather than a chat.</summary>
+    public static bool IsAppName(string title) => AppNames.Contains(title.Trim());
 
     /// <param name="windowTitles">Injectable so tests parse titles without a
     /// running WeChat. Null reads the real windows via user32.</param>
@@ -49,7 +59,7 @@ public sealed class WeChatWindowTitleReader
         if (titles.Count == 0)
             throw new WeChatTitleReaderException(
                 WeChatTitleReaderErrorKind.NoWindow, "没有找到可见的微信聊天窗口。");
-        return GroupTitleParser.Parse(titles)
+        return GroupTitleParser.Parse(titles.Where(title => !IsAppName(title)))
             ?? throw new WeChatTitleReaderException(
                 WeChatTitleReaderErrorKind.EmptyTitle, "没有识别出微信群名。");
     }

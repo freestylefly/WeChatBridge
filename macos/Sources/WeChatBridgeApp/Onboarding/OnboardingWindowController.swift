@@ -38,6 +38,8 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
         // The width is part of the layout; the height is the current step's
         // intrinsic height. Without `.preferredContentSize`, macOS 15 leaves
         // this fixed at the starting frame and clips step one's footer.
+        // `OnboardingFrame` keeps that size independent of the window's, which
+        // is what stops macOS 14 looping on it at launch (issue #54).
         controller.sizingOptions = [.preferredContentSize]
         let window = NSWindow(contentViewController: controller)
         window.title = ""

@@ -33,6 +33,18 @@ final class ShareActionTests: XCTestCase {
         XCTAssertNil(ShareAction.custom.targetBundleIdentifier)
     }
 
+    /// Issue #44: WorkBuddy ships under two bundle identifiers, and the
+    /// public download (`com.workbuddy.workbuddy`) read as 未安装.
+    func testWorkBuddyIsKnownUnderBothBundleIdentifiers() {
+        XCTAssertEqual(
+            ShareAction.workBuddy.targetBundleIdentifiers,
+            ["com.tencent.workbuddy.mac", "com.workbuddy.workbuddy"]
+        )
+        XCTAssertEqual(AgentID.matching(bundleIdentifier: "com.workbuddy.workbuddy"), .workBuddy)
+        XCTAssertEqual(AgentID.matching(bundleIdentifier: "com.tencent.workbuddy.mac"), .workBuddy)
+        XCTAssertEqual(ShareAction.clipboard.targetBundleIdentifiers, [])
+    }
+
     /// The folder entry travels in manifests and intents like every other
     /// action: a build that cannot decode `folder` would drop the request, so
     /// the round trip is pinned here.
