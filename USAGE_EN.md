@@ -109,6 +109,20 @@ Conversation content only comes from files WeChat exports on your request. WeCha
 
 ## FAQ
 
+**The icon shows a 🚫 and will not drag into Applications.**
+Builds up to 0.1.15 required macOS 14. Newer builds run on macOS 13 (Ventura) and later; download the latest one. macOS 12 and earlier are not supported.
+
+**macOS says “Apple could not verify WeChatBridge is free of malware” or that it “is damaged”.**
+Early builds were not notarized by Apple; newer builds are. To open an older build you already downloaded (only one that came from this project's Lanzou link):
+
+1. Drag WeChatBridge into Applications, double-click it once, and click “Done” in the alert.
+2. Open “System Settings → Privacy & Security”, scroll to the bottom, click “Open Anyway” next to the WeChatBridge notice, and confirm with your login password.
+3. If “Open Anyway” does not appear, run this in Terminal and double-click the app again:
+
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/微信流.app
+   ```
+
 **The entries are missing from the WeChat menu.**
 Confirm the switch is on, then check the extension under “System Settings → General → Login Items & Extensions → Sharing”. WeChat sometimes needs a restart before the menu refreshes.
 

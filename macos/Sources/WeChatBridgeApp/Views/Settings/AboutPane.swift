@@ -271,7 +271,7 @@ private struct LicenseSheet: View {
                     }
                     .padding(.trailing, Space.s)
                 }
-                .defaultScrollAnchor(.top)
+                .compatDefaultScrollAnchorTop()
             }
         }
         .padding(Space.xl)

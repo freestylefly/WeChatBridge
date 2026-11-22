@@ -52,8 +52,8 @@ struct SettingsActionList: View {
                 }
             }
             .frame(height: min(contentHeight, Self.maxHeight))
-            .scrollBounceBehavior(.basedOnSize)
-            .onChange(of: highlighted) { _, value in
+            .compatScrollBounceBasedOnSize()
+            .compatOnChange(of: highlighted) { _, value in
                 if let value { reader.scrollTo(value) }
             }
         }
@@ -61,16 +61,13 @@ struct SettingsActionList: View {
         .background(Theme.surface)
         .focusable()
         .focused($focused)
-        .focusEffectDisabled()
+        .compatFocusEffectDisabled()
         .onAppear {
             // No selection to return to, so the keyboard starts at the top.
             highlighted = items.first?.id
             focused = true
         }
-        .onKeyPress(.downArrow) { move(1); return .handled }
-        .onKeyPress(.upArrow) { move(-1); return .handled }
-        .onKeyPress(.return) { commit(); return .handled }
-        .onKeyPress(.space) { commit(); return .handled }
+        .compatKeyCommands(up: { move(-1) }, down: { move(1) }, commit: commit)
         .onExitCommand(perform: dismiss)
         .accessibilityElement(children: .contain)
     }
@@ -153,7 +150,7 @@ struct SettingsMoreActionsButton: View {
         }
         .buttonStyle(IconButtonStyle(size: Self.side, staticFeedback: true))
         .focused($focused)
-        .focusEffectDisabled()
+        .compatFocusEffectDisabled()
         .modifier(SettingsFocusRing(focused: focused, radius: Self.side / 2))
         .fixedSize()
         // NSPopover brings its own arrival, which is the whole reason this is a
@@ -165,7 +162,7 @@ struct SettingsMoreActionsButton: View {
         }
         // Focus stays on the trigger, so the next Tab carries on from here
         // rather than from the top of the pane.
-        .onChange(of: expanded) { _, value in if !value { focused = true } }
+        .compatOnChange(of: expanded) { _, value in if !value { focused = true } }
         .help(L10n.text("更多操作"))
         .accessibilityLabel(Text(L10n.text("更多操作")))
         .accessibilityIdentifier(identifier)

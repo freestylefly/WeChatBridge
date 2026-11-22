@@ -14,11 +14,14 @@ CONFIG="${CONFIG:-release}"
 # rebuild. A stable Developer ID or Apple Development identity is picked
 # automatically when the keychain has one; ad-hoc stays the fallback so a clone
 # without any certificate still builds.
+# TEAM_ID narrows the search to one team's certificates, so a keychain holding
+# several teams' identities never signs with the wrong one by accident.
 select_identity() {
 	local found
 	for PREFIX in "Developer ID Application:" "Apple Development:"; do
 		found="$(security find-identity -v -p codesigning 2>/dev/null \
-			| awk -v prefix="$PREFIX" 'index($0, prefix) { print $2; exit }')"
+			| awk -v prefix="$PREFIX" -v team="${TEAM_ID:+($TEAM_ID)\"}" \
+				'index($0, prefix) && (team == "" || index($0, team)) { print $2; exit }')"
 		if [ -n "$found" ]; then
 			printf '%s' "$found"
 			return

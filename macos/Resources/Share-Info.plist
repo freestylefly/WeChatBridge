@@ -22,12 +22,12 @@
 	<string>18</string>
 	<key>DKAppGroupIdentifier</key>
 	<string>DLKMC3ZRZQ.com.xiangming.wechatbridge.shared</string>
-	<key>DKStorageMode</key>
-	<string>shared</string>
 	<key>DKShareAction</key>
 	<string>clipboard</string>
+	<key>DKStorageMode</key>
+	<string>shared</string>
 	<key>LSMinimumSystemVersion</key>
-	<string>14.0</string>
+	<string>13.0</string>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionAttributes</key>

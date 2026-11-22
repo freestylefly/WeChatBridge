@@ -243,8 +243,8 @@ private struct ScenePickerView: View {
                         }
                     }
                 }
-                .scrollBounceBehavior(.basedOnSize)
-                .onChange(of: state.highlighted) { _, highlighted in
+                .compatScrollBounceBasedOnSize()
+                .compatOnChange(of: state.highlighted) { _, highlighted in
                     guard scenes.indices.contains(highlighted) else { return }
                     proxy.scrollTo(scenes[highlighted].id, anchor: .center)
                 }

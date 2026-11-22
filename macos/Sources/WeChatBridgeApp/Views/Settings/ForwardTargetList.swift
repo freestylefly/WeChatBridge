@@ -83,7 +83,7 @@ struct ForwardTargetList: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .scrollBounceBehavior(.basedOnSize)
+        .compatScrollBounceBasedOnSize()
         .frame(height: Self.rowHeight * CGFloat(min(targets.targets.count, Self.visibleRows)))
         .padding(Space.xs)
     }
@@ -189,7 +189,7 @@ private struct AddForwardTargetButton: View {
         }
         .buttonStyle(SettingsActionButtonStyle())
         .focused($focused)
-        .focusEffectDisabled()
+        .compatFocusEffectDisabled()
         .modifier(SettingsFocusRing(focused: focused))
         .popover(isPresented: $expanded, arrowEdge: .bottom) {
             SettingsChoiceList(
@@ -225,7 +225,7 @@ private struct AddForwardTargetButton: View {
                 Task { @MainActor in chooseFromFinder() }
             }
         }
-        .onChange(of: expanded) { _, value in if !value { focused = true } }
+        .compatOnChange(of: expanded) { _, value in if !value { focused = true } }
         .accessibilityIdentifier("entries.add")
     }
 

@@ -66,10 +66,10 @@
 
 | 平台 | 下载地址 | 提取密码 |
 | --- | --- | --- |
-| macOS 14+（Apple Silicon 与 Intel） | [wwbsr.lanzout.com/b0umjur8h](https://wwbsr.lanzout.com/b0umjur8h) | `向明` |
+| macOS 13+（Apple Silicon 与 Intel） | [wwbsr.lanzout.com/b0umjur8h](https://wwbsr.lanzout.com/b0umjur8h) | `向明` |
 | Windows | [wwbsr.lanzout.com/b0umjur4d](https://wwbsr.lanzout.com/b0umjur4d) | `向明` |
 
-macOS 版打开 DMG，把「微信流」拖入「应用程序」即可；Windows 版解压后按目录内说明运行。iOS 版正在开发中，进群可以第一时间知道进展。
+macOS 版打开 DMG，把「微信流」拖入「应用程序」即可（图标带 🚫 或提示「无法验证」见[常见问题](USAGE.zh-CN.md#常见问题)）；Windows 版解压后按目录内说明运行。iOS 版正在开发中，进群可以第一时间知道进展。
 
 ## 加入交流群
 

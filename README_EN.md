@@ -66,10 +66,10 @@ Free to download. All installers are distributed through Lanzou Cloud, and the e
 
 | Platform | Download | Password |
 | --- | --- | --- |
-| macOS 14+ (Apple Silicon and Intel) | [wwbsr.lanzout.com/b0umjur8h](https://wwbsr.lanzout.com/b0umjur8h) | `向明` |
+| macOS 13+ (Apple Silicon and Intel) | [wwbsr.lanzout.com/b0umjur8h](https://wwbsr.lanzout.com/b0umjur8h) | `向明` |
 | Windows | [wwbsr.lanzout.com/b0umjur4d](https://wwbsr.lanzout.com/b0umjur4d) | `向明` |
 
-On macOS, open the DMG and drag WeChatBridge into Applications. On Windows, unzip the archive and follow the instructions inside. An iOS version is in development—join the group to hear about it first.
+On macOS, open the DMG and drag WeChatBridge into Applications (if the icon shows a 🚫 or macOS says it cannot verify the app, see the [FAQ](USAGE_EN.md#faq)). On Windows, unzip the archive and follow the instructions inside. An iOS version is in development—join the group to hear about it first.
 
 ## Join the community
 

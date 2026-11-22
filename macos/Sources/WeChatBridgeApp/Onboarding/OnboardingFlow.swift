@@ -87,7 +87,7 @@ struct OnboardingFlow: View {
             probe.refresh()
             preferences.onboardingStep = step.rawValue
         }
-        .onChange(of: step) { _, new in preferences.onboardingStep = new.rawValue }
+        .compatOnChange(of: step) { _, new in preferences.onboardingStep = new.rawValue }
         // The permission is granted, and the entries can be switched, in System
         // Settings — in another process, while this window waits. Both have to
         // be re-read the moment the user comes back.
