@@ -166,7 +166,7 @@ struct SettingsTextFieldStyle: TextFieldStyle {
                     .allowsHitTesting(false)
             }
             .focused($focused)
-            .focusEffectDisabled()
+            .compatFocusEffectDisabled()
             .onHover { hovering = $0 }
             .opacity(isEnabled ? 1 : 0.45)
     }
@@ -218,7 +218,7 @@ struct SettingsOptionToggleStyle: ToggleStyle {
         }
         .buttonStyle(PlainPressButtonStyle(staticFeedback: true))
         .focused($focused)
-        .focusEffectDisabled()
+        .compatFocusEffectDisabled()
         .modifier(SettingsFocusRing(focused: focused))
         .onHover { hovering = $0 }
         .opacity(isEnabled ? 1 : 0.45)
@@ -261,16 +261,15 @@ struct SettingsSelect<Value: Hashable>: View {
         }
         .buttonStyle(SettingsControlButtonStyle())
         .focused($focused)
-        .focusEffectDisabled()
+        .compatFocusEffectDisabled()
         .modifier(SettingsFocusRing(focused: focused))
         .background {
             GeometryReader { proxy in
                 Color.clear.onAppear { width = proxy.size.width }
-                    .onChange(of: proxy.size.width) { _, value in width = value }
+                    .compatOnChange(of: proxy.size.width) { _, value in width = value }
             }
         }
-        .onKeyPress(.downArrow) { expanded = true; return .handled }
-        .onKeyPress(.upArrow) { expanded = true; return .handled }
+        .compatKeyCommands(up: { expanded = true }, down: { expanded = true })
         .popover(isPresented: $expanded, arrowEdge: .bottom) {
             SettingsChoiceList(title: title, selection: selection, choices: choices, identifier: identifier) {
                 selection = $0
@@ -280,7 +279,7 @@ struct SettingsSelect<Value: Hashable>: View {
             }
             .frame(width: max(180, min(width, 420)))
         }
-        .onChange(of: expanded) { _, value in if !value { focused = true } }
+        .compatOnChange(of: expanded) { _, value in if !value { focused = true } }
         .disabled(choices.isEmpty)
         .accessibilityLabel(Text(title))
         .accessibilityValue(Text(valueTitle))
@@ -338,8 +337,8 @@ struct SettingsChoiceList<Value: Hashable>: View {
                     }
                 }
                 .frame(height: min(max(CGFloat(choices.count) * (SettingsControlMetrics.height + Space.xxs) - Space.xxs, 0), 286))
-                .scrollBounceBehavior(.basedOnSize)
-                .onChange(of: highlighted) { _, value in
+                .compatScrollBounceBasedOnSize()
+                .compatOnChange(of: highlighted) { _, value in
                     if let value, value != footer?.id { reader.scrollTo(value) }
                 }
             }
@@ -353,19 +352,16 @@ struct SettingsChoiceList<Value: Hashable>: View {
         .background(Theme.surface)
         .focusable()
         .focused($focused)
-        .focusEffectDisabled()
+        .compatFocusEffectDisabled()
         .onAppear {
             highlighted = enabledChoices.contains { $0.id == selection } ? selection : enabledChoices.first?.id
             focused = true
         }
-        .onChange(of: enabledChoices.map(\.id)) { _, ids in
+        .compatOnChange(of: enabledChoices.map(\.id)) { _, ids in
             if !ids.contains(where: { $0 == highlighted }) { highlighted = ids.first }
             if ids.isEmpty { dismiss() }
         }
-        .onKeyPress(.downArrow) { move(1); return .handled }
-        .onKeyPress(.upArrow) { move(-1); return .handled }
-        .onKeyPress(.return) { commit(); return .handled }
-        .onKeyPress(.space) { commit(); return .handled }
+        .compatKeyCommands(up: { move(-1) }, down: { move(1) }, commit: commit)
         .onExitCommand(perform: dismiss)
         .accessibilityElement(children: .contain)
     }
@@ -460,7 +456,7 @@ struct SettingsChoiceStrip<Value: Hashable>: View {
                 }
                 .buttonStyle(SettingsChoiceButtonStyle(selected: selection == choice.id))
                 .focused($focused, equals: choice.id)
-                .focusEffectDisabled()
+                .compatFocusEffectDisabled()
                 .modifier(SettingsFocusRing(focused: focused == choice.id,
                                             radius: SettingsControlMetrics.radius - Space.xxs))
             }
@@ -472,8 +468,7 @@ struct SettingsChoiceStrip<Value: Hashable>: View {
                 .strokeBorder(Theme.strokeStrong, lineWidth: Stroke.hairline)
                 .allowsHitTesting(false)
         }
-        .onKeyPress(.leftArrow) { move(-1); return .handled }
-        .onKeyPress(.rightArrow) { move(1); return .handled }
+        .compatKeyCommands(left: { move(-1) }, right: { move(1) })
         .accessibilityRepresentation {
             Picker(title, selection: $selection) {
                 ForEach(choices) { Text($0.title).tag($0.id) }
