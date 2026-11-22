@@ -110,11 +110,11 @@ struct ReceiptView: View {
     private var hint: String? {
         switch model.state {
         case .collected(let batch):
-            let next = "回微信多选下一段，再选「分批收集到微信流」"
+            let next = "回微信多选下一段，再选「分批收集到信息桥」"
             guard let anchor = batch.anchor else { return next }
-            return "已复制这批最后一句「\(anchor)」\n回微信搜索它定位，从下一条接着多选\n再选「分批收集到微信流」"
+            return "已复制这批最后一句「\(anchor)」\n回微信搜索它定位，从下一条接着多选\n再选「分批收集到信息桥」"
         case .saved(_, _, let anchor?):
-            return "正好 \(SearchAnchor.forwardLimit) 条，后面可能还有。已复制最后一句「\(anchor)」，回微信搜索它接着选，用「分批收集到微信流」分批存。"
+            return "正好 \(SearchAnchor.forwardLimit) 条，后面可能还有。已复制最后一句「\(anchor)」，回微信搜索它接着选，用「分批收集到信息桥」分批存。"
         default:
             return nil
         }

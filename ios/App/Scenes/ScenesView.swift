@@ -107,7 +107,7 @@ struct ScenesView: View {
     private func exportMine() {
         do {
             let data = try ScenePackage.encoder().encode(mine.map { ScenePackage(scene: $0) })
-            let url = FileManager.default.temporaryDirectory.appendingPathComponent("微信流场景.json")
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("信息桥场景.json")
             try data.write(to: url, options: .atomic)
             ActivitySheet.present(items: [url]) { _ in }
         } catch {

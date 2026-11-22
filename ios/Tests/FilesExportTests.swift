@@ -67,7 +67,7 @@ final class FilesExportTests: XCTestCase {
     func testSideNoteSaysWhereEachGoes() {
         XCTAssertEqual(
             DeliverySheet.sideNote(["a.png", "b.mp4", "c.docx"]),
-            "发送时图片和视频存到「照片」：a.png、b.mp4；附件放到「我的iPhone › 微信流」：c.docx"
+            "发送时图片和视频存到「照片」：a.png、b.mp4；附件放到「我的iPhone › 信息桥」：c.docx"
         )
     }
 

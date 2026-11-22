@@ -223,7 +223,7 @@ struct RelayListView: View {
     /// the clipboard for WeChat's search.
     private func continueCollecting(_ collection: BatchCollection) {
         store.resumeCollection(collection.id)
-        let steps = "从下一条开始多选，分享时在下方列表选「分批收集到微信流」。"
+        let steps = "从下一条开始多选，分享时在下方列表选「分批收集到信息桥」。"
         if let anchor = store.lastBatch(of: collection)?.summary?.anchor {
             UIPasteboard.general.string = anchor
             collectNote = "已复制最后一句「\(anchor)」。回微信在这个聊天里搜索它定位，\(steps)"

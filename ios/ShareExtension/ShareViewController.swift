@@ -3,10 +3,10 @@ import UIKit
 import UniformTypeIdentifiers
 import WeChatBridgeCore
 
-/// The entry point of all three extensions: 「微信流」 in the share row
+/// The entry point of all three extensions: 「信息桥」 in the share row
 /// (`com.apple.share-services`), and in the action list
-/// (`com.apple.ui-services`) 「存入微信流」, the same save, and
-/// 「分批收集到微信流」 (`CollectMarker.declared`). Copy what was shared
+/// (`com.apple.ui-services`) 「存入信息桥」, the same save, and
+/// 「分批收集到信息桥」 (`CollectMarker.declared`). Copy what was shared
 /// into the group container and stop. Only the chat's TXT is read, for the
 /// receipt and the search anchor; nothing is delivered here — an
 /// extension has a small memory ceiling, cannot present a second share sheet
@@ -234,7 +234,7 @@ final class ShareViewController: UIViewController {
         return Chat(count: records.count, start: transcript.start, end: transcript.end, keyword: SearchAnchor.keyword(records))
     }
 
-    static let installBroken = "微信流没装好，请重新安装后再试。"
+    static let installBroken = "信息桥没装好，请重新安装后再试。"
 
     /// A provider offering a web link or text but no file. A text file from
     /// Files names itself (`suggestedName` has an extension) and stays a file.

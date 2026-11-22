@@ -56,8 +56,8 @@ final class Preferences: ObservableObject {
         self.scenes = scenes
         groupMemory = Self.load([String: GroupMemory].self, defaults, Key.groupMemory) ?? [:]
         retentionDays = defaults.object(forKey: Key.historyRetentionDays) as? Int ?? Self.defaultRetentionDays
-        obsidianSubfolder = defaults.string(forKey: Key.obsidianSubfolder) ?? "微信流"
-        folderSubfolder = defaults.string(forKey: Key.folderSubfolder) ?? "微信流"
+        obsidianSubfolder = defaults.string(forKey: Key.obsidianSubfolder) ?? "信息桥"
+        folderSubfolder = defaults.string(forKey: Key.folderSubfolder) ?? "信息桥"
         obsidianBookmark = defaults.data(forKey: Key.obsidianBookmark)
         folderBookmark = defaults.data(forKey: Key.folderBookmark)
         formatOverrides = defaults.dictionary(forKey: Key.targetFormatOverrides) as? [String: String] ?? [:]

@@ -78,7 +78,7 @@ private struct ActionRow: View {
     var body: some View {
         HStack(spacing: 8) {
             Link(destination: context.attributes.detailURL) {
-                Label("回到微信流", systemImage: "arrow.uturn.backward")
+                Label("回到信息桥", systemImage: "arrow.uturn.backward")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(ActionStyle(prominent: true))

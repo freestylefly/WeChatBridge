@@ -52,7 +52,7 @@ final class RelayStore: ObservableObject {
         guard let reader else {
             // A signing problem: the group id is for the log, not the user.
             NSLog("WeChatBridge: %@", InboxError.containerUnavailable(identifier: AppGroup.identifier).errorDescription ?? "")
-            lastError = "微信流没装好，读不到分享进来的内容。请重新安装后再试。"
+            lastError = "信息桥没装好，读不到分享进来的内容。请重新安装后再试。"
             return
         }
         let known = Dictionary(uniqueKeysWithValues: entries.map { ($0.id, $0.summary) })
@@ -65,7 +65,7 @@ final class RelayStore: ObservableObject {
         summarizeMissing()
     }
 
-    /// 「分批收集到微信流」 batches join the open collection, oldest first.
+    /// 「分批收集到信息桥」 batches join the open collection, oldest first.
     private func ingestMarked() {
         let ids = CollectMarker.unseen(entries.map(\.batch.directory), seen: ledger.seenBatchIDs)
         guard !ids.isEmpty else { return }
@@ -214,7 +214,7 @@ final class RelayStore: ObservableObject {
         saveLedger()
     }
 
-    /// Makes this the collection 「分批收集到微信流」 adds to; a no-op when it already is.
+    /// Makes this the collection 「分批收集到信息桥」 adds to; a no-op when it already is.
     func resumeCollection(_ id: UUID) {
         guard ledger.current?.id != id else { return }
         do { try ledger.resume(id) } catch { lastError = error.localizedDescription }

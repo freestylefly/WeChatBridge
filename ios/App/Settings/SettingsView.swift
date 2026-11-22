@@ -21,7 +21,7 @@ struct SettingsView: View {
                 Section {
                     LabeledContent("Obsidian 库", value: FolderBookmark.name(of: preferences.obsidianBookmark) ?? "未选择")
                     Button("选择 Obsidian 库") { picking = .obsidian }
-                    // A bare TextField shows only its value, which reads as a stray "微信流" row.
+                    // A bare TextField shows only its value, which reads as a stray "信息桥" row.
                     LabeledContent("子文件夹") {
                         TextField("子文件夹", text: $preferences.obsidianSubfolder).multilineTextAlignment(.trailing)
                     }
@@ -63,7 +63,7 @@ struct SettingsView: View {
                 } header: {
                     Text("豆包、千问等")
                 } footer: {
-                    Text("PDF：聊天记录和图片一次发过去，图片插在对应的消息下面。\nTXT：对方收到纯文字，图片和视频存到「照片」，需要时在对方 App 里点「相册」再加。\n两种方式下，视频存到「照片」，其他附件都放到「文件 › 我的iPhone › 微信流」。")
+                    Text("PDF：聊天记录和图片一次发过去，图片插在对应的消息下面。\nTXT：对方收到纯文字，图片和视频存到「照片」，需要时在对方 App 里点「相册」再加。\n两种方式下，视频存到「照片」，其他附件都放到「文件 › 我的iPhone › 信息桥」。")
                 }
                 Section("历史") {
                     Picker("保留已收到的记录", selection: $preferences.retentionDays) {

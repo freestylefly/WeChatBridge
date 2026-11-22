@@ -4,17 +4,17 @@ import UniformTypeIdentifiers
 import WeChatBridgeCore
 
 /// Copies a chat's attachments into the app's Documents folder, which Files
-/// shows as 「我的iPhone › 微信流」, and its images and videos into Photos.
+/// shows as 「我的iPhone › 信息桥」, and its images and videos into Photos.
 /// 千问 takes documents only from its file picker and media only from 相册,
 /// and neither through a share beside the TXT.
 enum FilesExport {
     static var root: URL { URL.documentsDirectory }
 
-    /// Files lists 「微信流」 only once Documents holds something; on a phone
+    /// Files lists 「信息桥」 only once Documents holds something; on a phone
     /// that never exported, the user would find no folder to open.
     static func placeGuide(in root: URL = root) {
         let guide = root.appendingPathComponent("使用说明.txt")
-        let text = "投递到豆包、千问时，聊天记录发过去（PDF 里带图片，或只发 TXT，可在「设置」里选）；视频存到「照片」，其他附件放进这里以聊天命名的文件夹。\n需要时在对方 App 里点「相册」选图片和视频，点「添加文件」→ 我的iPhone → 微信流 选附件。也可以在中转站长按一条聊天，选「存图片和附件」。\n"
+        let text = "投递到豆包、千问时，聊天记录发过去（PDF 里带图片，或只发 TXT，可在「设置」里选）；视频存到「照片」，其他附件放进这里以聊天命名的文件夹。\n需要时在对方 App 里点「相册」选图片和视频，点「添加文件」→ 我的iPhone → 信息桥 选附件。也可以在中转站长按一条聊天，选「存图片和附件」。\n"
         // Rewritten when the wording changes, so an older guide never lingers.
         guard (try? Data(contentsOf: guide)) != Data(text.utf8) else { return }
         try? Data(text.utf8).write(to: guide)
@@ -38,7 +38,7 @@ enum FilesExport {
     }
 
     struct Exported {
-        /// The chat's folder under 「微信流」; nil when no document went there.
+        /// The chat's folder under 「信息桥」; nil when no document went there.
         var folder: URL?
         /// Images and videos, when the caller asked for them apart.
         var media: [URL] = []
@@ -117,11 +117,11 @@ enum FilesExport {
             var lines: [String] = []
             if savedMedia > 0 { lines.append("\(savedMedia) 个图片/视频已存到「照片」，在千问等 App 里点「相册」选取。") }
             if photosDenied {
-                lines.append("没有添加照片的权限，图片和视频放进了下面的文件夹。可在「设置 › 微信流 › 照片」里打开。")
+                lines.append("没有添加照片的权限，图片和视频放进了下面的文件夹。可在「设置 › 信息桥 › 照片」里打开。")
             } else if keptMedia > 0 {
                 lines.append("\(keptMedia) 个图片/视频「照片」不收，放进了下面的文件夹。")
             }
-            if !folders.isEmpty { lines.append("文件在「我的iPhone › 微信流 › \(folders.joined(separator: "、"))」，点「添加文件」选取。") }
+            if !folders.isEmpty { lines.append("文件在「我的iPhone › 信息桥 › \(folders.joined(separator: "、"))」，点「添加文件」选取。") }
             return lines.isEmpty ? "这条聊天只有文字，没有图片或附件。" : lines.joined(separator: "\n")
         }
     }
@@ -159,7 +159,7 @@ enum FilesExport {
         }
     }
 
-    /// Images and videos into Photos, everything else into 「微信流」 folders.
+    /// Images and videos into Photos, everything else into 「信息桥」 folders.
     static func exportForPicking(_ jobs: [Job]) async throws -> Summary {
         let mediaRoot = FileManager.default.temporaryDirectory.appendingPathComponent("media-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: mediaRoot) }

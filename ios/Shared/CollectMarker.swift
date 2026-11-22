@@ -1,7 +1,7 @@
 import Foundation
 import WeChatBridgeCore
 
-/// 「分批收集到微信流」: the action extension drops this file into its batch
+/// 「分批收集到信息桥」: the action extension drops this file into its batch
 /// before commit, and the app adds marked batches to the open collection on
 /// its next reload. The ledger keeps one writer, the app; the marker rides
 /// inside the atomic commit, so a batch is never half marked.

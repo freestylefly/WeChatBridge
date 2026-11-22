@@ -11,7 +11,7 @@ options:
 settings:
   base:
     MARKETING_VERSION: "0.1.0"
-    CURRENT_PROJECT_VERSION: "1"
+    CURRENT_PROJECT_VERSION: "2"
 configFiles:
   Debug: Config/Signing.xcconfig
   Release: Config/Signing.xcconfig
@@ -64,7 +64,7 @@ targets:
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1"
         APPLICATION_EXTENSION_API_ONLY: YES
-  # 「分批收集到微信流」 in the share sheet's action list: the same import,
+  # 「分批收集到信息桥」 in the share sheet's action list: the same import,
   # each batch added to the open collection (see Shared/CollectMarker.swift).
   WeChatBridgeiOSCollect:
     type: app-extension
@@ -88,7 +88,7 @@ targets:
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1"
         APPLICATION_EXTENSION_API_ONLY: YES
-  # 「存入微信流」 in the action list, the row a user can pin to the top of the
+  # 「存入信息桥」 in the action list, the row a user can pin to the top of the
   # share sheet: the share extension's plain save, links and text included.
   WeChatBridgeiOSSave:
     type: app-extension

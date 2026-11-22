@@ -24,7 +24,7 @@ struct DeliveryPackage {
     var fileCount: Int { shares.reduce(0) { $0 + $1.count } }
 
     /// Just the transcript: 豆包 and 千问 read it whole, and the images and
-    /// attachments it names go to 「我的iPhone › 微信流」 instead (seen on
+    /// attachments it names go to 「我的iPhone › 信息桥」 instead (seen on
     /// device: 千问 keeps only the images when a share mixes them with a TXT).
     func transcriptOnly() -> DeliveryPackage {
         guard let transcript = shares.first?.first else { return self }

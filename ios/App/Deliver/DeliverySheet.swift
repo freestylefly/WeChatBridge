@@ -272,7 +272,7 @@ struct DeliverySheet: View {
     }
 
     /// The images and attachments the TXT names: media into Photos for the
-    /// target's 相册 picker, the rest into 「我的iPhone › 微信流」 for its file
+    /// target's 相册 picker, the rest into 「我的iPhone › 信息桥」 for its file
     /// picker. Run only once the share went through, so a cancelled one
     /// leaves nothing behind. Images the PDF already carries are skipped.
     private func exportForPicking(_ package: DeliveryPackage) async -> String? {
@@ -296,7 +296,7 @@ struct DeliverySheet: View {
         let files = omitted.filter { !FilesExport.isMedia($0) }
         var parts: [String] = []
         if !media.isEmpty { parts.append("图片和视频存到「照片」：\(media.joined(separator: "、"))") }
-        if !files.isEmpty { parts.append("附件放到「我的iPhone › 微信流」：\(files.joined(separator: "、"))") }
+        if !files.isEmpty { parts.append("附件放到「我的iPhone › 信息桥」：\(files.joined(separator: "、"))") }
         return "发送时" + parts.joined(separator: "；")
     }
 
