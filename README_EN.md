@@ -88,7 +88,9 @@ On macOS, open the DMG and drag WeChatBridge into Applications. On Windows, unzi
         <li>Pick up the scene prompts and skill packs other members use—faster than writing your own</li>
         <li>Request features: tell us which app you want your conversations sent to</li>
       </ul>
-      If the group is full or you can't get in, scan 苍何's WeChat under “About us” below and mention “WeChatBridge”.
+      If the group is full or you can't get in, scan 向明's WeChat under “About us” below and mention “WeChatBridge”.
+      <br /><br />
+      The compatibility-layer code download is also available <a href="https://my.feishu.cn/wiki/Eq6twbgv5irYgikOa8Pc2fHfnKg#share-RNMedgl3VoT0M5xZRNVcCXPBnSe">here</a>.
     </td>
   </tr>
 </table>

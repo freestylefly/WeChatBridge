@@ -88,7 +88,9 @@ macOS 版打开 DMG，把「微信流」拖入「应用程序」即可；Windows
         <li>拿到群友在用的场景提示词和技能包，抄作业比自己写快</li>
         <li>提需求：你想把聊天记录送到哪个应用，告诉我们</li>
       </ul>
-      群满或进不去的话，扫下方「关于我们」里苍何的微信，备注「微信流」。
+      群满或进不去的话，扫下方「关于我们」里向明的微信，备注「微信流」。
+      <br /><br />
+      兼容层的代码下载也可以在<a href="https://my.feishu.cn/wiki/Eq6twbgv5irYgikOa8Pc2fHfnKg#share-RNMedgl3VoT0M5xZRNVcCXPBnSe">这里</a>打开。
     </td>
   </tr>
 </table>
