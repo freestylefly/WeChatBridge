@@ -16,7 +16,8 @@
     <a href="#加入交流群"><strong>交流群</strong></a> ·
     <a href="USAGE.zh-CN.md">使用指南</a> ·
     <a href="https://render.qmuse.pub/p/muse/2413870555736078">官网</a> ·
-    <a href="README_EN.md">English</a>
+    <a href="README_EN.md">English</a> ·
+    <a href="README_JA.md">日本語</a>
   </p>
 
   <img src="shared/Screenshots/demo-wechat-to-agent.gif" width="800" alt="演示：在微信多选群聊消息，转发到微信流，选择场景后交给 Codex 总结" />
