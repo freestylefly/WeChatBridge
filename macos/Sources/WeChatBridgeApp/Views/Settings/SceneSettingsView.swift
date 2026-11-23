@@ -613,7 +613,12 @@ private struct SceneEditor: View {
                 VStack(alignment: .leading, spacing: Space.l) {
                     ReadOnlySceneField(title: L10n.text("名称"), text: scene.name)
                     ReadOnlySceneField(title: L10n.text("说明"), text: scene.summary)
-                    ReadOnlySceneField(title: L10n.text("提示词"), text: promptText)
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(L10n.text("提示词"))
+                            .font(Typo.captionStrong)
+                            .foregroundStyle(Theme.inkSecondary)
+                        promptView(text: .constant(promptText), isEditable: false)
+                    }
                 }
             } else {
                 SceneField(title: L10n.text("名称"), text: $scene.name)
@@ -628,9 +633,7 @@ private struct SceneEditor: View {
                         Spacer(minLength: Space.s)
                         insertSkillMenu
                     }
-                    TextField(L10n.text("提示词"), text: promptBinding, axis: .vertical)
-                        .lineLimit(5...9)
-                        .textFieldStyle(SettingsTextFieldStyle(multiline: true))
+                    promptView(text: promptBinding, isEditable: true)
                 }
             }
 
@@ -725,14 +728,28 @@ private struct SceneEditor: View {
         )
     }
 
+    private func promptView(text: Binding<String>, isEditable: Bool) -> some View {
+        ScenePromptTextView(text: text, isEditable: isEditable)
+            .frame(height: 160)
+            .frame(maxWidth: .infinity)
+            .background(Theme.sunken, in: RoundedRectangle(cornerRadius: SettingsControlMetrics.radius))
+            .clipShape(RoundedRectangle(cornerRadius: SettingsControlMetrics.radius))
+            .overlay {
+                RoundedRectangle(cornerRadius: SettingsControlMetrics.radius)
+                    .strokeBorder(Theme.inputStroke, lineWidth: Stroke.hairline)
+            }
+    }
+
     /// User scenes declare skills by referencing them inline; the stored list
     /// follows the prompt so removing a `{{skill:id}}` drops the dependency.
     private func applyPrompt(_ text: String) {
-        scene.instruction = text
-        scene.outputSpec = ""
+        var updated = scene
+        updated.instruction = text
+        updated.outputSpec = ""
         var seen = Set<String>()
-        scene.requiredSkillIDs = SkillReference.parse(text)
+        updated.requiredSkillIDs = SkillReference.parse(text)
             .filter { seen.insert($0).inserted }
+        scene = updated
     }
 
     // MARK: - Skill references & preview
@@ -778,11 +795,10 @@ private struct SceneEditor: View {
             }
 
             VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: Space.s) {
+                VStack(alignment: .leading, spacing: Space.s) {
                     Text(L10n.text("转发提示词预览"))
                         .font(Typo.captionStrong)
                         .foregroundStyle(Theme.inkSecondary)
-                    Spacer(minLength: Space.s)
                     SettingsSelect(
                         title: L10n.text("预览目标"),
                         selection: $previewTarget,
@@ -791,14 +807,7 @@ private struct SceneEditor: View {
                     )
                     .frame(width: 190)
                 }
-                Text(previewText(context: context))
-                    .font(Typo.paneCaption)
-                    .foregroundStyle(Theme.inkSecondary)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .background(Theme.sunken, in: RoundedRectangle(cornerRadius: Radius.row))
+                promptView(text: .constant(previewText(context: context)), isEditable: false)
             }
         }
     }
@@ -841,11 +850,12 @@ private struct SceneEditor: View {
         }
     }
 
-    /// Inserts the token at the live prompt field's caret when it owns the
-    /// focus — the field editor is an NSTextView — otherwise appends it.
+    /// 仅向当前提示词编辑器的光标处插入；焦点在名称、预览等位置时追加到提示词末尾。
     private func insertSkillToken(_ id: String) {
         let token = SkillReference.token(id)
-        if let textView = NSApp.keyWindow?.firstResponder as? NSTextView {
+        if let textView = NSApp.keyWindow?.firstResponder as? NSTextView,
+           textView.identifier?.rawValue == ScenePromptTextView.editorIdentifier,
+           textView.isEditable {
             textView.insertText(token, replacementRange: textView.selectedRange())
             return
         }
