@@ -654,13 +654,21 @@ internal static class Program
 
     private static void StartMainProcess(InboxPaths paths, Guid batchId)
     {
-        var root = Directory.GetParent(AppContext.BaseDirectory)?.FullName;
-        if (root is null)
-            return;
-
+        var root = AppContext.BaseDirectory;
         var mainPath = Path.Combine(root, "WeChatBridge.Windows.exe");
         if (!File.Exists(mainPath))
-            return;
+        {
+            // Installs that kept the helper under share-target\ resolved the
+            // host one level up. (DirectoryInfo rather than GetParent:
+            // BaseDirectory's trailing separator makes GetParent return the
+            // directory itself.)
+            root = new DirectoryInfo(root).Parent?.FullName;
+            if (root is null)
+                return;
+            mainPath = Path.Combine(root, "WeChatBridge.Windows.exe");
+            if (!File.Exists(mainPath))
+                return;
+        }
 
         // A resident instance only needs the InboxChanged signal, which
         // SignalMainProcess already sent — spawning a process that loses the

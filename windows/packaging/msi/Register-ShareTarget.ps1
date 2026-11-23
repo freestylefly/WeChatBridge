@@ -70,8 +70,7 @@ try {
 
     foreach ($applicationFile in @(
         'WeChatBridge.Windows.exe', 'WeChatBridge.Windows.dll', 'WeChatBridge.Windows.Core.dll',
-        'share-target\WeChatBridge.ShareTarget.exe', 'share-target\WeChatBridge.ShareTarget.dll',
-        'share-target\WeChatBridge.Windows.Core.dll', 'resources.pri',
+        'WeChatBridge.ShareTarget.exe', 'WeChatBridge.ShareTarget.dll', 'resources.pri',
         'Assets\Square44x44Logo.png', 'Assets\Square150x150Logo.png'
     )) {
         if (-not (Test-Path -LiteralPath (Join-Path $InstallRoot $applicationFile) -PathType Leaf)) {
@@ -94,7 +93,7 @@ try {
     # A registration record alone does not grant identity to an incorrectly built
     # external EXE. Launch a side-effect-free probe as this same installing user.
     $start = New-Object Diagnostics.ProcessStartInfo
-    $start.FileName = Join-Path $InstallRoot 'share-target\WeChatBridge.ShareTarget.exe'
+    $start.FileName = Join-Path $InstallRoot 'WeChatBridge.ShareTarget.exe'
     $start.Arguments = '--registration-check'
     $start.UseShellExecute = $false
     $start.CreateNoWindow = $true
