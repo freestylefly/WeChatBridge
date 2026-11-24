@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Assemble and sign 微信流.app, with its share extensions nested inside it.
 #
-# Local development stays fast by building the host architecture and signing
-# ad-hoc. A distribution build passes both architectures, a Developer ID hash,
-# and DISTRIBUTION=1; the extension is then signed before the app, because a
-# signature over a bundle has to cover code that is already final.
+# Builds are universal (arm64 + x86_64) by default so every package runs on
+# both Apple Silicon and Intel; pass ARCHS="$(uname -m)" for a faster
+# host-only build while iterating locally. A distribution build additionally
+# passes a Developer ID hash and DISTRIBUTION=1; the extension is then signed
+# before the app, because a signature over a bundle has to cover code that is
+# already final.
 set -euo pipefail
 
 CONFIG="${CONFIG:-release}"
@@ -24,7 +26,7 @@ select_identity() {
 			return
 		fi
 	done
-	if security find-identity -v -p codesigning 2>/dev/null | grep -Fq '"WeChatBridge Dev"'; then
+	if security find-identity -v -p codesigning 2>/dev/null | grep -F '"WeChatBridge Dev"' >/dev/null; then
 		printf '%s' 'WeChatBridge Dev'
 		return
 	fi
@@ -32,7 +34,7 @@ select_identity() {
 }
 IDENTITY="${IDENTITY:-$(select_identity)}"
 DISTRIBUTION="${DISTRIBUTION:-0}"
-ARCHS="${ARCHS:-$(uname -m)}"
+ARCHS="${ARCHS:-arm64 x86_64}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # Repo root is one level further up since the macOS package moved under macos/;
 # assets both platforms consume live in shared/, not Resources/.
@@ -46,7 +48,22 @@ SHARE_INFO="$ROOT/Resources/Share-Info.plist"
 APP_ENTITLEMENTS="$ROOT/Resources/WeChatBridge.entitlements"
 SHARE_ENTITLEMENTS="$ROOT/Resources/WeChatBridgeShare.entitlements"
 VERSION="${VERSION:-$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_INFO")}"
-BUILD_NUMBER="${BUILD_NUMBER:-$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_INFO")}"
+# Every packaging run increments CFBundleVersion so two builds never share an
+# identity (Sparkle compares it for updates). The bumped number is written back
+# to the source plist up front, so what ships is what the repository records.
+# An explicit BUILD_NUMBER override skips the bump and is used verbatim.
+if [ -n "${BUILD_NUMBER:-}" ]; then
+	BUILD_NUMBER="$BUILD_NUMBER"
+else
+	CURRENT_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_INFO")"
+	if ! [[ "$CURRENT_BUILD" =~ ^[0-9]+$ ]]; then
+		echo "CFBundleVersion in $APP_INFO is not an integer: $CURRENT_BUILD" >&2
+		exit 1
+	fi
+	BUILD_NUMBER=$((CURRENT_BUILD + 1))
+	/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$APP_INFO"
+	echo "build number $CURRENT_BUILD -> $BUILD_NUMBER"
+fi
 # Overriding this retargets both bundles and both entitlement files at once.
 # The checked-in default is the only value the source falls back to.
 APP_GROUP="${APP_GROUP:-$(/usr/libexec/PlistBuddy -c "Print :DKAppGroupIdentifier" "$APP_INFO")}"
@@ -72,6 +89,7 @@ fi
 
 APP_BINARIES=()
 SHARE_BINARIES=()
+CLI_BINARIES=()
 BIN_DIRS=()
 for ARCH in "${ARCH_LIST[@]}"; do
 	case "$ARCH" in
@@ -81,19 +99,21 @@ for ARCH in "${ARCH_LIST[@]}"; do
 	SCRATCH="$BUILD_ROOT/$ARCH"
 	swift build -c "$CONFIG" --triple "$ARCH-apple-macosx" --scratch-path "$SCRATCH" --product WeChatBridge
 	swift build -c "$CONFIG" --triple "$ARCH-apple-macosx" --scratch-path "$SCRATCH" --product WeChatBridgeShare
+	swift build -c "$CONFIG" --triple "$ARCH-apple-macosx" --scratch-path "$SCRATCH" --product wcb
 	BIN_DIR="$(swift build -c "$CONFIG" --triple "$ARCH-apple-macosx" --scratch-path "$SCRATCH" --show-bin-path)"
-	for PRODUCT in WeChatBridge WeChatBridgeShare; do
+	for PRODUCT in WeChatBridge WeChatBridgeShare wcb; do
 		if [ ! -x "$BIN_DIR/$PRODUCT" ]; then
 			echo "missing $PRODUCT executable for $ARCH: $BIN_DIR/$PRODUCT" >&2
 			exit 1
 		fi
-		if ! lipo -archs "$BIN_DIR/$PRODUCT" | tr ' ' '\n' | grep -Fxq "$ARCH"; then
+		if ! lipo -archs "$BIN_DIR/$PRODUCT" | tr ' ' '\n' | grep -Fx "$ARCH" >/dev/null; then
 			echo "$PRODUCT does not contain requested architecture $ARCH" >&2
 			exit 1
 		fi
 	done
 	APP_BINARIES+=("$BIN_DIR/WeChatBridge")
 	SHARE_BINARIES+=("$BIN_DIR/WeChatBridgeShare")
+	CLI_BINARIES+=("$BIN_DIR/wcb")
 	BIN_DIRS+=("$BIN_DIR")
 done
 
@@ -108,7 +128,7 @@ fi
 # An app extension is entered at NSExtensionMain, not main. If the linker flag
 # in Package.swift is ever dropped the appex still builds, still installs, and
 # silently never activates — so the entry symbol is a build invariant.
-if ! nm -u "${SHARE_BINARIES[0]}" | grep -Fq '_NSExtensionMain'; then
+if ! nm -u "${SHARE_BINARIES[0]}" | grep -F '_NSExtensionMain' >/dev/null; then
 	echo "WeChatBridgeShare is not linked against _NSExtensionMain; check the -e linker flag" >&2
 	exit 1
 fi
@@ -117,9 +137,10 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Frameworks" "$APP/Contents/Resources" "$APP/Contents/PlugIns"
 
 lipo -create "${APP_BINARIES[@]}" -output "$APP/Contents/MacOS/WeChatBridge"
+lipo -create "${CLI_BINARIES[@]}" -output "$APP/Contents/MacOS/wcb"
 ditto "$SPARKLE_FRAMEWORK" "$APP/Contents/Frameworks/Sparkle.framework"
 for ARCH in "${ARCH_LIST[@]}"; do
-	if ! lipo -archs "$APP/Contents/Frameworks/Sparkle.framework/Versions/Current/Sparkle" | tr ' ' '\n' | grep -Fxq "$ARCH"; then
+	if ! lipo -archs "$APP/Contents/Frameworks/Sparkle.framework/Versions/Current/Sparkle" | tr ' ' '\n' | grep -Fx "$ARCH" >/dev/null; then
 		echo "Sparkle.framework is missing requested architecture $ARCH" >&2
 		exit 1
 	fi
@@ -128,7 +149,7 @@ done
 # inherit Xcode's LD_RUNPATH_SEARCH_PATHS, so the conventional location is
 # added before any signature is created. Only the app: the extensions never
 # link Sparkle.
-if ! otool -l "$APP/Contents/MacOS/WeChatBridge" | grep -Fq '@executable_path/../Frameworks'; then
+if ! otool -l "$APP/Contents/MacOS/WeChatBridge" | grep -F '@executable_path/../Frameworks' >/dev/null; then
 	install_name_tool -add_rpath '@executable_path/../Frameworks' "$APP/Contents/MacOS/WeChatBridge"
 fi
 SHARE_BINARY="$BUILD_ROOT/WeChatBridgeShare"
@@ -275,13 +296,13 @@ ditto "$SHARED/Skills" "$APP/Contents/Resources/Skills"
 # Repository fallbacks are useful for `swift run`, but a distributable binary
 # must never reveal the builder's absolute checkout path.
 if [ "$CONFIG" = "release" ]; then
-	RELEASE_BINARIES=("$APP/Contents/MacOS/WeChatBridge")
+	RELEASE_BINARIES=("$APP/Contents/MacOS/WeChatBridge" "$APP/Contents/MacOS/wcb")
 	for SLOT_ROW in "${SHARE_SLOTS[@]}"; do
 		IFS='|' read -r _ APPEX_NAME _ _ _ <<< "$SLOT_ROW"
 		RELEASE_BINARIES+=("$APP/Contents/PlugIns/$APPEX_NAME.appex/Contents/MacOS/$APPEX_NAME")
 	done
 	for BINARY in "${RELEASE_BINARIES[@]}"; do
-		if strings "$BINARY" | grep -Fq "$ROOT"; then
+		if strings "$BINARY" | grep -F "$ROOT" >/dev/null; then
 			echo "release binary contains the absolute repository path: $BINARY" >&2
 			exit 1
 		fi
@@ -318,6 +339,7 @@ codesign "${SIGN_FLAGS[@]}" "$SPARKLE"
 for SLOT_APPEX in "${APPEX_PATHS[@]}"; do
 	codesign "${SIGN_FLAGS[@]}" --entitlements "$BUILT_ENTITLEMENTS/WeChatBridgeShare.entitlements" "$SLOT_APPEX"
 done
+codesign "${SIGN_FLAGS[@]}" --identifier "com.xiangming.wechatbridge.wcb" "$APP/Contents/MacOS/wcb"
 codesign "${SIGN_FLAGS[@]}" --entitlements "$BUILT_ENTITLEMENTS/WeChatBridge.entitlements" "$APP"
 
 codesign --verify --deep --strict --verbose=2 "$APP"

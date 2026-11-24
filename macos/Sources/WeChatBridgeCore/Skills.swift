@@ -264,6 +264,8 @@ public struct SkillStore: Sendable {
     public static let officialSource = "official"
     /// Registry source for user-imported packages — not touched by official sync.
     public static let importedSource = "import"
+    /// Registry source for generated stubs of protected (cloud) skills.
+    public static let remoteSource = "remote"
     public static let maxBackups = 20
 
     private static let backupStampFormat = "yyyyMMddHHmmssSSS"
@@ -313,7 +315,7 @@ public struct SkillStore: Sendable {
         do {
             let skillFile = directory.appendingPathComponent("SKILL.md")
             guard FileManager.default.fileExists(atPath: skillFile.path),
-                  try SkillPackage.packageDigest(at: directory) == entry.digest
+                  try (entry.digest.hasPrefix("mode-v2:") ? SkillPackage.packageModeDigest(at: directory) : SkillPackage.packageDigest(at: directory)) == entry.digest
             else { return .conflict }
             return .ready
         } catch {
@@ -381,6 +383,59 @@ public struct SkillStore: Sendable {
         return SkillSyncReport(added: added, updated: updated, conflicts: conflicts)
     }
 
+    /// Keeps a generated stub SKILL.md for every protected catalog skill. The
+    /// stub is ours and carries no asset, so a changed one (new version, the
+    /// app moved and `cliPath` with it) is simply regenerated. A copy the app
+    /// once shipped in full is backed up before the stub replaces it; anything
+    /// else in the slot is a conflict and stays untouched.
+    @discardableResult
+    public func syncProtected(catalog: OfficialSkillCatalog, cliPath: String) throws -> SkillSyncReport {
+        var registry = registry()
+        var added = 0
+        var updated = 0
+        var conflicts: [String] = []
+
+        for skill in catalog.skills where skill.protection.isRemote && SkillId.isValid(skill.id) {
+            if let entry=registry[skill.id], let origin=skill.cloudOriginID,let release=skill.releaseID,
+               entry.source=="cloud-package:\(origin):\(release)",state(skill.id) == .ready { continue }
+            let staging = FileManager.default.temporaryDirectory
+                .appendingPathComponent("wechatbridge-stub-\(UUID().uuidString)", isDirectory: true)
+            defer { try? FileManager.default.removeItem(at: staging) }
+            try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: true)
+            try Data(SkillStub.markdown(for: skill, cliPath: cliPath).utf8)
+                .write(to: staging.appendingPathComponent("SKILL.md"))
+            let digest = try SkillPackage.packageDigest(at: staging)
+            let target = skillDirectory(skill.id)
+
+            guard pathExists(target) else {
+                try write(staging, to: target, backupAs: nil)
+                registry[skill.id] = remoteEntry(for: skill, digest: digest)
+                added += 1
+                continue
+            }
+            guard state(skill.id) == .ready, let stored = registry[skill.id] else {
+                conflicts.append(skill.id)
+                continue
+            }
+            guard stored.digest != digest || stored.source != Self.remoteSource else { continue }
+
+            if stored.source == Self.remoteSource {
+                try FileManager.default.removeItem(at: target)
+                try write(staging, to: target, backupAs: nil)
+            } else {
+                try write(staging, to: target, backupAs: "\(skill.id)-\(stored.version)")
+                pruneBackups()
+            }
+            registry[skill.id] = remoteEntry(for: skill, digest: digest)
+            updated += 1
+        }
+
+        if added + updated > 0 {
+            saveRegistry(registry)
+        }
+        return SkillSyncReport(added: added, updated: updated, conflicts: conflicts)
+    }
+
     /// Registers a user-supplied package directory (already extracted and
     /// validated by `SkillArchive`). Whatever currently occupies the slot — a
     /// ready copy, a conflicted one or a foreign directory — is moved into the
@@ -388,7 +443,15 @@ public struct SkillStore: Sendable {
     /// byte-identical re-import is a no-op that refreshes the stamp.
     @discardableResult
     public func `import`(source: URL, id: String, version: String) throws -> SkillLibraryEntry {
-        let digest = try SkillPackage.validatePackage(at: source)
+        try registerPackage(source:source,id:id,version:version,sourceKind:Self.importedSource,modeAware:false)
+    }
+    public func importCloudPackage(source:URL,id:String,version:String,originID:String,releaseID:String) throws -> SkillLibraryEntry {
+        guard SkillId.isValid(id), !originID.isEmpty, !releaseID.isEmpty else { throw SkillError("invalid_cloud_package") }
+        return try registerPackage(source:source,id:id,version:version,sourceKind:"cloud-package:\(originID):\(releaseID)",modeAware:true)
+    }
+    private func registerPackage(source:URL,id:String,version:String,sourceKind:String,modeAware:Bool) throws -> SkillLibraryEntry {
+        _ = try SkillPackage.validatePackage(at:source)
+        let digest = try modeAware ? SkillPackage.packageModeDigest(at:source) : SkillPackage.packageDigest(at:source)
         var registry = registry()
         let target = skillDirectory(id)
         let exists = pathExists(target)
@@ -396,7 +459,7 @@ public struct SkillStore: Sendable {
         if exists,
            let current = registry[id],
            state(id) == .ready,
-           current.digest == digest
+           current.digest == digest, current.source == sourceKind
         {
             var refreshed = current
             refreshed.syncedAt = clock()
@@ -414,7 +477,7 @@ public struct SkillStore: Sendable {
             id: id,
             version: version,
             digest: digest,
-            source: Self.importedSource,
+            source: sourceKind,
             syncedAt: clock()
         )
         registry[id] = entry
@@ -454,6 +517,16 @@ public struct SkillStore: Sendable {
             version: skill.version,
             digest: digest,
             source: Self.officialSource,
+            syncedAt: clock()
+        )
+    }
+
+    private func remoteEntry(for skill: OfficialSkill, digest: String) -> SkillLibraryEntry {
+        SkillLibraryEntry(
+            id: skill.id,
+            version: skill.version,
+            digest: digest,
+            source: Self.remoteSource,
             syncedAt: clock()
         )
     }
@@ -671,7 +744,7 @@ public enum SkillArchive {
                     withIntermediateDirectories: true
                 )
                 guard !FileManager.default.fileExists(atPath: target.path),
-                      FileManager.default.createFile(atPath: target.path, contents: contents)
+                      FileManager.default.createFile(atPath: target.path, contents: contents, attributes:[.posixPermissions:entry.executable ? 0o755 : 0o644])
                 else {
                     throw CocoaError(.fileWriteFileExists)
                 }
@@ -819,6 +892,16 @@ enum SkillPackage {
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
+    static func packageModeDigest(at root:URL) throws -> String {
+        var hasher=SHA256()
+        for file in try SkillPackageFiles.enumerate(root:root) {
+            hasher.update(data:Data(file.relativePath.utf8));hasher.update(data:[0])
+            hasher.update(data:try Data(contentsOf:file.url));hasher.update(data:[0])
+            let permissions = (try FileManager.default.attributesOfItem(atPath:file.url.path)[.posixPermissions] as? NSNumber)?.intValue ?? 0
+            hasher.update(data:[permissions & 0o111 == 0 ? 0 : 1])
+        }
+        return "mode-v2:"+hasher.finalize().map{String(format:"%02x",$0)}.joined()
+    }
     static func copyPackage(from source: URL, to destination: URL) throws {
         let fileManager = FileManager.default
         try fileManager.createDirectory(at: destination, withIntermediateDirectories: true)
@@ -956,9 +1039,11 @@ enum SkillZip {
 /// inflate. Anything else — encryption, zip64, a torn archive — reads as
 /// "压缩包无法读取或已损坏。" rather than being half-extracted.
 enum SkillZipReader {
+    private static let maxArchiveBytesForReader = SkillArchive.maxArchiveBytes
     struct Entry {
         let name: String
         let method: UInt16
+        let executable: Bool
         let crc32: UInt32
         let compressedSize: Int64
         let uncompressedSize: Int64
@@ -968,7 +1053,8 @@ enum SkillZipReader {
     }
 
     static func entries(archivePath: URL) throws -> [Entry] {
-        guard let data = try? Data(contentsOf: archivePath) else {
+        guard let values=try? archivePath.resourceValues(forKeys:[.fileSizeKey]),let size=values.fileSize,size<=Int(maxArchiveBytesForReader),
+              let data = try? Data(contentsOf: archivePath) else {
             throw SkillError(L10n.text("压缩包无法读取或已损坏。"))
         }
         return try entries(in: data)
@@ -989,7 +1075,7 @@ enum SkillZipReader {
         default:
             throw SkillError(L10n.text("压缩包无法读取或已损坏。"))
         }
-        guard CRC32.checksum(contents) == entry.crc32 else {
+        guard Int64(contents.count)==entry.uncompressedSize, CRC32.checksum(contents) == entry.crc32 else {
             throw SkillError(L10n.text("压缩包无法读取或已损坏。"))
         }
         return contents
@@ -1012,6 +1098,7 @@ enum SkillZipReader {
             throw SkillError(L10n.text("压缩包无法读取或已损坏。"))
         }
         let entryCount = Int(data.uint16LE(eocd + 10))
+        guard entryCount<=4096 else { throw SkillError("package_file_limit") }
         var offset = Int(data.uint32LE(eocd + 16))
 
         var entries: [Entry] = []
@@ -1019,6 +1106,10 @@ enum SkillZipReader {
             guard offset + 46 <= data.count, data.uint32LE(offset) == 0x02014b50 else {
                 throw SkillError(L10n.text("压缩包无法读取或已损坏。"))
             }
+            let creator = data.uint16LE(offset+4) >> 8
+            let mode = data.uint32LE(offset+38) >> 16
+            let fileType = mode & 0xF000
+            guard creator != 3 || fileType == 0 || fileType == 0x8000 || fileType == 0x4000 else { throw SkillError(L10n.text("技能包只能包含普通文件和目录。")) }
             let flags = data.uint16LE(offset + 8)
             let method = data.uint16LE(offset + 10)
             let crc32 = data.uint32LE(offset + 16)
@@ -1060,6 +1151,7 @@ enum SkillZipReader {
             entries.append(Entry(
                 name: name,
                 method: method,
+                executable: creator==3 && (mode & 0o111 != 0),
                 crc32: crc32,
                 compressedSize: Int64(compressedSize),
                 uncompressedSize: Int64(uncompressedSize),

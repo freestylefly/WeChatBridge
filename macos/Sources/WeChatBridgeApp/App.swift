@@ -282,6 +282,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// the app's front door onto a settings pane. `AppLink` explains why.
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls where url.scheme == AppLink.scheme {
+            if url.host == "cloud", url.path == "/authorize" {
+                openMainWindow(.account)
+                continue
+            }
             // An unknown path still opens the window: the user asked for WeChatBridge,
             // and silence would look like the button did nothing.
             openMainWindow(AppLink.settingsPath(of: url).flatMap(SettingsTab.init(rawValue:)))

@@ -348,6 +348,9 @@ private struct SkillCard: View {
                 } else {
                     SkillBadge(title: L10n.text("官方技能"), systemImage: "checkmark.seal")
                 }
+                if let tierBadge = record.tierBadge {
+                    SkillBadge(title: tierBadge, systemImage: record.skill.tier == .metered ? "bolt.circle" : "crown")
+                }
                 if let libraryBadge = record.libraryBadge {
                     SkillBadge(
                         title: libraryBadge,
@@ -380,6 +383,13 @@ private struct SkillCard: View {
 
             if expanded {
                 Divider()
+
+                if record.skill.protection.isRemote {
+                    Notice(
+                        L10n.text("这是云端技能：微信流技能库只保存引导，正文会传给目标 Agent；其保存方式取决于目标应用。"),
+                        tone: .info
+                    )
+                }
 
                 if record.libraryState == .missing {
                     Notice(
@@ -509,6 +519,28 @@ private struct SkillRecord: Identifiable {
         case .ready: L10n.text("技能库已就绪")
         case .conflict: L10n.text("技能库副本已被修改")
         case .missing: nil
+        }
+    }
+
+    /// Membership or metering label; nil for free skills.
+    var tierBadge: String? {
+        switch skill.tier {
+        case .free: nil
+        case .buyout: L10n.text("买断")
+        case .member: L10n.text("会员技能")
+        case .metered:
+            skill.billing.map { L10n.format("按量计费 · 每%@ %d 点", unitName($0.unit), $0.points) }
+                ?? L10n.text("按量计费")
+        }
+    }
+
+    private func unitName(_ unit: SkillBillingUnit) -> String {
+        switch unit {
+        case .call: L10n.text("次")
+        case .minute: L10n.text("分钟")
+        case .article: L10n.text("篇")
+        case .image: L10n.text("张")
+        case .kiloChars: L10n.text("千字")
         }
     }
 

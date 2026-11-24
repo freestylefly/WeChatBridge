@@ -549,3 +549,124 @@
 
 "请先安装 %@，再开启此入口。" = "Install %@ before enabling this entry.";
 "请先添加至少一个已安装的应用，再开启自定义入口。" = "Add at least one installed application before enabling the custom entry.";
+"受保护技能「%@」不能随 App 附带技能包。" = "Protected skill “%@” must not ship a package inside the app.";
+"按量计费技能「%@」缺少有效的计费规则。" = "Metered skill “%@” has no valid billing rule.";
+"会员技能" = "Members";
+"按量计费" = "Metered";
+"按量计费 · 每%@ %d 点" = "Metered · per %@: %d pts";
+"次" = "call";
+"分钟" = "minute";
+"篇" = "article";
+"张" = "image";
+"千字" = "1K chars";
+
+"账号与积分" = "Account & points";
+
+
+"服务地址（HTTPS）" = "Service URL (HTTPS)";
+
+"用户名" = "Username";
+
+"密码" = "Password";
+
+"登录" = "Sign in";
+
+"刷新" = "Refresh";
+
+"退出登录" = "Sign out";
+
+"积分余额" = "Points balance";
+
+"预留积分" = "Reserved points";
+
+"可用积分" = "Available points";
+
+"云端技能" = "Cloud skills";
+
+"积分" = "points";
+
+"买断" = "Buy once";
+
+"准备模拟执行" = "Prepare simulated run";
+
+"待授权请求" = "Authorization requests";
+
+"批准消耗" = "Approve spending";
+
+"拒绝" = "Reject";
+
+"执行记录" = "Executions";
+
+"查看结果" = "View result";
+
+"积分流水" = "Points history";
+
+"确认积分购买" = "Confirm points purchase";
+
+"确认积分授权" = "Confirm points authorization";
+
+"这是云端技能：微信流技能库只保存引导，正文会传给目标 Agent；其保存方式取决于目标应用。" = "This cloud skill keeps only a guide in the library. Instructions reach the target agent, whose storage behavior depends on that app.";
+
+"已购" = "Purchased";
+
+"授权 CLI 预算" = "Authorize CLI budget";
+
+"消费授权" = "Spending grants";
+
+"撤销授权" = "Revoke grant";
+
+"允许当前 CLI 在十分钟内最多执行三次，积分上限为当前单价的三倍。" = "Allow this CLI at most three executions within ten minutes, up to three times the current points price.";
+
+"演示技能不调用真实模型，购买和执行会消耗测试积分。" = "Demo skills do not call real models. Purchases and executions consume test points.";
+
+"登录已过期，请重新登录。" = "Your session expired. Please sign in again.";
+
+"用户名或密码不正确。" = "Incorrect username or password.";
+
+"可用积分不足，请先检查余额与预留。" = "Insufficient available points. Check your balance and reservations.";
+
+"报价已变化或过期，请刷新后重新确认。" = "The quote changed or expired. Refresh and confirm again.";
+
+"当前账号尚未购买此技能内容。" = "This account has not purchased this skill content.";
+
+"输入在授权后发生变化，请重新发起。" = "The input changed after authorization. Start a new request.";
+
+"请使用可信的 HTTPS 服务地址。" = "Use a trusted HTTPS service URL.";
+
+"系统凭证访问失败，请检查签名或钥匙串授权。" = "Credential access failed. Check code signing and keychain authorization.";
+
+"继续执行" = "Resume execution";
+
+"免费" = "Free";
+
+"待执行" = "Queued";
+
+"执行中" = "Running";
+
+"失败" = "Failed";
+
+"待批准" = "Awaiting approval";
+
+"已批准" = "Approved";
+
+"已拒绝" = "Rejected";
+
+"已过期" = "Expired";
+
+"完整技能包已安装，脚本、资料与模板保留在技能库中。" = "The complete skill package is installed, including scripts, references and templates.";
+
+"安装完整包" = "Install Package";
+
+"流程积分上限" = "Workflow Point Limit";
+
+"每个接口成功独立扣分，后续失败不回退已成功费用。" = "Each successful API call is charged separately. Later failures do not reverse earlier charges.";
+
+"部分完成" = "Partially Completed";
+
+"待核实" = "Awaiting Reconciliation";
+
+"接口执行明细" = "API Step Details";
+
+"已扣积分" = "Charged Points";
+
+"恢复此接口" = "Resume This Step";

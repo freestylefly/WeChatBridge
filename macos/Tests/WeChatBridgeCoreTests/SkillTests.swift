@@ -393,6 +393,112 @@ final class SkillStoreTests: XCTestCase {
         }
     }
 
+    func testCatalogDecodesMonetizationFieldsWithFreeDefaults() throws {
+        try writeCatalog("""
+        [
+          {"id":"plain","name":"A","summary":"","version":"1.0.0","package":null,"supported_agents":["doubao"]},
+          {"id":"paid","name":"B","summary":"","version":"1.0.0","package":null,"supported_agents":["claude"],
+           "tier":"metered","protection":"l2","billing":{"unit":"minute","points":3},"author":"someone"}
+        ]
+        """)
+        let catalog = try OfficialSkillCatalog.load(from: resources)
+        XCTAssertEqual(catalog.skills[0].tier, .free)
+        XCTAssertEqual(catalog.skills[0].protection, .l0)
+        XCTAssertNil(catalog.skills[0].billing)
+        XCTAssertEqual(catalog.skills[1].tier, .metered)
+        XCTAssertEqual(catalog.skills[1].protection, .l2)
+        XCTAssertEqual(catalog.skills[1].billing, SkillBilling(unit: .minute, points: 3))
+        XCTAssertEqual(catalog.skills[1].author, "someone")
+    }
+
+    func testCatalogLoaderRejectsProtectedSkillWithBundledPackage() throws {
+        try writeCatalog("""
+        [
+          {"id":"leaky","name":"A","summary":"","version":"1.0.0","package":"leaky","supported_agents":["doubao"],"protection":"l1"}
+        ]
+        """)
+        XCTAssertThrowsError(try OfficialSkillCatalog.load(from: resources))
+    }
+
+    func testCatalogLoaderRejectsMeteredSkillWithoutBilling() throws {
+        try writeCatalog("""
+        [
+          {"id":"free-lunch","name":"A","summary":"","version":"1.0.0","package":null,"supported_agents":["doubao"],"tier":"metered"}
+        ]
+        """)
+        XCTAssertThrowsError(try OfficialSkillCatalog.load(from: resources))
+    }
+
+    // MARK: - Protected skills
+
+    func testSyncProtectedWritesStubAndRegeneratesWhenItChanges() throws {
+        let skill = protectedSkill(id: "cloud-skill", protection: .l2)
+        let catalog = OfficialSkillCatalog(skills: [skill])
+        var report = try store.syncProtected(catalog: catalog, cliPath: "/Apps/微信流.app/Contents/MacOS/wcb")
+        XCTAssertEqual(report.added, 1)
+        XCTAssertEqual(store.state(skill.id), .ready)
+        XCTAssertEqual(store.entries()[skill.id]?.source, SkillStore.remoteSource)
+
+        let file = try XCTUnwrap(store.skillFile(skill.id))
+        var text = try String(contentsOfFile: file, encoding: .utf8)
+        XCTAssertTrue(text.hasPrefix("---\nname: cloud-skill\n"))
+        XCTAssertTrue(text.contains("\"/Apps/微信流.app/Contents/MacOS/wcb\" skill load cloud-skill"))
+        XCTAssertTrue(text.contains("kb query cloud-skill"))
+        XCTAssertTrue(text.contains("每分钟 3 点"))
+
+        report = try store.syncProtected(catalog: catalog, cliPath: "/Apps/微信流.app/Contents/MacOS/wcb")
+        XCTAssertEqual(report.added + report.updated, 0)
+
+        report = try store.syncProtected(catalog: catalog, cliPath: "/Moved/wcb")
+        XCTAssertEqual(report.updated, 1)
+        text = try String(contentsOfFile: try XCTUnwrap(store.skillFile(skill.id)), encoding: .utf8)
+        XCTAssertTrue(text.contains("\"/Moved/wcb\" skill load"))
+        // Regenerated stubs carry nothing worth keeping, so no backup.
+        XCTAssertFalse(FileManager.default.fileExists(atPath: store.backupRoot.path))
+    }
+
+    func testSyncProtectedBacksUpFormerFullPackageAndSkipsForeignCopies() throws {
+        let shipped = try makePackage(id: "turned-paid")
+        try store.syncOfficial(catalog: OfficialSkillCatalog(skills: [shipped]), resourcesRoot: resources)
+
+        let foreign = store.skillDirectory("hand-made")
+        try FileManager.default.createDirectory(at: foreign, withIntermediateDirectories: true)
+        try Data("foreign".utf8).write(to: foreign.appendingPathComponent("SKILL.md"))
+
+        let report = try store.syncProtected(
+            catalog: OfficialSkillCatalog(skills: [
+                protectedSkill(id: "turned-paid", protection: .l1),
+                protectedSkill(id: "hand-made", protection: .l1),
+            ]),
+            cliPath: "/wcb"
+        )
+        XCTAssertEqual(report.updated, 1)
+        XCTAssertEqual(report.conflicts, ["hand-made"])
+        XCTAssertEqual(store.entries()["turned-paid"]?.source, SkillStore.remoteSource)
+        let stub = try String(contentsOfFile: try XCTUnwrap(store.skillFile("turned-paid")), encoding: .utf8)
+        XCTAssertFalse(stub.contains("kb query"))
+        let backups = try FileManager.default.contentsOfDirectory(atPath: store.backupRoot.path)
+        XCTAssertTrue(backups.contains { $0.hasPrefix("turned-paid-1.0.0") })
+        XCTAssertEqual(
+            try String(contentsOf: foreign.appendingPathComponent("SKILL.md"), encoding: .utf8),
+            "foreign"
+        )
+    }
+
+    private func protectedSkill(id: String, protection: SkillProtection) -> OfficialSkill {
+        OfficialSkill(
+            id: id,
+            name: "云端 \(id)",
+            summary: "summary",
+            version: "1.0.0",
+            package: nil,
+            supportedAgents: AgentID.allCases,
+            tier: .metered,
+            protection: protection,
+            billing: SkillBilling(unit: .minute, points: 3)
+        )
+    }
+
     private func writeCatalog(_ skillsJSON: String) throws {
         let skills = resources.appendingPathComponent("Skills", isDirectory: true)
         try FileManager.default.createDirectory(at: skills, withIntermediateDirectories: true)
@@ -626,5 +732,87 @@ private extension Data {
         append(UInt8((value >> 8) & 0xFF))
         append(UInt8((value >> 16) & 0xFF))
         append(UInt8((value >> 24) & 0xFF))
+    }
+}
+
+final class SkillCloudClientTests: XCTestCase {
+    private let base = URL(string: "https://cloud.test")!
+
+    func testLoadSkillSendsBearerTokenAndDecodes() async throws {
+        let client = SkillCloudClient(baseURL: base, token: "t0ken") { request in
+            XCTAssertEqual(request.url?.absoluteString, "https://cloud.test/v1/skills/demo/content")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer t0ken")
+            let body = ##"{"id":"demo","version":"1.2.0","content":"# Demo"}"##
+            return (Data(body.utf8), Self.response(request, status: 200))
+        }
+        let content = try await client.loadSkill("demo")
+        XCTAssertEqual(content, SkillContentResponse(id: "demo", version: "1.2.0", content: "# Demo"))
+    }
+
+    func testKnowledgeQueryEncodesSnakeCase() async throws {
+        let client = SkillCloudClient(baseURL: base, token: "t") { request in
+            XCTAssertEqual(request.httpMethod, "POST")
+            let json = try JSONSerialization.jsonObject(with: request.httpBody ?? Data()) as? [String: Any]
+            XCTAssertEqual(json?["top_k"] as? Int, 3)
+            XCTAssertEqual(json?["query"] as? String, "评分标准")
+            let body = #"{"chunks":[{"title":"A","text":"B"}]}"#
+            return (Data(body.utf8), Self.response(request, status: 200))
+        }
+        let result = try await client.queryKnowledge("demo", query: SkillKnowledgeQuery(query: "评分标准"))
+        XCTAssertEqual(result.chunks, [SkillKnowledgeChunk(title: "A", text: "B")])
+    }
+
+    func testStatusCodesMapToErrorsAndMissingTokenNeverHitsNetwork() async {
+        let expectations: [(Int, SkillCloudError)] = [
+            (401, .needsLogin), (402, .insufficientPoints), (403, .notEntitled),
+            (404, .notFound), (500, .server(status: 500)),
+        ]
+        for (status, expected) in expectations {
+            let client = SkillCloudClient(baseURL: base, token: "t") { request in
+                (Data(), Self.response(request, status: status))
+            }
+            do {
+                _ = try await client.loadSkill("demo")
+                XCTFail("expected \(expected)")
+            } catch {
+                XCTAssertEqual(error as? SkillCloudError, expected)
+            }
+        }
+
+        let offline = SkillCloudClient(baseURL: base, token: nil) { _ in
+            XCTFail("must not send without a token")
+            throw URLError(.notConnectedToInternet)
+        }
+        do {
+            _ = try await offline.loadSkill("demo")
+        } catch {
+            XCTAssertEqual(error as? SkillCloudError, .needsLogin)
+        }
+    }
+
+    func testConfigPrefersEnvironmentOverride() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("SkillCloudConfig-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        XCTAssertNil(SkillCloudConfig.load(stateDirectory: directory, environment: [:]))
+
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try Data(#"{"base_url":"https://file.test"}"#.utf8)
+            .write(to: directory.appendingPathComponent(SkillCloudConfig.fileName))
+        XCTAssertEqual(
+            SkillCloudConfig.load(stateDirectory: directory, environment: [:])?.baseURL.absoluteString,
+            "https://file.test"
+        )
+        XCTAssertEqual(
+            SkillCloudConfig.load(
+                stateDirectory: directory,
+                environment: [SkillCloudConfig.environmentKey: "http://localhost:8080"]
+            )?.baseURL.absoluteString,
+            "http://localhost:8080"
+        )
+    }
+
+    private static func response(_ request: URLRequest, status: Int) -> HTTPURLResponse {
+        HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!
     }
 }

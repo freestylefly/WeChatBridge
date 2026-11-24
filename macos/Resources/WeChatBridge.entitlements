@@ -10,9 +10,9 @@
 	     an empty stdout and `match: unauthorized discovery flag (PKDiscoverAll)`
 	     on stderr, because pkd refuses a sandboxed client. Without the
 	     entitlement the same calls exit 0 and print `+`/`-`. WeChatBridge is not
-	     shipped through the App Store, and the privacy claim it actually makes
-	     is "no network entitlement, files never leave the Mac" — that claim is
-	     unaffected. The extensions keep the sandbox: they run inside WeChat's
+	     shipped through the App Store, and the main app therefore does not rely on sandbox network
+	     entitlements. Optional cloud features require explicit service/input
+	     authorization; share extensions remain local and sandboxed. The extensions keep the sandbox: they run inside WeChat's
 	     share sheet, handle untrusted attachments, and never call pluginkit. -->
 	<!-- The only channel between the extensions and this app. It must match
 	     WeChatBridgeShare.entitlements and the DKAppGroupIdentifier in both plists. -->
@@ -20,7 +20,7 @@
 	<array>
 		<string>DLKMC3ZRZQ.com.xiangming.wechatbridge.shared</string>
 	</array>
-	<!-- Deliberately absent: no network client, no server, no user-selected
-	     file access. WeChatBridge reads what the extension handed it and hands it on. -->
+	<!-- This host is not sandboxed: absence of a network entitlement is not
+	     a network prohibition. Cloud requests are controlled in application code. -->
 </dict>
 </plist>

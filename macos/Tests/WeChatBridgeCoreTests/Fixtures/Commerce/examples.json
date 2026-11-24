@@ -1,0 +1,21 @@
+{
+  "wallet": {
+    "balance": 300,
+    "reserved": 10,
+    "available": 290
+  },
+  "error": {
+    "error": {
+      "code": "input_mismatch",
+      "retryable": false,
+      "request_id": "example-trace"
+    }
+  },
+  "execution": {
+    "id": "example-execution",
+    "state": "accepted",
+    "error_code": "",
+    "points": 10,
+    "created_at": "2026-10-15T00:00:00Z"
+  }
+}

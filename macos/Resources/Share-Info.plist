@@ -19,13 +19,13 @@
 	<key>CFBundleShortVersionString</key>
 	<string>0.1.15</string>
 	<key>CFBundleVersion</key>
-	<string>18</string>
+	<string>23</string>
 	<key>DKAppGroupIdentifier</key>
 	<string>DLKMC3ZRZQ.com.xiangming.wechatbridge.shared</string>
-	<key>DKStorageMode</key>
-	<string>shared</string>
 	<key>DKShareAction</key>
 	<string>clipboard</string>
+	<key>DKStorageMode</key>
+	<string>shared</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>NSExtension</key>

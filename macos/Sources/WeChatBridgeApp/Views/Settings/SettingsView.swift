@@ -17,6 +17,7 @@ enum AppLinks {
 
 enum SettingsTab: String, CaseIterable, Identifiable {
     case general
+    case account
     case scenes
     case skills
     case entries
@@ -28,6 +29,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .account: L10n.text("账号与积分")
         case .general: L10n.text("通用")
         case .scenes: L10n.text("场景")
         case .skills: L10n.text("技能")
@@ -44,6 +46,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
+        case .account: "person.crop.circle"
         case .general: "slider.horizontal.3"
         case .scenes: "square.stack.3d.up"
         case .skills: "puzzlepiece.extension"
@@ -168,6 +171,8 @@ struct SettingsView: View {
                 updater: updater,
                 actions: actions
             )
+        case .account:
+            CloudPane(skills: skills)
         case .scenes:
             SceneSettingsView(preferences: preferences, skills: skills, router: router)
         case .skills:

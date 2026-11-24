@@ -2,7 +2,7 @@
   <img src="shared/Screenshots/app-icon-rounded.png" width="128" alt="WeChatBridge 图标" />
   <h1>WeChatBridge（微信流）</h1>
   <p><strong>群里几百条消息没空翻？多选、转发，一步交给 AI 总结，或存进你的知识库。</strong></p>
-  <p>在微信「转发到其他应用」里直接选 Codex、Claude、豆包、千问、Obsidian……不读数据库、不注入微信，全程本地。</p>
+  <p>在微信「转发到其他应用」里直接选 Codex、Claude、豆包、千问、Obsidian……不读数据库、不注入微信，聊天记录默认留在本地，可选接入云端技能。</p>
 
   <p>
     <a href="#下载安装"><img src="https://img.shields.io/badge/免费下载-macOS%20%7C%20Windows-07C160?style=flat-square" alt="免费下载" /></a>
@@ -179,7 +179,8 @@ flowchart LR
 
 - 聊天内容只来自微信主动导出的文件。
 - 不读取微信数据库，不解密、不注入、不修改微信进程。
-- 聊天归档、场景和记录保存在本机。
+- 聊天归档、场景和记录默认保存在本机。
+- 可选云端技能会访问用户配置的服务：账号、技能目录与执行授权需要联网；按量执行只提交用户授权的必要输入。
 - Share Extension 在 macOS 沙盒中运行且没有网络权限。
 - 屏幕录制权限只用于识别微信标题栏中的聊天名，图像仅在内存中处理。
 - 辅助功能权限只用于激活目标应用和执行粘贴。
@@ -196,7 +197,7 @@ flowchart LR
     <th align="center">苍何</th>
   </tr>
   <tr>
-    <td align="center"><img src="shared/Screenshots/wechat-xiangming.jpg" width="360" alt="公众号「向明」二维码" /></td>
+    <td align="center"><img src="shared/Screenshots/wechat-xiangming.jpg" width="360" alt="向明微信二维码" /></td>
     <td align="center"><img src="shared/Screenshots/wechat-canghe.jpg" width="360" alt="苍何微信二维码" /></td>
   </tr>
 </table>

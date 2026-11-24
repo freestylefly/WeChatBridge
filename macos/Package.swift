@@ -12,6 +12,7 @@ let package = Package(
         .executable(name: "WeChatBridge", targets: ["WeChatBridgeApp"]),
         .executable(name: "WeChatBridgeShare", targets: ["WeChatBridgeShare"]),
         .library(name: "WeChatBridgeCore", targets: ["WeChatBridgeCore"]),
+        .executable(name: "wcb", targets: ["wcb"]),
     ],
     dependencies: [
         // Only the app links it. The extensions never update anything, and a
@@ -56,6 +57,13 @@ let package = Package(
                 ])
             ]
         ),
+        // The command-line bridge stub SKILL.md files point agents at to fetch
+        // protected skill bodies; shipped next to the app executable.
+        .executableTarget(
+            name: "wcb",
+            dependencies: ["WeChatBridgeCore"],
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
         .testTarget(
             name: "WeChatBridgeDeliveryTests",
             dependencies: ["WeChatBridgeApp", "WeChatBridgeCore"],
@@ -67,6 +75,7 @@ let package = Package(
         .testTarget(
             name: "WeChatBridgeCoreTests",
             dependencies: ["WeChatBridgeCore"],
+            resources: [.copy("Fixtures")],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
         .testTarget(

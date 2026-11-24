@@ -2,7 +2,7 @@
   <img src="shared/Screenshots/app-icon-rounded.png" width="128" alt="WeChatBridge icon" />
   <h1>WeChatBridge (微信流)</h1>
   <p><strong>Hundreds of unread group messages? Select, forward, and hand them to AI for a summary—or save them to your knowledge base.</strong></p>
-  <p>Pick Codex, Claude, Doubao, QwenWork, Obsidian, and more straight from WeChat's “Forward to other apps” menu. No database access, no injection into WeChat, fully local.</p>
+  <p>Pick Codex, Claude, Doubao, QwenWork, Obsidian, and more straight from WeChat's “Forward to other apps” menu. No database access, no injection into WeChat. Chats stay local by default, with optional cloud skills.</p>
 
   <p>
     <a href="#download"><img src="https://img.shields.io/badge/free%20download-macOS%20%7C%20Windows-07C160?style=flat-square" alt="Free download" /></a>
@@ -194,7 +194,7 @@ For project updates and tips, follow our WeChat Official Account or add us on We
     <th align="center">苍何</th>
   </tr>
   <tr>
-    <td align="center"><img src="shared/Screenshots/wechat-xiangming.jpg" width="360" alt="QR code for the WeChat Official Account 向明" /></td>
+    <td align="center"><img src="shared/Screenshots/wechat-xiangming.jpg" width="360" alt="WeChat QR code for 向明" /></td>
     <td align="center"><img src="shared/Screenshots/wechat-canghe.jpg" width="360" alt="WeChat QR code for 苍何" /></td>
   </tr>
 </table>
@@ -299,3 +299,7 @@ WeChatBridge is released under the [MIT License](LICENSE).
   <br />
   <sub>Questions or ideas? <a href="#join-the-community">Come chat with us</a>.</sub>
 </div>
+
+### Optional cloud skills (development)
+
+Accounts, points, buyout content and metered demos use a user-configured service. Only authorized task inputs are submitted; local archives are not uploaded in bulk by default. The share extensions remain sandboxed without network access. Cloud credentials are isolated between the app and its signed CLI. A target agent may store instructions and outputs according to its own behavior.

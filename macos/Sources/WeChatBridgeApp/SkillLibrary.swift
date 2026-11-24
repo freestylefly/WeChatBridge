@@ -23,8 +23,9 @@ final class SkillLibrary: ObservableObject {
     /// ones. Never contains catalog ids.
     @Published private(set) var userSkills: [OfficialSkill] = []
 
-    var skills: [OfficialSkill] { catalog.skills }
-    var allSkills: [OfficialSkill] { catalog.skills + userSkills }
+    @Published private(set) var cloudSkills: [OfficialSkill] = []
+    var skills: [OfficialSkill] { catalog.skills + cloudSkills }
+    var allSkills: [OfficialSkill] { skills + userSkills }
 
     init(
         resourcesRoot: URL? = SkillLibrary.findResourcesRoot(),
@@ -50,6 +51,7 @@ final class SkillLibrary: ObservableObject {
             catalog = OfficialSkillCatalog(skills: [])
             loadError = L10n.text("没有找到内置技能清单。")
         }
+        restoreCloudSkills()
         loadUserSkills()
         revision += 1
     }
@@ -94,7 +96,7 @@ final class SkillLibrary: ObservableObject {
             stagingParent: stagingParent
         )
         defer { try? FileManager.default.removeItem(at: result.directory) }
-        guard !catalog.skills.contains(where: { $0.id == result.info.id }) else {
+        guard !skills.contains(where: { $0.id == result.info.id }) else {
             throw SkillError(L10n.format(
                 "「%@」是内置技能，请修改 SKILL.md 的 name 后再导入。",
                 result.info.id
@@ -117,6 +119,14 @@ final class SkillLibrary: ObservableObject {
             throw SkillError(L10n.text("内置技能不能移除。"))
         }
         try store.remove(skill.id)
+        reload()
+    }
+
+    func installCloudArchive(_ archive:URL,skillID:String,releaseID:String,origin:URL) throws {
+        let extracted=try SkillArchive.extractToStaging(archivePath:archive,stagingParent:FileManager.default.temporaryDirectory)
+        defer {try? FileManager.default.removeItem(at:extracted.directory)}
+        guard extracted.info.id==skillID else {throw CloudFailure("package_skill_mismatch")}
+        _ = try store.importCloudPackage(source:extracted.directory,id:skillID,version:extracted.info.version,originID:CloudOrigin.sha256(origin.absoluteString),releaseID:releaseID)
         reload()
     }
 
@@ -163,11 +173,13 @@ final class SkillLibrary: ObservableObject {
     private func syncLibrary(_ resourcesRoot: URL) {
         do {
             let report = try store.syncOfficial(catalog: catalog, resourcesRoot: resourcesRoot)
-            libraryIssue = report.conflicts.isEmpty
+            let protected = try store.syncProtected(catalog: catalog, cliPath: Self.cliPath)
+            let conflicts = report.conflicts + protected.conflicts
+            libraryIssue = conflicts.isEmpty
                 ? nil
                 : L10n.format(
                     "技能库中的 %@ 被外部修改，未自动更新。",
-                    report.conflicts.joined(separator: "、")
+                    conflicts.joined(separator: "、")
                 )
         } catch {
             libraryIssue = (error as? LocalizedError)?.errorDescription
@@ -179,7 +191,7 @@ final class SkillLibrary: ObservableObject {
     /// still has a package on disk becomes a catalog-shaped record. Ids that a
     /// shipped catalog later claims stay official — the catalog wins.
     private func loadUserSkills() {
-        let catalogIDs = Set(catalog.skills.map(\.id))
+        let catalogIDs = Set(skills.map(\.id))
         userSkills = store.entries().values
             .filter {
                 $0.source == SkillStore.importedSource
@@ -200,6 +212,53 @@ final class SkillLibrary: ObservableObject {
                 )
             }
             .sorted { $0.id < $1.id }
+    }
+
+    private struct CloudSnapshot: Codable {
+        let origin: String
+        let skills: [OfficialSkill]
+    }
+    private var cloudSnapshotURL: URL {
+        SkillCloudConfig.defaultStateDirectory.appendingPathComponent("cloud-skills.json")
+    }
+    func synchronizeCloud(_ records: [CloudRecord], owned: [CloudRecord], origin: URL) throws {
+        let origin=try CloudOrigin.validate(origin,allowLoopback:CloudOrigin.development)
+        let officialIDs = Set(catalog.skills.map(\.id))
+        var seen = Set<String>()
+        let mapped = try records.map { record -> OfficialSkill in
+            let id = record.text("id")
+            let pricing = record["pricing"]?.object ?? [:]
+            guard SkillId.isValid(id), !officialIDs.contains(id), seen.insert(id).inserted,
+                  let tier = SkillTier(rawValue: pricing.text("model")), tier != .member,
+                  pricing.points("points") >= 0, pricing.points("points") <= 1_000_000_000 else { throw CloudFailure("invalid_catalog") }
+            let release = owned.first { $0.text("skill_id") == id }?.text("release_id") ?? record.text("release_id")
+            guard !release.isEmpty, release.count <= 100,
+                  release.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || "-_.".contains($0)) }) else { throw CloudFailure("invalid_catalog") }
+            return OfficialSkill(id: id, name: record.text("name"), summary: "通过微信流获取或调用本技能，费用与权限由服务端核验。", version: release, package: nil,
+                supportedAgents: [.chatGPTCodex], tier: tier, protection: .l1,
+                billing: tier == .metered ? SkillBilling(unit: .call, points: Int(pricing.points("points"))) : nil,
+                releaseID: release, cloudOriginID: CloudOrigin.sha256(origin.absoluteString), executionKind: record.text("execution_kind"))
+        }
+        try FileManager.default.createDirectory(at: cloudSnapshotURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try JSONEncoder().encode(CloudSnapshot(origin: origin.absoluteString, skills: mapped)).write(to: cloudSnapshotURL, options: .atomic)
+        cloudSkills = mapped
+        _ = try store.syncProtected(catalog: OfficialSkillCatalog(skills: mapped), cliPath: Self.cliPath)
+        revision += 1
+    }
+    private func restoreCloudSkills() {
+        guard let origin = try? CommerceAPI.loadConfig(),
+              let data = try? Data(contentsOf: cloudSnapshotURL),
+              let snapshot = try? JSONDecoder().decode(CloudSnapshot.self, from: data),
+              snapshot.origin == origin.absoluteString else { cloudSkills = []; return }
+        cloudSkills = snapshot.skills
+        do { _ = try store.syncProtected(catalog: OfficialSkillCatalog(skills: cloudSkills), cliPath: Self.cliPath) }
+        catch { libraryIssue = error.localizedDescription }
+    }
+
+    /// `wcb` ships next to the app executable; stubs embed this absolute path.
+    nonisolated static var cliPath: String {
+        let executable = Bundle.main.executableURL ?? Bundle.main.bundleURL
+        return executable.deletingLastPathComponent().appendingPathComponent("wcb").path
     }
 
     nonisolated private static func findResourcesRoot() -> URL? {
