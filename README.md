@@ -6,7 +6,7 @@
 
   <p>
     <a href="#下载安装"><img src="https://img.shields.io/badge/免费下载-macOS%20%7C%20Windows-07C160?style=flat-square" alt="免费下载" /></a>
-    <a href="#加入交流群"><img src="https://img.shields.io/badge/交流群-微信扫码-07C160?style=flat-square&logo=wechat&logoColor=white" alt="加入交流群" /></a>
+    <a href="#加入交流群"><img src="https://img.shields.io/badge/交流群-点击进群-07C160?style=flat-square&logo=wechat&logoColor=white" alt="加入交流群" /></a>
     <a href="https://github.com/freestylefly/WeChatBridge/stargazers"><img src="https://img.shields.io/github/stars/freestylefly/WeChatBridge?style=flat-square" alt="GitHub Stars" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT License" /></a>
   </p>
@@ -16,7 +16,8 @@
     <a href="#加入交流群"><strong>交流群</strong></a> ·
     <a href="USAGE.zh-CN.md">使用指南</a> ·
     <a href="https://render.qmuse.pub/p/muse/2413870555736078">官网</a> ·
-    <a href="README_EN.md">English</a>
+    <a href="README_EN.md">English</a> ·
+    <a href="README_JA.md">日本語</a>
   </p>
 
   <img src="shared/Screenshots/demo-wechat-to-agent.gif" width="800" alt="演示：在微信多选群聊消息，转发到微信流，选择场景后交给 Codex 总结" />
@@ -66,19 +67,19 @@
 
 | 平台 | 下载地址 | 提取密码 |
 | --- | --- | --- |
-| macOS 14+（Apple Silicon 与 Intel） | [wwbsr.lanzout.com/b0umjur8h](https://wwbsr.lanzout.com/b0umjur8h) | `向明` |
+| macOS 13+（Apple Silicon 与 Intel） | [wwbsr.lanzout.com/b0umjur8h](https://wwbsr.lanzout.com/b0umjur8h) | `向明` |
 | Windows | [wwbsr.lanzout.com/b0umjur4d](https://wwbsr.lanzout.com/b0umjur4d) | `向明` |
 
-macOS 版打开 DMG，把「微信流」拖入「应用程序」即可；Windows 版解压后按目录内说明运行。iOS 版正在开发中，进群可以第一时间知道进展。
+macOS 版打开 DMG，把「微信流」拖入「应用程序」即可（图标带 🚫 或提示「无法验证」见[常见问题](USAGE.zh-CN.md#常见问题)）；Windows 版解压后按目录内说明运行。iOS 版正在开发中，进群可以第一时间知道进展。
 
 ## 加入交流群
 
 <table>
   <tr>
     <td width="300" align="center">
-      <img src="shared/Screenshots/wechat-community-group.png" width="260" alt="WeChatBridge 微信交流群二维码" />
+      <a href="https://my.feishu.cn/wiki/Eq6twbgv5irYgikOa8Pc2fHfnKg#share-RNMedgl3VoT0M5xZRNVcCXPBnSe"><img src="https://img.shields.io/badge/👉%20点击获取进群二维码-07C160?style=for-the-badge&logo=wechat&logoColor=white" alt="点击获取进群二维码" /></a>
       <br />
-      <sub>微信扫码加入</sub>
+      <sub>打开后用微信扫码即可进群，二维码会持续更新</sub>
     </td>
     <td>
       <strong>进群你可以：</strong>
@@ -88,10 +89,18 @@ macOS 版打开 DMG，把「微信流」拖入「应用程序」即可；Windows
         <li>拿到群友在用的场景提示词和技能包，抄作业比自己写快</li>
         <li>提需求：你想把聊天记录送到哪个应用，告诉我们</li>
       </ul>
-      二维码过期的话，扫下方「关于我们」里苍何的微信，备注「微信流」。
+      群满或进不去的话，扫下方「关于我们」里向明的微信，备注「微信流」。
+      <br /><br />
+      兼容层的代码下载也可以在<a href="https://my.feishu.cn/wiki/Eq6twbgv5irYgikOa8Pc2fHfnKg#share-RNMedgl3VoT0M5xZRNVcCXPBnSe">这里</a>打开。
     </td>
   </tr>
 </table>
+
+## ❤️ 赞助商
+
+| 赞助商 | 介绍 |
+| ------ | ---- |
+| <a href="https://apixo.ai/zh?utm_source=github&utm_medium=sponsorship&utm_campaign=wechat_bridge&utm_content=brand_mention" target="_blank" rel="noopener noreferrer"><img src="shared/Sponsors/apixo-ai-stacked-on-black.png" width="90" alt="APIXO AI: 一站式 AI 视频制作与多模态创作平台"></a> | **[APIXO AI](https://apixo.ai/zh?utm_source=github&utm_medium=sponsorship&utm_campaign=wechat_bridge&utm_content=brand_mention)：一站式 AI 视频制作与多模态创作平台**<br><br>为微信群聊机器人与智能助手轻松赋予文生图、视频生成与视觉理解能力，低延迟稳定高并发。<br>🔥 **[Seedream 5.5](https://apixo.ai/zh/models/seedream-5-5?utm_source=github&utm_medium=sponsorship&utm_campaign=wechat_bridge&utm_content=seedream_5_5) 旗舰文生图 API 官价七折，低至 $0.014/次！**<br>支持 **[MCP 协议无缝接入](https://apixo.ai/zh/mcp?utm_source=github&utm_medium=sponsorship&utm_campaign=wechat_bridge&utm_content=mcp_page)**，中国开发者免海外信用卡、银联直充即用，注册即赠免费额度。 |
 
 ## 为什么做微信流
 

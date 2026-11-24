@@ -38,7 +38,7 @@
 	<key>DKStorageMode</key>
 	<string>shared</string>
 	<key>LSMinimumSystemVersion</key>
-	<string>14.0</string>
+	<string>13.0</string>
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>

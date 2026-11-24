@@ -127,11 +127,11 @@ struct CloudPane: View {
         }
         .disabled(account.busy)
         .task { account.restore() }
-        .onChange(of: account.catalog) { _, records in
+        .compatOnChange(of: account.catalog) { _, records in
             guard let origin = URL(string: account.originText) else { return }
             try? skills.synchronizeCloud(records, owned: account.owned, origin: origin)
         }
-        .onChange(of: account.owned) { _, owned in
+        .compatOnChange(of: account.owned) { _, owned in
             guard let origin = URL(string: account.originText) else { return }
             try? skills.synchronizeCloud(account.catalog, owned: owned, origin: origin)
         }

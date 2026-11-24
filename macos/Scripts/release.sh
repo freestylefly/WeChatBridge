@@ -42,9 +42,22 @@ if [ "$REQUIRE_TAG" = "1" ]; then
 	fi
 fi
 
-IDENTITY="${IDENTITY:-$(security find-identity -v -p codesigning 2>/dev/null | awk '/Developer ID Application:/ {print $2; exit}')}"
+# Pin the identity to one team. Picking "the first Developer ID in the
+# keychain" signs with whichever certificate happens to be installed, which is
+# how a release ends up under somebody else's name or not notarizable at all.
+TEAM_ID="${TEAM_ID:-}"
+if [ -z "${IDENTITY:-}" ]; then
+	if [ -z "$TEAM_ID" ]; then
+		echo "set TEAM_ID to the Apple Developer team that owns the Developer ID certificate" >&2
+		security find-identity -v -p codesigning | grep 'Developer ID Application:' >&2 || true
+		exit 1
+	fi
+	IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null \
+		| awk -v team="($TEAM_ID)\"" '/Developer ID Application:/ && index($0, team) {print $2; exit}')"
+fi
 if [ -z "$IDENTITY" ]; then
-	echo "no valid Developer ID Application identity was found" >&2
+	echo "no valid Developer ID Application identity for team $TEAM_ID was found" >&2
+	echo "create one at developer.apple.com → Certificates → Developer ID Application" >&2
 	exit 1
 fi
 
@@ -99,6 +112,8 @@ if [ "$NOTARIZE" = "1" ]; then
 	notarize_artifact "$DMG" dmg
 	xcrun stapler staple "$DMG"
 	xcrun stapler validate "$DMG"
+	# The same check a downloaded copy will face on a user's Mac.
+	"$ROOT/Scripts/verify-gatekeeper.sh" "$DMG"
 else
 	echo "warning: NOTARIZE=0; this DMG is not publishable" >&2
 fi

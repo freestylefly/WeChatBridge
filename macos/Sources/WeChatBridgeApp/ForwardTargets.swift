@@ -9,6 +9,15 @@ import UniformTypeIdentifiers
 /// icon fetch; the settings pane asks for every row on every frame, so the
 /// answer is remembered. Main-actor only, which is why the cache needs no lock.
 @MainActor
+extension ShareAction {
+    /// The bundle identifier to drive on this Mac: the first of
+    /// `targetBundleIdentifiers` that is installed, else the primary one so a
+    /// missing app still reads as 未安装 under its usual name.
+    var installedTargetBundleIdentifier: String? {
+        targetBundleIdentifiers.first { InstalledApp.lookup($0).isInstalled } ?? targetBundleIdentifier
+    }
+}
+
 struct InstalledApp {
     let bundleIdentifier: String
     /// Nil when the app is not on this Mac — the row then says 未安装 rather

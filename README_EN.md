@@ -6,7 +6,7 @@
 
   <p>
     <a href="#download"><img src="https://img.shields.io/badge/free%20download-macOS%20%7C%20Windows-07C160?style=flat-square" alt="Free download" /></a>
-    <a href="#join-the-community"><img src="https://img.shields.io/badge/community-WeChat%20group-07C160?style=flat-square&logo=wechat&logoColor=white" alt="Join the community group" /></a>
+    <a href="#join-the-community"><img src="https://img.shields.io/badge/community-join%20WeChat%20group-07C160?style=flat-square&logo=wechat&logoColor=white" alt="Join the community group" /></a>
     <a href="https://github.com/freestylefly/WeChatBridge/stargazers"><img src="https://img.shields.io/github/stars/freestylefly/WeChatBridge?style=flat-square" alt="GitHub Stars" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT License" /></a>
   </p>
@@ -16,7 +16,8 @@
     <a href="#join-the-community"><strong>Community</strong></a> ·
     <a href="USAGE_EN.md">Usage guide</a> ·
     <a href="https://render.qmuse.pub/p/muse/2413870555736078">Website</a> ·
-    <a href="README.md">简体中文</a>
+    <a href="README.md">简体中文</a> ·
+    <a href="README_JA.md">日本語</a>
   </p>
 
   <img src="shared/Screenshots/demo-wechat-to-agent.gif" width="800" alt="Demo: select group messages in WeChat, forward them to WeChatBridge, pick a scene, and Codex starts summarizing" />
@@ -66,19 +67,19 @@ Free to download. All installers are distributed through Lanzou Cloud, and the e
 
 | Platform | Download | Password |
 | --- | --- | --- |
-| macOS 14+ (Apple Silicon and Intel) | [wwbsr.lanzout.com/b0umjur8h](https://wwbsr.lanzout.com/b0umjur8h) | `向明` |
+| macOS 13+ (Apple Silicon and Intel) | [wwbsr.lanzout.com/b0umjur8h](https://wwbsr.lanzout.com/b0umjur8h) | `向明` |
 | Windows | [wwbsr.lanzout.com/b0umjur4d](https://wwbsr.lanzout.com/b0umjur4d) | `向明` |
 
-On macOS, open the DMG and drag WeChatBridge into Applications. On Windows, unzip the archive and follow the instructions inside. An iOS version is in development—join the group to hear about it first.
+On macOS, open the DMG and drag WeChatBridge into Applications (if the icon shows a 🚫 or macOS says it cannot verify the app, see the [FAQ](USAGE_EN.md#faq)). On Windows, unzip the archive and follow the instructions inside. An iOS version is in development—join the group to hear about it first.
 
 ## Join the community
 
 <table>
   <tr>
     <td width="300" align="center">
-      <img src="shared/Screenshots/wechat-community-group.png" width="260" alt="QR code for the WeChatBridge community group" />
+      <a href="https://my.feishu.cn/wiki/Eq6twbgv5irYgikOa8Pc2fHfnKg#share-RNMedgl3VoT0M5xZRNVcCXPBnSe"><img src="https://img.shields.io/badge/👉%20Get%20the%20group%20QR%20code-07C160?style=for-the-badge&logo=wechat&logoColor=white" alt="Get the community group QR code" /></a>
       <br />
-      <sub>Scan with WeChat to join</sub>
+      <sub>Open the page and scan the current QR code with WeChat; it is kept up to date</sub>
     </td>
     <td>
       <strong>In the group you can:</strong>
@@ -88,10 +89,18 @@ On macOS, open the DMG and drag WeChatBridge into Applications. On Windows, unzi
         <li>Pick up the scene prompts and skill packs other members use—faster than writing your own</li>
         <li>Request features: tell us which app you want your conversations sent to</li>
       </ul>
-      If the QR code has expired, scan 苍何's WeChat under “About us” below and mention “WeChatBridge”.
+      If the group is full or you can't get in, scan 向明's WeChat under “About us” below and mention “WeChatBridge”.
+      <br /><br />
+      The compatibility-layer code download is also available <a href="https://my.feishu.cn/wiki/Eq6twbgv5irYgikOa8Pc2fHfnKg#share-RNMedgl3VoT0M5xZRNVcCXPBnSe">here</a>.
     </td>
   </tr>
 </table>
+
+## ❤️ Sponsors
+
+| Sponsor | Description |
+| ------- | ----------- |
+| <a href="https://apixo.ai/?utm_source=github&utm_medium=sponsorship&utm_campaign=wechat_bridge&utm_content=brand_mention" target="_blank" rel="noopener noreferrer"><img src="shared/Sponsors/apixo-ai-stacked-on-black.png" width="90" alt="APIXO AI: All-in-One AI Video Maker & Multimodal Creation Platform"></a> | **[APIXO AI](https://apixo.ai/?utm_source=github&utm_medium=sponsorship&utm_campaign=wechat_bridge&utm_content=brand_mention): All-in-One AI Video Maker & Multimodal Creation Platform**<br><br>Empower WeChat bots and AI assistants with instant 4K video generation and text-to-image capabilities.<br>🔥 **[Seedream 5.5](https://apixo.ai/models/seedream-5-5?utm_source=github&utm_medium=sponsorship&utm_campaign=wechat_bridge&utm_content=seedream_5_5) Text-to-Image API: 30% OFF official rate, from $0.014/call!**<br>Seamlessly compatible with **[MCP Integration](https://apixo.ai/mcp?utm_source=github&utm_medium=sponsorship&utm_campaign=wechat_bridge&utm_content=mcp_page)** for high-concurrency bot workflows. |
 
 ## Why WeChatBridge
 

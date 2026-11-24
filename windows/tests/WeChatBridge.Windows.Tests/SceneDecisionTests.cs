@@ -620,6 +620,30 @@ public sealed class SceneDecisionTests
         Assert.Null(empty.TryRead());
     }
 
+    /// <summary>
+    /// Issue #41: WeChat 4.x titles its main window 「微信」 whatever chat is
+    /// open. That title must read as "no name" so the OCR fallback runs,
+    /// instead of every group being filed under 「微信」.
+    /// </summary>
+    [Fact]
+    public void WindowTitleReaderIgnoresTheAppName()
+    {
+        foreach (var appName in new[] { "微信", "Weixin", "WeChat", " weixin " })
+        {
+            var reader = new WeChatWindowTitleReader(() => [appName]);
+            var error = Assert.Throws<WeChatTitleReaderException>(() => reader.Read());
+            Assert.Equal(WeChatTitleReaderErrorKind.EmptyTitle, error.Kind);
+            Assert.Null(reader.TryRead());
+        }
+
+        var mixed = new WeChatWindowTitleReader(() => ["微信", "华东客户群 (128)"]);
+        Assert.Equal("华东客户群", mixed.Read().Name);
+
+        // The longest-line fallback must not pick the app name over a real chat.
+        var direct = new WeChatWindowTitleReader(() => ["微信", "张三"]);
+        Assert.Equal("张三", direct.Read().Name);
+    }
+
     [Fact]
     public void DefaultSceneRequiresExplicitSelection()
     {

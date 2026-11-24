@@ -97,7 +97,7 @@ struct ShareEntryList: View {
 
     @ViewBuilder
     private func entryIcon(_ action: ShareAction) -> some View {
-        if let bundleIdentifier = action.targetBundleIdentifier,
+        if let bundleIdentifier = action.installedTargetBundleIdentifier,
            InstalledApp.lookup(bundleIdentifier).isInstalled {
             Image(nsImage: InstalledApp.lookup(bundleIdentifier).icon)
                 .resizable()
@@ -200,7 +200,7 @@ struct ShareEntryList: View {
         if compactDetails {
             switch action {
             case .codex, .claude, .doubao, .qwen, .workBuddy, .weSight, .deepSeekHarness:
-                guard let bundleIdentifier = action.targetBundleIdentifier else {
+                guard let bundleIdentifier = action.installedTargetBundleIdentifier else {
                     return L10n.text("未安装")
                 }
                 return InstalledApp.lookup(bundleIdentifier).isInstalled
@@ -243,7 +243,7 @@ struct ShareEntryList: View {
         guard compactDetails else { return false }
         switch action {
         case .codex, .claude, .doubao, .qwen, .workBuddy, .weSight, .deepSeekHarness:
-            return action.targetBundleIdentifier.map {
+            return action.installedTargetBundleIdentifier.map {
                 !InstalledApp.lookup($0).isInstalled
             } ?? true
         case .obsidian:
