@@ -70,3 +70,18 @@ memory/
 # Python byte-code from local scripts
 __pycache__/
 *.pyc
+
+# Roadshow decks and prompts: pitch material for one audience, not product docs.
+/微信流路演/
+/路演PPT提示词.md
+
+# Third-party signing library; save_video.py/sign.mjs fetch it from its origin
+# on first run, so the repository never redistributes someone else's code.
+shared/Skills/wechat-video-download/scripts/enc.js
+
+# Icon exploration rounds stay local; only the brief and the final masters ship.
+/design/chatbridge-icon/*
+!/design/chatbridge-icon/v3/
+/design/chatbridge-icon/v3/*
+!/design/chatbridge-icon/v3/brief.md
+!/design/chatbridge-icon/v3/final/
