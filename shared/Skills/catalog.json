@@ -16,6 +16,34 @@
       ]
     },
     {
+      "id": "wechat-article-download",
+      "name": "公众号文章下载",
+      "summary": "把公众号文章链接下载为本地 Markdown 归档，图片自动本地化。",
+      "version": "1.0.0",
+      "package": "wechat-article-download",
+      "supported_agents": [
+        "chatGPTCodex",
+        "claude",
+        "doubao",
+        "qwenWork",
+        "workBuddy"
+      ]
+    },
+    {
+      "id": "wechat-video-download",
+      "name": "视频号视频下载",
+      "summary": "把视频号分享链接（weixin.qq.com/sph/…）解析并下载为可播放的 mp4。",
+      "version": "1.0.0",
+      "package": "wechat-video-download",
+      "supported_agents": [
+        "chatGPTCodex",
+        "claude",
+        "doubao",
+        "qwenWork",
+        "workBuddy"
+      ]
+    },
+    {
       "id": "video-information-reading",
       "name": "视频信息读取",
       "summary": "读取视频链接或文件，整理逐字稿、摘要和关键时间点。",
