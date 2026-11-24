@@ -217,7 +217,7 @@ flowchart LR
 
 ### 从源码构建
 
-需要 macOS 14+，以及 Xcode 16 或兼容 Swift 6 的 Command Line Tools。
+构建需要 Xcode 16 或兼容 Swift 6 的 Command Line Tools（Xcode 16 本身要求 macOS 14.5+）；构建出的 App 可在 macOS 13+ 运行。
 
 ```bash
 git clone https://github.com/freestylefly/WeChatBridge.git
@@ -284,7 +284,7 @@ shared/                 # 多端共用的资产与契约
 site/                   # Sparkle 更新源与版本说明
 ```
 
-项目使用 Swift Package Manager 管理 macOS 源码和 Sparkle 依赖。`macos/Scripts/make-app.sh` 会把主程序与十二个 Share Extension 组装成完整的 `.app`。iOS 侧见 `ios/project.yml`，Windows 侧见 `windows/AGENTS.md` 与 `windows/docs/README.zh-CN.md`。
+项目使用 Swift Package Manager 管理 macOS 源码和 Sparkle 依赖。`macos/Scripts/make-app.sh` 会把主程序与十二个 Share Extension 组装成完整的 `.app`。iOS 侧见 `ios/project.yml`，Windows 侧见 `windows/docs/README.zh-CN.md`。
 
 </details>
 

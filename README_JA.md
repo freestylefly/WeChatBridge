@@ -2,7 +2,7 @@
   <img src="shared/Screenshots/app-icon-rounded.png" width="128" alt="WeChatBridge のアイコン" />
   <h1>WeChatBridge (微信流)</h1>
   <p><strong>グループの未読メッセージが何百件も？ 選んで転送し、AI に要約を任せるか、ナレッジベースに保存しましょう。</strong></p>
-  <p>WeChat の「Forward to other apps」メニューから、Codex、Claude、Doubao、QwenWork、Obsidian などを直接選べます。データベースへのアクセスも、WeChat へのインジェクションもなく、すべてローカルで動きます。</p>
+  <p>WeChat の「Forward to other apps」メニューから、Codex、Claude、Doubao、QwenWork、Obsidian などを直接選べます。データベースへのアクセスも、WeChat へのインジェクションもありません。会話は既定でローカルにとどまり、クラウドスキルは任意で利用できます。</p>
 
   <p>
     <a href="#ダウンロード"><img src="https://img.shields.io/badge/free%20download-macOS%20%7C%20Windows-07C160?style=flat-square" alt="無料ダウンロード" /></a>
@@ -67,7 +67,7 @@ macOS 版 WeChat 4.1.13 以降が必要です。詳しい手順、権限、ト�
 
 | プラットフォーム | ダウンロード | パスワード |
 | --- | --- | --- |
-| macOS 14+（Apple Silicon と Intel） | [wwbsr.lanzout.com/b0umjur8h](https://wwbsr.lanzout.com/b0umjur8h) | `向明` |
+| macOS 13+（Apple Silicon と Intel） | [wwbsr.lanzout.com/b0umjur8h](https://wwbsr.lanzout.com/b0umjur8h) | `向明` |
 | Windows | [wwbsr.lanzout.com/b0umjur4d](https://wwbsr.lanzout.com/b0umjur4d) | `向明` |
 
 macOS では、DMG を開いて WeChatBridge を「アプリケーション」にドラッグします。Windows では、アーカイブを展開して中の手順に従ってください。iOS 版は開発中です。グループに参加すると、いち早く情報を受け取れます。
@@ -176,11 +176,12 @@ flowchart LR
 
 ## プライバシーを考えた設計
 
-会話はあなた自身のコンピューターの中でしか移動しません：
+会話は既定であなた自身のコンピューターの中にとどまります：
 
 - 会話の内容は、WeChat が明示的に書き出したファイルからしか取得しません。
 - アプリは WeChat のデータベースを読んだり、データを復号したり、コードをインジェクションしたり、WeChat を改変したりしません。
-- アーカイブ、シーン、履歴はコンピューターの中にとどまります。
+- アーカイブ、シーン、履歴は既定でコンピューターの中にとどまります。
+- 任意のクラウドスキル（開発中）は、ユーザーが設定したサービスにアクセスします。アカウント、スキル一覧、実行の許可にはネットワークが必要で、従量制の実行では許可した入力だけを送信します。
 - すべての Share Extension は、ネットワークにアクセスできない macOS のサンドボックス内で動きます。
 - 画面収録は、WeChat のタイトルバーにあるチャット名を認識するためだけに使い、画像はメモリ内で処理します。
 - アクセシビリティは、送り先を起動して貼り付けの操作を行うためだけに使います。
@@ -206,7 +207,7 @@ flowchart LR
 
 ### ソースからビルドする
 
-macOS 14+ と、Swift 6 に対応した Xcode 16 または Command Line Tools が必要です。
+ビルドには Swift 6 に対応した Xcode 16 または Command Line Tools が必要です（Xcode 16 自体は macOS 14.5+ が必要）。ビルドしたアプリは macOS 13+ で動作します。
 
 ```bash
 git clone https://github.com/freestylefly/WeChatBridge.git
@@ -255,7 +256,7 @@ shared/                   # Agent logos, design assets, screenshots, demos, and 
 site/                     # Sparkle update feed and release notes
 ```
 
-macOS のソースの構成と Sparkle の依存関係は Swift Package Manager で管理しています。`macos/Scripts/make-app.sh` は、ホストの実行ファイルと 12 個の Share Extension を組み立てて、完全な `.app` バンドルにします。iOS については `ios/project.yml` を、Windows については `windows/AGENTS.md` と `windows/docs/README.zh-CN.md` を参照してください。
+macOS のソースの構成と Sparkle の依存関係は Swift Package Manager で管理しています。`macos/Scripts/make-app.sh` は、ホストの実行ファイルと 12 個の Share Extension を組み立てて、完全な `.app` バンドルにします。iOS については `ios/project.yml` を、Windows については `windows/docs/README.zh-CN.md` を参照してください。
 
 </details>
 

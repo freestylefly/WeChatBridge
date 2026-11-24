@@ -184,11 +184,12 @@ When collecting in batches, select each batch in WeChat and share it to “Colle
 
 ## Privacy by design
 
-Your conversations only move around on your own computer:
+By default your conversations stay on your own computer:
 
 - Conversation content only comes from files explicitly exported by WeChat.
 - The app does not read WeChat databases, decrypt data, inject code, or modify WeChat.
-- Archives, scenes, and history stay on your computer.
+- Archives, scenes, and history stay on your computer by default.
+- Optional cloud skills (in development) talk to a service you configure: accounts, the skill catalog and execution grants need the network, and metered runs submit only the inputs you authorize. Local archives are never uploaded in bulk, and cloud credentials are kept separate between the app and its signed `wcb` CLI.
 - Every Share Extension runs inside the macOS sandbox without network access.
 - Screen Recording is used only to recognize the chat name in WeChat's title bar; images are processed in memory.
 - Accessibility is used only to activate a destination and perform the paste action.
@@ -214,7 +215,7 @@ For project updates and tips, follow our WeChat Official Account or add us on We
 
 ### Build from source
 
-Requires macOS 14+ and Xcode 16 or Command Line Tools with Swift 6 support.
+Building requires Xcode 16 or Command Line Tools with Swift 6 support (Xcode 16 itself needs macOS 14.5+); the built app runs on macOS 13+.
 
 ```bash
 git clone https://github.com/freestylefly/WeChatBridge.git
@@ -263,7 +264,7 @@ shared/                   # Agent logos, design assets, screenshots, demos, and 
 site/                     # Sparkle update feed and release notes
 ```
 
-Swift Package Manager owns the macOS source layout and the Sparkle dependency. `macos/Scripts/make-app.sh` assembles the host executable and twelve Share Extensions into a complete `.app` bundle. For iOS see `ios/project.yml`; for Windows see `windows/AGENTS.md` and `windows/docs/README.zh-CN.md`.
+Swift Package Manager owns the macOS source layout and the Sparkle dependency. `macos/Scripts/make-app.sh` assembles the host executable and twelve Share Extensions into a complete `.app` bundle. For iOS see `ios/project.yml`; for Windows see `windows/docs/README.zh-CN.md`.
 
 </details>
 
@@ -308,7 +309,3 @@ WeChatBridge is released under the [MIT License](LICENSE).
   <br />
   <sub>Questions or ideas? <a href="#join-the-community">Come chat with us</a>.</sub>
 </div>
-
-### Optional cloud skills (development)
-
-Accounts, points, buyout content and metered demos use a user-configured service. Only authorized task inputs are submitted; local archives are not uploaded in bulk by default. The share extensions remain sandboxed without network access. Cloud credentials are isolated between the app and its signed CLI. A target agent may store instructions and outputs according to its own behavior.

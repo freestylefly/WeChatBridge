@@ -1,12 +1,12 @@
 # 微信流（WeChatBridge）产品能力文档
 
-> 基于 main 分支当前代码整理
-> 平台：macOS 13 及以上
-> 文档日期：2026-09-20
+> 基于 v0.1.16 代码整理
+> 平台：macOS 13 及以上（本文只描述 macOS 版）
+> 文档日期：2026-11-24
 
 ## 1. 产品定义
 
-微信流是一个以本地接收和归档为基础的 macOS 微信聊天记录转发工具，可选接入云端技能。它把微信“转发到其他应用”产生的 ZIP、TXT 和媒体文件，送到 Codex、Claude、豆包、千问办公、WorkBuddy、WeSight、Obsidian、其他应用或剪贴板。
+微信流是一个以本地接收和归档为基础的 macOS 微信聊天记录转发工具，可选接入云端技能。它把微信“转发到其他应用”产生的 ZIP、TXT 和媒体文件，送到 Codex、Claude、豆包、千问办公、WorkBuddy、WeSight、DeepSeek Harness、Obsidian、本地文件夹、其他应用或剪贴板。
 
 核心价值：
 
@@ -202,7 +202,7 @@
 - 支持 Universal 2，即 `arm64` 和 `x86_64`。
 - 使用 Developer ID Application 签名。
 - App 和 DMG 支持 Apple 公证与 stapling。
-- 提供 DMG、Homebrew Cask、SHA-256 校验文件。
+- 提供 DMG 与 SHA-256 校验文件（Homebrew Cask 仍在路线图中）。
 - 支持 Sparkle 更新源。
 - MIT 许可证。
 
@@ -214,7 +214,7 @@
 4. 自动粘贴依赖辅助功能权限、目标 App 可激活性和窗口焦点。
 5. 场景识别群名依赖屏幕录制权限和微信标题栏可读性。
 6. Codex/Claude 转发进入目标应用的输入区域，不等于官方 API 建场景。
-7. 不提供 Windows、iOS、Android 或云端版本。
+7. 本文只覆盖 macOS 版。Windows 版见 `windows/docs/`，iOS 版（信息桥）尚未正式发布，不提供 Android 版；云端技能是可选能力，默认不启用。
 8. 不提供多设备同步、团队共享空间或服务端搜索。
 
 ## 11. 关键实现位置
@@ -223,7 +223,7 @@
 |---|---|
 | 十二个分享入口 | `macos/Scripts/share-slots.sh` |
 | Share Extension 接入 | `macos/Sources/WeChatBridgeShare/ShareViewController.swift` |
-| 附件复制与命名 | `macos/Sources/WeChatBridgeShare/AttachmentImporter.swift` |
+| 附件复制与命名 | `macos/Sources/WeChatBridgeCore/AttachmentImporter.swift` |
 | 目标应用定义 | `macos/Sources/WeChatBridgeCore/ShareAction.swift` |
 | 自定义目标 | `macos/Sources/WeChatBridgeCore/ForwardTarget.swift` |
 | 激活和自动粘贴 | `macos/Sources/WeChatBridgeApp/AutoPaste.swift` |
@@ -231,8 +231,10 @@
 | 场景匹配与快捷键 | `macos/Sources/WeChatBridgeCore/Scene.swift`、`macos/Sources/WeChatBridgeApp/SceneShortcutController.swift` |
 | 技能模型与安装 | `macos/Sources/WeChatBridgeCore/AgentID.swift`、`macos/Sources/WeChatBridgeApp/SkillLibrary.swift` |
 | 技能页面 | `macos/Sources/WeChatBridgeApp/Views/Settings/SkillsPane.swift` |
-| Obsidian 投递 | `macos/Sources/WeChatBridgeApp/KnowledgeDelivery.swift`、`macos/Sources/WeChatBridgeCore/ObsidianNote.swift` |
+| Obsidian 投递 | `macos/Sources/WeChatBridgeCore/KnowledgeDelivery.swift`、`macos/Sources/WeChatBridgeCore/ObsidianNote.swift` |
 | 批次状态 | `macos/Sources/WeChatBridgeCore/BatchState.swift` |
 | 共享目录 | `macos/Sources/WeChatBridgeCore/Inbox.swift` |
+| 云端账号与付费技能（可选） | `macos/Sources/WeChatBridgeApp/CloudAccount.swift`、`macos/Sources/WeChatBridgeCore/Commerce.swift`、`macos/Sources/WeChatBridgeCore/SkillMonetization.swift` |
+| 命令行桥 wcb | `macos/Sources/wcb/main.swift` |
 | App 打包和签名 | `macos/Scripts/make-app.sh` |
 | 发布和公证 | `macos/Scripts/release.sh` |

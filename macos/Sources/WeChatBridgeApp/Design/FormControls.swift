@@ -179,56 +179,6 @@ struct SettingsChoice<Value: Hashable>: Identifiable {
     var image: NSImage? = nil
 }
 
-/// An independent option with the same surface and focus treatment as the
-/// settings inputs. It keeps checkbox semantics and can be combined with peers.
-struct SettingsOptionToggleStyle: ToggleStyle {
-    let symbol: String
-    @Environment(\.isEnabled) private var isEnabled
-    @FocusState private var focused: Bool
-    @State private var hovering = false
-
-    func makeBody(configuration: Configuration) -> some View {
-        Button { configuration.isOn.toggle() } label: {
-            HStack(spacing: Space.s) {
-                Image(systemName: symbol)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(configuration.isOn ? Theme.accent : Theme.inkSecondary)
-                    .frame(width: 16)
-                    .accessibilityHidden(true)
-                configuration.label
-                    .font(SettingsControlMetrics.font)
-                    .foregroundStyle(Theme.ink)
-                Spacer(minLength: Space.s)
-                Image(systemName: configuration.isOn ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(configuration.isOn ? Theme.controlOn : Theme.inputStroke)
-                    .accessibilityHidden(true)
-            }
-            .padding(.horizontal, SettingsControlMetrics.inset)
-            .frame(height: SettingsControlMetrics.height + Space.xs)
-            .frame(maxWidth: .infinity)
-            .background(configuration.isOn ? Theme.accentSoft : (hovering && isEnabled ? Theme.hover : Theme.sunken),
-                        in: RoundedRectangle(cornerRadius: SettingsControlMetrics.radius))
-            .overlay {
-                RoundedRectangle(cornerRadius: SettingsControlMetrics.radius)
-                    .strokeBorder(configuration.isOn ? Theme.accent : Theme.strokeStrong, lineWidth: Stroke.hairline)
-                    .allowsHitTesting(false)
-            }
-            .contentShape(RoundedRectangle(cornerRadius: SettingsControlMetrics.radius))
-        }
-        .buttonStyle(PlainPressButtonStyle(staticFeedback: true))
-        .focused($focused)
-        .compatFocusEffectDisabled()
-        .modifier(SettingsFocusRing(focused: focused))
-        .onHover { hovering = $0 }
-        .opacity(isEnabled ? 1 : 0.45)
-        .accessibilityRepresentation {
-            Toggle(isOn: configuration.$isOn) { configuration.label }
-                .toggleStyle(.checkbox)
-        }
-    }
-}
-
 /// The same choice control for a compact preference and a full-width app list.
 /// Its popover owns arrow-key navigation; a selection commits only on activation.
 struct SettingsSelect<Value: Hashable>: View {
@@ -422,70 +372,6 @@ struct SettingsChoiceList<Value: Hashable>: View {
 
     private func commit() {
         if let highlighted, enabledChoices.contains(where: { $0.id == highlighted }) { select(highlighted) }
-    }
-}
-
-/// A quiet two-way choice. Insets and radii remain concentric (8 = 6 + 2).
-struct SettingsChoiceStrip<Value: Hashable>: View {
-    let title: String
-    @Binding var selection: Value
-    let choices: [SettingsChoice<Value>]
-    @FocusState private var focused: Value?
-
-    var body: some View {
-        HStack(spacing: Space.xxs) {
-            ForEach(choices) { choice in
-                if choice.id != choices.first?.id {
-                    Rectangle()
-                        .fill(Theme.choiceDivider)
-                        .frame(width: Stroke.hairline, height: 14)
-                        .accessibilityHidden(true)
-                }
-                Button { selection = choice.id; focused = choice.id } label: {
-                    HStack(spacing: Space.s) {
-                        ChoiceIcon(choice: choice)
-                        Text(choice.title).font(SettingsControlMetrics.font)
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(Theme.brandPrimary)
-                            .opacity(selection == choice.id ? 1 : 0)
-                            .accessibilityHidden(true)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: SettingsControlMetrics.height - Space.xxs * 2)
-                }
-                .buttonStyle(SettingsChoiceButtonStyle(selected: selection == choice.id))
-                .focused($focused, equals: choice.id)
-                .compatFocusEffectDisabled()
-                .modifier(SettingsFocusRing(focused: focused == choice.id,
-                                            radius: SettingsControlMetrics.radius - Space.xxs))
-            }
-        }
-        .padding(Space.xxs)
-        .background(Theme.sunken, in: RoundedRectangle(cornerRadius: SettingsControlMetrics.radius))
-        .overlay {
-            RoundedRectangle(cornerRadius: SettingsControlMetrics.radius)
-                .strokeBorder(Theme.strokeStrong, lineWidth: Stroke.hairline)
-                .allowsHitTesting(false)
-        }
-        .compatKeyCommands(left: { move(-1) }, right: { move(1) })
-        .accessibilityRepresentation {
-            Picker(title, selection: $selection) {
-                ForEach(choices) { Text($0.title).tag($0.id) }
-            }
-            .pickerStyle(.radioGroup)
-            .horizontalRadioGroupLayout()
-            .labelsHidden()
-            .frame(maxWidth: .infinity, minHeight: SettingsControlMetrics.height)
-        }
-    }
-
-    private func move(_ offset: Int) {
-        guard !choices.isEmpty else { return }
-        let index = choices.firstIndex { $0.id == (focused ?? selection) } ?? 0
-        let next = choices[min(max(index + offset, 0), choices.count - 1)].id
-        selection = next
-        focused = next
     }
 }
 

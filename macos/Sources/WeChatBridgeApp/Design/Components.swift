@@ -86,20 +86,6 @@ extension SettingRow where Control == EmptyView {
     }
 }
 
-/// A soft filled block for explanations and summaries.
-struct Panel<Content: View>: View {
-    var padding: CGFloat = Space.l
-    var tone: Color = Theme.sunken
-    @ViewBuilder var content: () -> Content
-
-    var body: some View {
-        content()
-            .padding(padding)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(tone, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-    }
-}
-
 /// One line of advice: an icon, a sentence, coloured by severity, with an
 /// optional trailing control.
 ///
@@ -262,35 +248,6 @@ struct GhostButtonStyle: ButtonStyle {
                 .onHover { hovering = $0 }
                 .modifier(ButtonPressFeedback(isPressed: pressed, staticFeedback: staticFeedback))
         }
-    }
-}
-
-/// The third-level action inside a card: filled, borderless, compact.
-///
-/// One step *above* whatever it sits on, plus an edge. The reference's
-/// `Theme.sunken` only ever sat on `raised`; WeChatBridge also puts these buttons on
-/// the 记录 pane's sunken row cards, where the fill and the card were the same
-/// token and the capsule disappeared entirely — measured at (28,28,31) on
-/// (28,28,31) in dark. The hairline is what keeps it a control on any ground.
-struct SoftButtonStyle: ButtonStyle {
-    var tone: Color = Theme.hover
-    var foreground: Color = Theme.ink
-    var staticFeedback = false
-    var minHeight: CGFloat = 0
-    @Environment(\.isEnabled) private var isEnabled
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 12.5, weight: .medium))
-            .foregroundStyle(foreground)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 7)
-            .frame(minHeight: minHeight)
-            .background(configuration.isPressed ? Theme.selected : tone, in: Capsule(style: .continuous))
-            .overlay(Capsule(style: .continuous).strokeBorder(Theme.stroke, lineWidth: Stroke.hairline))
-            .opacity(isEnabled ? 1 : 0.35)
-            .contentShape(Capsule())
-            .modifier(ButtonPressFeedback(isPressed: configuration.isPressed, staticFeedback: staticFeedback))
     }
 }
 
